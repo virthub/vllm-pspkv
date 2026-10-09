@@ -1,0 +1,30 @@
+# PSP-KV compute configuration.
+#
+# This file selects the physical KV-cache format (launcher) and the default
+# inner precision used by the PSP-KV attention kernels. It is distinct from
+# conf/virthub.toml, which configures the Virthub KV-cache storage daemon.
+
+[format]
+# Format generation (launcher): 0 = Basic, 1 = Enhanced, 2 = BT-KV
+generation = 1
+
+[precision]
+# Default per-block inner precision (KV storage). Each target precision
+# (fp16/bf16/fp8 query/output) has up to three inner precision levels:
+#   "lossless"  -> 0  (fp16/bf16, 16-bit)  [implemented]
+#   "e4m3"      -> 1  (fp8, 8-bit)         [implemented]
+#   "e5m2"      -> 2  (fp8, 8-bit)         [implemented]
+#   "fp4"       -> 3  (fp4 e2m1, 4-bit)    [implemented]
+# Individual blocks can still be overridden at runtime via the per-block
+# metadata (precision_table).
+inner_precision = "e4m3"
+
+[storage]
+# Cache container layout:
+#   "fixed"    -> every block occupies a fixed-width slot (16-bit for fp16/bf16
+#                 target, 8-bit for fp8 target). Simple; no memory savings from
+#                 fp8/fp4 blocks.
+#   "variable" -> per-block byte stride (lossless 2B, fp8 1B, fp4 0.5B per
+#                 element) with a block-offset table. Real memory savings;
+#                 managed by the Virthub storage manager.
+mode = "fixed"

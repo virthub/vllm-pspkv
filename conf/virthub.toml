@@ -1,0 +1,23 @@
+[general]
+log_level = "info"
+
+[precision]
+# Deprecated: the PSP-KV launcher now lives in conf/pspkv.toml [format].generation.
+# Kept here only as a backward-compat fallback for older setups.
+format_generation = 1
+
+# Attention sink and local window sizes for predictor
+sink_window = 16
+local_window = 64
+
+# Number of critical layers (e.g., first and last)
+critical_layer_count = 2
+
+# Memory pressure thresholds (0.0 – 1.0)
+elevated_pressure_threshold = 0.78
+nominal_pressure_threshold = 0.70
+critical_pressure_threshold = 0.88
+critical_relax_threshold = 0.82
+
+[vllm]
+connector_version = "v2"
