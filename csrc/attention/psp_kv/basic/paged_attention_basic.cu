@@ -40,12 +40,12 @@
 #include <stdint.h>
 
 #include "common/quantization_utils.cuh"
+#include "common/head_dim_dispatch.cuh"
 
 #define BLOCK_SIZE 16
-#define HEAD_DIM 128
 #define MAX_KV_HEADS 8
 
-template <typename scalar_t>
+template <typename scalar_t, int HEAD_DIM>
 __global__ void paged_attention_basic_kernel(
     scalar_t* __restrict__ out,
     const scalar_t* __restrict__ q,
@@ -69,7 +69,7 @@ __global__ void paged_attention_basic_kernel(
     int head_idx = blockIdx.y;           // one query head per block
     int seq_idx = blockIdx.z;            // one sequence per grid dimension
 
-    if (token_idx >= context_lens[seq_idx]) return;
+    if (token_idx != seq_idx || token_idx >= context_lens[seq_idx]) return;
 
     // Determine which KV head this query head maps to (GQA)
     int kv_head = head_idx / (num_heads / num_kv_heads);
@@ -114,22 +114,7 @@ __global__ void paged_attention_basic_kernel(
         const uint8_t* v_block_base = v_cache + block_offsets[physical_block]
                                     + (size_t)kv_head * block_bytes_per_head;
 
-        if (token_idx == 0 && head_idx == 0 && seq_idx == 0 && block_idx == 0) {
-            printf("DBG basic: fmt=%d off=%u bph=%d k_scale=%.3f v_scale=%.3f "
-                   "K[0..3]=0x%02x,0x%02x,0x%02x,0x%02x -> %.3f,%.3f,%.3f,%.3f "
-                   "V[0..3]=0x%02x,0x%02x,0x%02x,0x%02x -> %.3f,%.3f,%.3f,%.3f\n",
-                   fp8_fmt, block_offsets[physical_block], block_bytes_per_head, k_scale, v_scale,
-                   k_block_base[0], k_block_base[1], k_block_base[2], k_block_base[3],
-                   psp_packed_dequant<scalar_t>(k_block_base, 0, fp8_fmt, k_scale),
-                   psp_packed_dequant<scalar_t>(k_block_base, 1, fp8_fmt, k_scale),
-                   psp_packed_dequant<scalar_t>(k_block_base, 2, fp8_fmt, k_scale),
-                   psp_packed_dequant<scalar_t>(k_block_base, 3, fp8_fmt, k_scale),
-                   v_block_base[0], v_block_base[1], v_block_base[2], v_block_base[3],
-                   psp_packed_dequant<scalar_t>(v_block_base, 0, fp8_fmt, v_scale),
-                   psp_packed_dequant<scalar_t>(v_block_base, 1, fp8_fmt, v_scale),
-                   psp_packed_dequant<scalar_t>(v_block_base, 2, fp8_fmt, v_scale),
-                   psp_packed_dequant<scalar_t>(v_block_base, 3, fp8_fmt, v_scale));
-        }
+
 
         // Iterate over tokens in this block
         for (int t = 0; t < tokens_in_block; ++t) {
@@ -193,12 +178,15 @@ void launch_paged_attention_basic(
     cudaStream_t stream = 0)
 {
     dim3 grid(num_tokens, num_heads, num_seqs);
-    paged_attention_basic_kernel<scalar_t><<<grid, 1, 0, stream>>>(
+    psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
+        constexpr int HEAD_DIM = decltype(hd)::value;
+        paged_attention_basic_kernel<scalar_t, HEAD_DIM><<<grid, 1, 0, stream>>>(
         out, q, k_cache, v_cache,
         k_scales, k_zero_points, v_scales, v_zero_points,
         block_tables, context_lens, precision_table, block_offsets,
         max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale
     );
+    });
 }
 
 template void launch_paged_attention_basic<half>(

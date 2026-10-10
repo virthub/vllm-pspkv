@@ -143,6 +143,10 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         output_block_scale: torch.Tensor | None = None,
         **kwargs,
     ) -> torch.Tensor:
+        if attn_metadata is None:
+            # Profiling run: no metadata available yet.
+            return output.fill_(0)
+
         meta = attn_metadata.common_metadata
 
         # ===== Prefill detection (safe for CUDA Graph) =====
@@ -151,11 +155,10 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             num_actual = getattr(meta, "num_actual_tokens", None)
             num_reqs = getattr(meta, "num_reqs", None)
             if num_actual is not None and num_reqs is not None and num_actual > num_reqs:
-                raise NotImplementedError(
-                    "PSP-KV attention backend does not support prefill. "
-                    "Prefill must be executed via the scratch buffer and "
-                    "FlashAttention path."
-                )
+                # PSP-KV kernels are decode-only: prefill computes attention
+                # directly from the projected Q/K/V (the cache is populated by
+                # the model runner's quantize-and-scatter step afterwards).
+                return self._prefill_forward(query, key, value, meta, output, layer)
 
         format_gen = meta.format_generation
 
@@ -279,6 +282,57 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
 
         return output
 
+    def _prefill_forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        meta,
+        output: torch.Tensor,
+        layer,
+    ) -> torch.Tensor:
+        """Prefill attention via the scratch-buffer path.
+
+        PSP-KV kernels are decode-only. During prefill the projected K/V are
+        still in the ``key``/``value`` tensors (the model runner quantizes them
+        into the byte cache after the forward pass). Compute causal attention
+        directly from Q/K/V per sequence and write it to ``output``.
+        """
+        import torch.nn.functional as F
+
+        num_heads = query.size(1)
+        num_kv_heads = key.size(1)
+        head_size = query.size(2)
+        scale = float(layer.scale) if layer.scale is not None else (1.0 / (head_size ** 0.5))
+
+        # GQA: broadcast K/V to the number of query heads.
+        g = num_heads // num_kv_heads
+        k = key.repeat_interleave(g, dim=1) if g > 1 else key
+        v = value.repeat_interleave(g, dim=1) if g > 1 else value
+
+        query_start_loc = getattr(meta, "query_start_loc_cpu", None)
+        if query_start_loc is None:
+            query_start_loc = meta.query_start_loc.cpu()
+        num_reqs = int(meta.num_reqs)
+
+        parts = []
+        for i in range(num_reqs):
+            s = int(query_start_loc[i].item())
+            e = int(query_start_loc[i + 1].item())
+            if e <= s:
+                continue
+            # [L, H, D] -> [H, L, D] so heads are the SDPA batch dim.
+            q_i = query[s:e].transpose(0, 1)
+            k_i = k[s:e].transpose(0, 1)
+            v_i = v[s:e].transpose(0, 1)
+            o_i = F.scaled_dot_product_attention(q_i, k_i, v_i, is_causal=True, scale=scale)
+            parts.append(o_i.transpose(0, 1))
+
+        if parts:
+            out = torch.cat(parts, dim=0)
+            output[: out.size(0)].copy_(out)
+        return output
+
 
 class PSPKVAttentionBackend(AttentionBackend):
     """PSP-KV attention backend factory.
@@ -287,9 +341,21 @@ class PSPKVAttentionBackend(AttentionBackend):
     classes for PSP-KV attention.
     """
 
+    # PSP-KV kernels are hardcoded to head_dim == 128 and block_size == 16.
+    supported_dtypes = [torch.float16, torch.bfloat16]
+
     @staticmethod
     def get_name() -> str:
         return "PSP_KV"
+
+    @classmethod
+    def get_supported_head_sizes(cls) -> list[int]:
+        # Keep in sync with csrc/attention/psp_kv/common/head_dim_dispatch.cuh
+        return [32, 64, 80, 96, 128, 160, 192, 256]
+
+    @classmethod
+    def get_supported_kernel_block_sizes(cls) -> list[int]:
+        return [16]
 
     @staticmethod
     def get_impl_cls():

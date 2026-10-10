@@ -228,7 +228,7 @@ def reference_paged_attention(
             else:
                 v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
                                       (num_kv_heads, head_dim, block_size), 1.0).transpose(1, 2)
-            if format_gen != 0:
+            if format_gen != 0 and fmt != 0:
                 s = scale_table[bid].float()[:, None, None]
                 k = k * s
                 v = v * s

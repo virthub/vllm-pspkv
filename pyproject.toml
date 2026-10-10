@@ -114,6 +114,12 @@ markers = [
 # Make the repo root importable so `from tests...` works regardless of how
 # pytest is invoked (uv run pytest, .venv/bin/python -m pytest, or bare pytest).
 pythonpath = ["."]
+# torch.utils.mkldnn still uses the deprecated torch.jit.script_method; it is
+# pulled in transitively by vllm.utils.deep_gemm's @torch.compile import. This
+# is a PyTorch-internal deprecation, not PSP-KV code, so silence it in tests.
+filterwarnings = [
+    "ignore:`torch.jit.script_method` is deprecated.*:DeprecationWarning",
+]
 
 [tool.ty.src]
 respect-ignore-files = true

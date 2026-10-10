@@ -18,6 +18,22 @@ def _get_ops():
     return getattr(torch.ops, "psp_kv", None)
 
 
+def _make_byte_cache(precision_table, num_kv_heads, block_size, head_dim, dtype, device):
+    """Build a variable-stride byte-buffer cache + block offsets."""
+    from vllm.v1.attention.psp_kv_virthub import block_bytes, compute_block_offsets
+
+    scalar_size = 2 if dtype in (torch.float16, torch.bfloat16) else 1
+    precisions = precision_table.tolist()
+    offsets = compute_block_offsets(precisions, num_kv_heads, block_size, head_dim, scalar_size)
+    total = sum(block_bytes(p, num_kv_heads, block_size, head_dim, scalar_size) for p in precisions)
+    # 0x3C is finite in fp16/bf16 (lossless), e4m3, and e5m2 (1.5 in e4m3)
+    k_buf = torch.full((total,), 0x3C, dtype=torch.uint8, device=device)
+    v_buf = torch.full((total,), 0x3C, dtype=torch.uint8, device=device)
+    kv_cache = torch.stack([k_buf, v_buf])
+    block_offsets = torch.tensor(offsets, dtype=torch.int32, device=device)
+    return kv_cache, block_offsets
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for integration tests")
 class TestPSPKVIntegration:
 
@@ -31,7 +47,7 @@ class TestPSPKVIntegration:
         self.batch_size = 4
         self.num_heads = 8
         self.num_kv_heads = 2
-        self.head_dim = 64
+        self.head_dim = 128
         self.block_size = 16
         self.max_blocks_per_seq = 8
         self.max_num_blocks = 64
@@ -51,16 +67,6 @@ class TestPSPKVIntegration:
         )
         output = torch.zeros_like(query)
 
-        # Static unified KV cache [2, num_blocks, num_kv_heads, block_size, head_dim]
-        # In PSP-KV, KV cache is stored as FP8 (torch.uint8 container)
-        kv_cache = torch.randint(
-            0,
-            255,
-            (2, self.max_num_blocks, self.num_kv_heads, self.block_size, self.head_dim),
-            dtype=torch.uint8,
-            device=self.device,
-        )
-
         # Static metadata tables
         block_tables = torch.zeros(
             (self.batch_size, self.max_blocks_per_seq),
@@ -73,6 +79,10 @@ class TestPSPKVIntegration:
             (self.max_num_blocks, self.num_kv_heads),
             dtype=torch.float32,
             device=self.device,
+        )
+        kv_cache, block_offsets = _make_byte_cache(
+            precision_table, self.num_kv_heads, self.block_size, self.head_dim,
+            self.dtype, self.device,
         )
 
         # Populate realistic block mapping and sequence lengths
@@ -99,6 +109,7 @@ class TestPSPKVIntegration:
         common_meta.context_lens = context_lens
         common_meta.precision_table = precision_table
         common_meta.scale_table = scale_table
+        common_meta.block_offsets = block_offsets
         common_meta.tma_descriptors = None
         common_meta.format_generation = 1  # Enhanced format
         common_meta.num_actual_tokens = self.batch_size
@@ -114,7 +125,7 @@ class TestPSPKVIntegration:
         as context lengths monotonically increase.
         """
         layer, query, kv_cache, metadata, output = self._create_static_decode_environment()
-        impl = PSPKVAttentionImpl()
+        impl = PSPKVAttentionImpl(self.num_heads, self.head_dim, self.softmax_scale, self.num_kv_heads, None, None, "auto")
         context_lens = metadata.common_metadata.context_lens
 
         num_decode_steps = 10
@@ -144,7 +155,7 @@ class TestPSPKVIntegration:
         and replaying the graph produces outputs matching eager execution.
         """
         layer, query, kv_cache, metadata, output = self._create_static_decode_environment()
-        impl = PSPKVAttentionImpl()
+        impl = PSPKVAttentionImpl(self.num_heads, self.head_dim, self.softmax_scale, self.num_kv_heads, None, None, "auto")
 
         # 1. Warmup step (crucial for PyTorch allocator and lazy CUDA context initialization)
         warmup_stream = torch.cuda.Stream()
@@ -208,7 +219,7 @@ class TestPSPKVIntegration:
         then replay the captured graph to ensure memory updates take immediate effect.
         """
         layer, query, kv_cache, metadata, output = self._create_static_decode_environment()
-        impl = PSPKVAttentionImpl()
+        impl = PSPKVAttentionImpl(self.num_heads, self.head_dim, self.softmax_scale, self.num_kv_heads, None, None, "auto")
         precision_table = metadata.common_metadata.precision_table
         scale_table = metadata.common_metadata.scale_table
 

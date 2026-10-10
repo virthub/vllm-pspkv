@@ -223,9 +223,11 @@ def test_psp_kv_attention_impl_forward_dispatch_btkv(mock_get_ops, _mock_capturi
 
 
 @patch("torch.cuda.is_current_stream_capturing", return_value=False)
-def test_psp_kv_attention_impl_forward_prefill_raises(_mock_capturing):
+def test_psp_kv_attention_impl_forward_prefill_computes_attention(_mock_capturing):
     layer = DummyLayer()
-    query = torch.randn(1, 8, 128)
+    query = torch.randn(2, 8, 128)
+    key = torch.randn(2, 8, 128)
+    value = torch.randn(2, 8, 128)
     kv_cache = torch.zeros(2, 10, 8, 16, 128, dtype=torch.uint8)
     # num_actual_tokens > num_reqs triggers prefill detection
     meta = PSPKVAttentionMetadata(
@@ -238,21 +240,24 @@ def test_psp_kv_attention_impl_forward_prefill_raises(_mock_capturing):
             context_lens=torch.zeros(1, dtype=torch.int32),
             num_actual_tokens=2,
             num_reqs=1,
+            query_start_loc_cpu=torch.tensor([0, 2], dtype=torch.int64),
         )
     )
     output = torch.empty_like(query)
 
     impl = _make_impl()
-    with pytest.raises(NotImplementedError, match="PSP-KV attention backend does not support prefill"):
-        impl.forward(
-            layer=layer,
-            query=query,
-            key=torch.empty(0),
-            value=torch.empty(0),
-            kv_cache=kv_cache,
-            attn_metadata=meta,
-            output=output,
-        )
+    # Prefill computes attention directly from Q/K/V (no NotImplementedError).
+    impl.forward(
+        layer=layer,
+        query=query,
+        key=key,
+        value=value,
+        kv_cache=kv_cache,
+        attn_metadata=meta,
+        output=output,
+    )
+    assert output.shape == query.shape
+    assert not torch.isnan(output).any()
 
 
 @patch("torch.cuda.is_current_stream_capturing", return_value=False)

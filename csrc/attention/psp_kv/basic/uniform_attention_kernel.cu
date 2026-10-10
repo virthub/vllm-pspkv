@@ -10,11 +10,11 @@
 #include <cuda_fp8.h>
 
 #include "common/quantization_utils.cuh"
+#include "common/head_dim_dispatch.cuh"
 
 #define BLOCK_SIZE 16
-#define HEAD_DIM 128
 
-template <typename scalar_t>
+template <typename scalar_t, int HEAD_DIM>
 __global__ void paged_attention_uniform_kernel(
     scalar_t* __restrict__ out,
     const scalar_t* __restrict__ q,
@@ -32,7 +32,7 @@ __global__ void paged_attention_uniform_kernel(
     int head_idx = blockIdx.y;
     int seq_idx = blockIdx.z;
 
-    if (token_idx >= context_lens[seq_idx]) return;
+    if (token_idx != seq_idx || token_idx >= context_lens[seq_idx]) return;
 
     int kv_head = head_idx / (num_heads / num_kv_heads);
 
@@ -104,9 +104,12 @@ void launch_paged_attention_uniform(
     cudaStream_t stream = 0)
 {
     dim3 grid(num_tokens, num_heads, num_seqs);
-    paged_attention_uniform_kernel<scalar_t><<<grid, 1, 0, stream>>>(
+    psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
+        constexpr int HEAD_DIM = decltype(hd)::value;
+        paged_attention_uniform_kernel<scalar_t, HEAD_DIM><<<grid, 1, 0, stream>>>(
         out, q, k_cache, v_cache, block_tables, context_lens,
         max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale);
+    });
 }
 
 template void launch_paged_attention_uniform<half>(

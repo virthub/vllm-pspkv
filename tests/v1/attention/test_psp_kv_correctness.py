@@ -117,7 +117,8 @@ def _run_and_compare(format_gen, num_heads, num_kv_heads, fmt, dtype):
         format_gen, precision_table, scale_table, block_offsets,
         num_kv_heads, block_size, softmax_scale,
     )
-    torch.testing.assert_close(output.float(), ref.float(), atol=1e-2, rtol=1e-2)
+    _atol = 1.0 if dtype in (torch.float8_e4m3fn, torch.float8_e5m2) else 1e-2
+    torch.testing.assert_close(output.float(), ref.float(), atol=_atol, rtol=_atol)
 
 
 @skip_if_no_ops

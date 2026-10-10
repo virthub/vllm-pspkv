@@ -178,8 +178,8 @@ run_integration_tests() {
     log_info "Starting vLLM server with $MODEL on port $PORT ..."
     uv run --no-sync vllm serve "$MODEL" \
         --port "$PORT" \
-        --kv-connector virthub \
-        --kv-role kv_both \
+        --attention-backend psp_kv \
+        --kv-transfer-config '{"kv_connector": "virthub", "kv_role": "kv_both"}' \
         --enforce-eager \
         --max-num-seqs 1 \
         --max-model-len 64 \
@@ -249,17 +249,19 @@ serve_model() {
     local ENFORCE_EAGER=""
     local KV_CONNECTOR="virthub"
     local KV_ROLE="kv_both"
+    local ATTENTION_BACKEND="psp_kv"
     local FORMAT=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --model)         MODEL="$2"; shift 2 ;;
-            --port)          PORT="$2"; shift 2 ;;
-            --format)        FORMAT="$2"; shift 2 ;;
-            --enforce-eager) ENFORCE_EAGER="--enforce-eager"; shift ;;
-            --kv-connector)  KV_CONNECTOR="$2"; shift 2 ;;
-            --kv-role)       KV_ROLE="$2"; shift 2 ;;
-            *)               log_error "Unknown option for --serve: $1" ;;
+            --model)             MODEL="$2"; shift 2 ;;
+            --port)              PORT="$2"; shift 2 ;;
+            --format)            FORMAT="$2"; shift 2 ;;
+            --enforce-eager)     ENFORCE_EAGER="--enforce-eager"; shift ;;
+            --kv-connector)      KV_CONNECTOR="$2"; shift 2 ;;
+            --kv-role)           KV_ROLE="$2"; shift 2 ;;
+            --attention-backend) ATTENTION_BACKEND="$2"; shift 2 ;;
+            *)                   log_error "Unknown option for --serve: $1" ;;
         esac
     done
 
@@ -269,7 +271,7 @@ serve_model() {
     fi
 
     log_info "Starting vLLM server with model $MODEL on port $PORT ..."
-    log_info "Attention backend: $VLLM_ATTENTION_BACKEND"
+    log_info "Attention backend: $ATTENTION_BACKEND"
     log_info "Config file: $VIRTHUB_CONFIG"
     if [ -n "$VIRTHUB_FORMAT" ]; then
         log_info "Format override: $VIRTHUB_FORMAT"
@@ -277,8 +279,8 @@ serve_model() {
 
     uv run --no-sync vllm serve "$MODEL" \
         --port "$PORT" \
-        --kv-connector "$KV_CONNECTOR" \
-        --kv-role "$KV_ROLE" \
+        --attention-backend "$ATTENTION_BACKEND" \
+        --kv-transfer-config "{\"kv_connector\": \"$KV_CONNECTOR\", \"kv_role\": \"$KV_ROLE\"}" \
         $ENFORCE_EAGER
 }
 

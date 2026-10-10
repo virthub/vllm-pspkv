@@ -19,6 +19,22 @@ def _get_ops():
     return getattr(torch.ops, "psp_kv", None)
 
 
+def _make_byte_cache(precision_table, num_kv_heads, block_size, head_dim, dtype, device):
+    """Build a variable-stride byte-buffer cache + block offsets for stress tests."""
+    from vllm.v1.attention.psp_kv_virthub import block_bytes, compute_block_offsets
+
+    scalar_size = 2 if dtype in (torch.float16, torch.bfloat16) else 1
+    precisions = precision_table.tolist()
+    offsets = compute_block_offsets(precisions, num_kv_heads, block_size, head_dim, scalar_size)
+    total = sum(block_bytes(p, num_kv_heads, block_size, head_dim, scalar_size) for p in precisions)
+    # 0x3C is finite in fp16/bf16 (lossless), e4m3, and e5m2 (1.5 in e4m3)
+    k_buf = torch.full((total,), 0x3C, dtype=torch.uint8, device=device)
+    v_buf = torch.full((total,), 0x3C, dtype=torch.uint8, device=device)
+    kv_cache = torch.stack([k_buf, v_buf])
+    block_offsets = torch.tensor(offsets, dtype=torch.int32, device=device)
+    return kv_cache, block_offsets
+
+
 class MockGPUModelRunnerSyncHarness:
     """
     Simulates the chunked synchronization engine in GPUModelRunner (Section 7.2)
@@ -169,17 +185,13 @@ class TestPSPKVChaos:
         batch_size = 8
         num_heads = 8
         num_kv_heads = 2
-        head_dim = 64
+        head_dim = 128
         block_size = 16
         max_blocks_per_seq = 16
         total_blocks = 256
 
         query = torch.randn((batch_size, num_heads, head_dim), dtype=torch.bfloat16, device=self.device)
         output = torch.empty_like(query)
-
-        kv_cache = torch.randint(
-            0, 255, (2, total_blocks, num_kv_heads, block_size, head_dim), dtype=torch.uint8, device=self.device
-        )
 
         # Jagged context lengths
         context_lens = torch.tensor([13, 47, 80, 115, 128, 200, 241, 256], dtype=torch.int32, device=self.device)
@@ -199,6 +211,9 @@ class TestPSPKVChaos:
 
         precision_table = torch.randint(0, 2, (total_blocks,), dtype=torch.uint8, device=self.device)
         scale_table = torch.empty((total_blocks, num_kv_heads), dtype=torch.float32, device=self.device).uniform_(0.8, 1.2)
+        kv_cache, block_offsets = _make_byte_cache(
+            precision_table, num_kv_heads, block_size, head_dim, torch.bfloat16, self.device
+        )
 
         layer = MagicMock()
         layer.num_kv_heads = num_kv_heads
@@ -211,13 +226,14 @@ class TestPSPKVChaos:
         common_meta.context_lens = context_lens
         common_meta.precision_table = precision_table
         common_meta.scale_table = scale_table
+        common_meta.block_offsets = block_offsets
         common_meta.tma_descriptors = None
         common_meta.format_generation = 1
         common_meta.num_actual_tokens = batch_size
         common_meta.num_reqs = batch_size
 
         metadata = PSPKVAttentionMetadata(common_metadata=common_meta)
-        impl = PSPKVAttentionImpl()
+        impl = PSPKVAttentionImpl(num_heads, head_dim, layer.scale, num_kv_heads, None, None, "auto")
 
         # Forward execution under extreme fragmentation
         impl.forward(
@@ -243,16 +259,13 @@ class TestPSPKVChaos:
         batch_size = 2
         num_heads = 4
         num_kv_heads = 2
-        head_dim = 64
+        head_dim = 128
         block_size = 16
         total_blocks = 16
 
         query = torch.randn((batch_size, num_heads, head_dim), dtype=torch.float16, device=self.device)
         output = torch.empty_like(query)
 
-        kv_cache = torch.randint(
-            0, 255, (2, total_blocks, num_kv_heads, block_size, head_dim), dtype=torch.uint8, device=self.device
-        )
         block_tables = torch.zeros((batch_size, 4), dtype=torch.int32, device=self.device)
         block_tables[0] = torch.tensor([0, 1, 2, 3], dtype=torch.int32, device=self.device)
         block_tables[1] = torch.tensor([4, 5, 6, 7], dtype=torch.int32, device=self.device)
@@ -279,6 +292,9 @@ class TestPSPKVChaos:
             [1.0, 1.0],
             [1.0, 1.0],
         ], dtype=torch.float32, device=self.device)
+        kv_cache, block_offsets = _make_byte_cache(
+            precision_table, num_kv_heads, block_size, head_dim, torch.float16, self.device
+        )
 
         layer = MagicMock()
         layer.num_kv_heads = num_kv_heads
@@ -291,13 +307,14 @@ class TestPSPKVChaos:
         common_meta.context_lens = context_lens
         common_meta.precision_table = precision_table
         common_meta.scale_table = scale_table
+        common_meta.block_offsets = block_offsets
         common_meta.tma_descriptors = None
         common_meta.format_generation = 1
         common_meta.num_actual_tokens = batch_size
         common_meta.num_reqs = batch_size
 
         metadata = PSPKVAttentionMetadata(common_metadata=common_meta)
-        impl = PSPKVAttentionImpl()
+        impl = PSPKVAttentionImpl(num_heads, head_dim, layer.scale, num_kv_heads, None, None, "auto")
 
         # Must execute without hardware trap or illegal access
         impl.forward(

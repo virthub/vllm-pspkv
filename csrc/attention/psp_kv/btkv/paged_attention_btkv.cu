@@ -43,12 +43,12 @@
 #include <stdio.h>
 
 #include "common/quantization_utils.cuh"
+#include "common/head_dim_dispatch.cuh"
 
 #define BLOCK_SIZE 16
-#define HEAD_DIM 128
 #define MAX_KV_HEADS 8
 
-template <typename scalar_t>
+template <typename scalar_t, int HEAD_DIM>
 __global__ void paged_attention_btkv_kernel(
     scalar_t* __restrict__ out,
     const scalar_t* __restrict__ q,
@@ -70,7 +70,7 @@ __global__ void paged_attention_btkv_kernel(
     int head_idx = blockIdx.y;
     int seq_idx = blockIdx.z;
 
-    if (token_idx >= context_lens[seq_idx]) return;
+    if (token_idx != seq_idx || token_idx >= context_lens[seq_idx]) return;
 
     int kv_head = head_idx / (num_heads / num_kv_heads);
 
@@ -164,12 +164,15 @@ void launch_paged_attention_btkv(
     cudaStream_t stream = 0)
 {
     dim3 grid(num_tokens, num_heads, num_seqs);
-    paged_attention_btkv_kernel<scalar_t><<<grid, 1, 0, stream>>>(
+    psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
+        constexpr int HEAD_DIM = decltype(hd)::value;
+        paged_attention_btkv_kernel<scalar_t, HEAD_DIM><<<grid, 1, 0, stream>>>(
         out, q, k_cache, v_cache,
         k_scales, v_scales,
         block_tables, context_lens, precision_table, block_offsets,
         max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale
     );
+    });
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
