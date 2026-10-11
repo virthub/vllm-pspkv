@@ -179,6 +179,7 @@ run_integration_tests() {
     uv run --no-sync vllm serve "$MODEL" \
         --port "$PORT" \
         --attention-backend psp_kv \
+        --kv-cache-dtype fp8 \
         --kv-transfer-config '{"kv_connector": "virthub", "kv_role": "kv_both"}' \
         --enforce-eager \
         --max-num-seqs 1 \
@@ -189,10 +190,10 @@ run_integration_tests() {
     log_info "Waiting for server to start (up to 60s)..."
     local RETRIES=60
     local COUNT=0
-    until curl -s "http://localhost:$PORT/health" >/dev/null 2>&1 \
-       || curl -s "http://localhost:$PORT/v1/models" >/dev/null 2>&1; do
+    until curl -s --max-time 5 "http://localhost:$PORT/health" >/dev/null 2>&1 \
+       || curl -s --max-time 5 "http://localhost:$PORT/v1/models" >/dev/null 2>&1; do
         sleep 1
-        ((COUNT++))
+        COUNT=$((COUNT + 1))
         if [ $COUNT -ge $RETRIES ]; then
             kill $SERVER_PID 2>/dev/null || true
             log_error "Server failed to start within $RETRIES seconds."
@@ -200,7 +201,7 @@ run_integration_tests() {
     done
 
     log_info "Sending test request..."
-    local RESPONSE=$(curl -s -X POST "http://localhost:$PORT/v1/completions" \
+    local RESPONSE=$(curl -s --max-time 60 -X POST "http://localhost:$PORT/v1/completions" \
          -H "Content-Type: application/json" \
          -d '{"model":"'"$MODEL"'","prompt":"The capital of France is","max_tokens":8,"temperature":0.0}')
 
@@ -280,6 +281,7 @@ serve_model() {
     uv run --no-sync vllm serve "$MODEL" \
         --port "$PORT" \
         --attention-backend "$ATTENTION_BACKEND" \
+        --kv-cache-dtype fp8 \
         --kv-transfer-config "{\"kv_connector\": \"$KV_CONNECTOR\", \"kv_role\": \"$KV_ROLE\"}" \
         $ENFORCE_EAGER
 }

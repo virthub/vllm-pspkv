@@ -295,12 +295,13 @@ def test_psp_kv_attention_impl_forward_btkv_missing_tma_raises(_mock_capturing):
 
 @patch("torch.cuda.is_current_stream_capturing", return_value=False)
 @patch("vllm.v1.attention.backends.psp_kv_attn._get_psp_kv_ops")
-def test_psp_kv_attention_impl_forward_layer_scale_fallback(mock_get_ops, _mock_capturing):
+def test_psp_kv_attention_impl_forward_uses_impl_scale(mock_get_ops, _mock_capturing):
     class DummyLayerNoScale:
         num_kv_heads = 8
         num_kv_heads_per_partition = 8
         head_size = 128
-        scale = None  # No scale provided
+        # NOTE: the Attention layer has no `scale` attribute; the softmax
+        # scale lives on the impl (set from the constructor).
 
     layer = DummyLayerNoScale()
     query = torch.randn(1, 8, 128)
@@ -322,9 +323,8 @@ def test_psp_kv_attention_impl_forward_layer_scale_fallback(mock_get_ops, _mock_
     mock_ops.psp_attention_uniform = MagicMock()
     mock_get_ops.return_value = mock_ops
 
-    expected_scale = 1.0 / (128 ** 0.5)  # default scaling
+    impl = _make_impl()  # scale=0.125
 
-    impl = _make_impl()
     impl.forward(
         layer=layer,
         query=query,
@@ -337,7 +337,7 @@ def test_psp_kv_attention_impl_forward_layer_scale_fallback(mock_get_ops, _mock_
 
     mock_ops.psp_attention_uniform.assert_called_once()
     args, _ = mock_ops.psp_attention_uniform.call_args
-    assert args[5] == expected_scale
+    assert args[5] == impl.scale
 
 
 def test_psp_kv_metadata_builder_build_accepts_kwargs():

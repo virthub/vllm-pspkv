@@ -58,15 +58,16 @@ __global__ void quantize_and_scatter_kernel(
         uint8_t* k_out = key_cache + block_offsets[block_id]
                        + (size_t)h * block_bytes_per_head
                        + block_offset * bytes_per_row;
+        // Enhanced/BT-KV store V transposed [head_dim, block_size]:
+        // element (d, t) lives at byte d*block_size + t.
         uint8_t* v_out = value_cache + block_offsets[block_id]
-                       + (size_t)h * block_bytes_per_head
-                       + block_offset * bytes_per_row;
+                       + (size_t)h * block_bytes_per_head;
 
         for (int d = 0; d < head_dim; ++d) {
             float k = psp_to_float(k_row[d]);
             float v = psp_to_float(v_row[d]);
             psp_packed_quantize<scalar_t>(k_out, d, k, fp8_fmt, scale);
-            psp_packed_quantize<scalar_t>(v_out, d, v, fp8_fmt, scale);
+            psp_packed_quantize<scalar_t>(v_out, d * block_size + block_offset, v, fp8_fmt, scale);
         }
     }
 }

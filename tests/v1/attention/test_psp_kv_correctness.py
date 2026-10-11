@@ -175,10 +175,11 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
         precision_table, block_offsets, scale_table, num_tokens,
     )
 
-    # expected byte buffer via the reference packer
+    # expected byte buffer via the reference packer. The quantize-and-scatter
+    # op writes V transposed (the enhanced/btkv layout), so use format_gen=1.
     k = prefill[:, 0].permute(1, 0, 2).unsqueeze(0)  # [1, num_kv_heads, num_tokens, head_size]
     v = prefill[:, 1].permute(1, 0, 2).unsqueeze(0)
-    expected_k, expected_v, _ = pack_kv_cache(k, v, 0, precision_table, dtype)
+    expected_k, expected_v, _ = pack_kv_cache(k, v, 1, precision_table, dtype)
     assert torch.equal(key_cache, expected_k)
     assert torch.equal(value_cache, expected_v)
     assert torch.equal(scale_table, torch.ones(1, num_kv_heads, device="cuda"))

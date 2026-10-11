@@ -147,6 +147,9 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             # Profiling run: no metadata available yet.
             return output.fill_(0)
 
+        # The PSP-KV ops require a contiguous query tensor.
+        query = query.contiguous()
+
         meta = attn_metadata.common_metadata
 
         # ===== Prefill detection (safe for CUDA Graph) =====
@@ -197,28 +200,33 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             num_kv_heads = layer.num_kv_heads
 
         head_size = layer.head_size
-        # layer.scale may be None; use default scaling factor if so.
-        softmax_scale = (
-            layer.scale if layer.scale is not None else (1.0 / (head_size ** 0.5))
-        )
+        # The softmax scale lives on the impl (set from the constructor's
+        # `scale` argument), not on the Attention layer.
+        softmax_scale = self.scale
 
         # ----- Locate the PSP-KV op namespace -----
         # The wrapper registers ops under `torch.ops.psp_kv.*`.
         ops = _get_psp_kv_ops()
 
-        # ----- Dispatch to the correct PSP-KV kernel -----
+        # ----- Resolve per-block byte offsets (uniform fallback for fixed mode) -----
+        block_size = 16  # PSP-KV block size
+        num_blocks = meta.precision_table.numel()
         block_offsets = getattr(meta, "block_offsets", None)
         if block_offsets is None:
-            raise RuntimeError(
-                "PSP-KV variable-stride kernels require meta.block_offsets "
-                "(per-block byte offsets); the model runner must provide it."
-            )
+            # Fixed-stride fallback (storage.mode="fixed"): all blocks share the
+            # same precision, so per-block byte offsets are uniform. Avoid a
+            # device sync here by assuming fp8 (1 byte/elem) for the fallback.
+            elem_bytes = 1
+            block_bytes = int(block_size * head_size * elem_bytes * num_kv_heads)
+            block_offsets = torch.arange(
+                num_blocks, dtype=torch.int32, device=query.device
+            ) * block_bytes
+
+        # ----- Dispatch to the correct PSP-KV kernel -----
         if format_gen == 0:
             # Basic format: staging path. Dequantize the compressed byte buffer
             # into a uniform target-precision buffer, then run the transparent
             # (uniform) consumer that needs no inner-precision metadata.
-            num_blocks = meta.precision_table.numel()
-            block_size = 16  # PSP-KV block size
             k_staging = torch.empty(
                 num_blocks, num_kv_heads, block_size, head_size,
                 dtype=query.dtype, device=query.device,
@@ -298,12 +306,9 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         into the byte cache after the forward pass). Compute causal attention
         directly from Q/K/V per sequence and write it to ``output``.
         """
-        import torch.nn.functional as F
-
         num_heads = query.size(1)
         num_kv_heads = key.size(1)
-        head_size = query.size(2)
-        scale = float(layer.scale) if layer.scale is not None else (1.0 / (head_size ** 0.5))
+        scale = self.scale
 
         # GQA: broadcast K/V to the number of query heads.
         g = num_heads // num_kv_heads
@@ -321,16 +326,24 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             e = int(query_start_loc[i + 1].item())
             if e <= s:
                 continue
-            # [L, H, D] -> [H, L, D] so heads are the SDPA batch dim.
-            q_i = query[s:e].transpose(0, 1)
-            k_i = k[s:e].transpose(0, 1)
-            v_i = v[s:e].transpose(0, 1)
-            o_i = F.scaled_dot_product_attention(q_i, k_i, v_i, is_causal=True, scale=scale)
-            parts.append(o_i.transpose(0, 1))
+            L = e - s
+            q_i = query[s:e].float()  # [L, H, D]
+            k_i = k[s:e].float()      # [L, H, D]
+            v_i = v[s:e].float()      # [L, H, D]
+            # scores: [H, L, L]  (plain cuBLAS matmul + softmax; no FlashAttention)
+            scores = torch.einsum("lhd,mhd->hlm", q_i, k_i) * scale
+            causal = torch.triu(
+                torch.ones(L, L, dtype=torch.bool, device=query.device), diagonal=1
+            )
+            scores = scores.masked_fill(causal.unsqueeze(0), float("-inf"))
+            weights = torch.softmax(scores, dim=-1)  # [H, L, L]
+            o_i = torch.einsum("hlm,mhd->lhd", weights, v_i)  # [L, H, D]
+            parts.append(o_i.to(output.dtype))
 
         if parts:
             out = torch.cat(parts, dim=0)
             output[: out.size(0)].copy_(out)
+
         return output
 
 
@@ -343,6 +356,8 @@ class PSPKVAttentionBackend(AttentionBackend):
 
     # PSP-KV kernels are hardcoded to head_dim == 128 and block_size == 16.
     supported_dtypes = [torch.float16, torch.bfloat16]
+    # The cache is a uint8 byte buffer: 1 byte/elem for the fp8 inner precisions.
+    supported_kv_cache_dtypes = ["auto", "fp8"]
 
     @staticmethod
     def get_name() -> str:

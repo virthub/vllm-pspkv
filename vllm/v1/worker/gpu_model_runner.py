@@ -4214,7 +4214,7 @@ class GPUModelRunner(
                 has_prefill = bool(is_prefilling.any().item())
 
                 if has_prefill:
-                    from vllm import _C
+                    import torch
                     num_prefill_tokens = int(scheduler_output.total_num_scheduled_tokens)
                     # Loop over all layers in self.kv_caches.
                     # self.kv_caches is a list where each element is a layer's KV cache tensor.
@@ -4232,6 +4232,20 @@ class GPUModelRunner(
                     if attn_gid is not None:
                         blk_table = self.input_batch.block_table[attn_gid].get_device_tensor(num_reqs_padded)
                         slot_map = slot_mappings_by_group[attn_gid]
+
+                        # Uniform byte offsets for the fixed-stride fp8 cache.
+                        # Each block holds num_kv_heads * block_size * head_size bytes.
+                        block_offsets = None
+                        for _c in self.kv_caches:
+                            if _c is not None and _c.dim() >= 1 and _c.size(0) == 2:
+                                _k0 = _c[0]
+                                _nblocks = _k0.size(0)
+                                _block_bytes = _k0.size(1) * _k0.size(2) * _k0.size(3)
+                                block_offsets = torch.arange(
+                                    _nblocks, dtype=torch.int32, device=_k0.device
+                                ) * _block_bytes
+                                break
+
                         for layer_idx, layer_kv_cache in enumerate(self.kv_caches):
                             if layer_kv_cache is None:
                                 continue
@@ -4241,13 +4255,14 @@ class GPUModelRunner(
                                 v_cache = layer_kv_cache[1]
                                 # The scratch has shape (num_layers, max_num_tokens, 2, ...)
                                 # We pass the slice for this layer.
-                                _C.quantize_and_scatter_kv(
+                                torch.ops.psp_kv.quantize_and_scatter_kv(
                                     self.prefill_kv_scratch[layer_idx],
                                     k_cache,
                                     v_cache,
                                     blk_table,
                                     slot_map,
                                     self.precision_table,
+                                    block_offsets,
                                     self.scale_table,
                                     num_prefill_tokens
                                 )

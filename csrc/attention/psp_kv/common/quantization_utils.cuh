@@ -263,7 +263,7 @@ __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value) {
     uint8_t sign = (bits >> 31) & 0x1;
     float abs_value = fabsf(value);
 
-    if (isinf(abs_value)) return (sign << 3) | 0x6;
+    if (isinf(abs_value)) return (sign << 3) | 0x5;  // clamp to max (3.0)
 
     int f32_exp = ((bits >> 23) & 0xFF) - 127;
     uint32_t f32_mant = bits & 0x7FFFFF;
@@ -282,7 +282,7 @@ __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value) {
     }
 
     if (fp4_exp >= 3) {
-        return (sign << 3) | 0x6;  // infinity
+        return (sign << 3) | 0x5;  // clamp to max (3.0)
     } else if (fp4_exp <= 0) {
         if (fp4_exp < -1) {
             return sign << 3;      // underflow to zero
