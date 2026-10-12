@@ -2,36 +2,12 @@
 //
 // Basic Format Paged Attention Kernel
 //
-// This is a reference implementation of paged attention for the Basic PSP‑KV
-// format. In the Basic format, KV cache blocks are stored in a quantized
-// (FP8) representation with per‑head affine parameters (scale and zero‑point).
-// The dequantization is performed on‑the‑fly inside the kernel, directly
-// reconstructing FP16 values from the quantized data.
+// Paged attention for the Basic PSP-KV format. KV cache blocks are stored in
+// quantized (FP8/FP4/lossless) representation with per-(block, head) float32
+// scales; both K and V are token-major [B_t, D_head].
 //
-// The kernel processes a single query token for a single query head. It
-// iterates over all blocks assigned to the sequence, loads quantized keys and
-// values for the corresponding KV head (grouped-query attention), dequantizes
-// them, computes attention scores, and accumulates the output.
-//
-// Inputs:
-//   out                : output tensor [num_tokens, num_heads, head_dim] (half)
-//   q                  : query tensor [num_tokens, num_heads, head_dim] (half)
-//   k_cache            : quantized key cache (uint8_t) with layout:
-//                        [num_blocks, num_kv_heads, BLOCK_SIZE, head_dim]
-//   v_cache            : quantized value cache with same layout
-//   k_scales           : per‑head per‑block scale factors for keys
-//                        [num_blocks, num_kv_heads] (float)
-//   k_zero_points      : per‑head per‑block zero‑points for keys (float)
-//   v_scales           : per‑head per‑block scale factors for values (float)
-//   v_zero_points      : per‑head per‑block zero‑points for values (float)
-//   block_tables       : [num_seqs, max_blocks_per_seq] block indices (int)
-//   context_lens       : [num_seqs] actual number of tokens (int)
-//   max_blocks_per_seq : maximum blocks per sequence (int)
-//   num_heads          : number of query heads (int)
-//   num_kv_heads       : number of KV heads (int)
-//   head_dim           : head dimension (int)
-//   scale              : softmax scale (float, usually 1/sqrt(head_dim))
-//   BLOCK_SIZE         : number of tokens per block (compile‑time constant)
+// Decode-only: one thread block per (query head, sequence), threads cooperate
+// on the context scan (two-phase online softmax with a block reduction).
 
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
@@ -43,7 +19,15 @@
 #include "common/head_dim_dispatch.cuh"
 
 #define BLOCK_SIZE 16
-#define MAX_KV_HEADS 8
+#define THREADS 128
+
+__device__ inline uint32_t psp_f2u_mono(float f) {
+    uint32_t u = __float_as_uint(f);
+    return (u & 0x80000000u) ? ~u : (u | 0x80000000u);
+}
+__device__ inline float psp_u2f_mono(uint32_t u) {
+    return __uint_as_float((u & 0x80000000u) ? (u & 0x7FFFFFFFu) : ~u);
+}
 
 template <typename scalar_t, int HEAD_DIM>
 __global__ void paged_attention_basic_kernel(
@@ -65,92 +49,99 @@ __global__ void paged_attention_basic_kernel(
     int head_dim,
     float scale)
 {
-    int token_idx = blockIdx.x;          // one token per block
-    int head_idx = blockIdx.y;           // one query head per block
-    int seq_idx = blockIdx.z;            // one sequence per grid dimension
+    const int head_idx = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int tid = threadIdx.x;
+    const int nthreads = blockDim.x;
 
-    if (token_idx != seq_idx || token_idx >= context_lens[seq_idx]) return;
+    const int context_len = context_lens[seq_idx];
+    const int kv_head = head_idx / (num_heads / num_kv_heads);
 
-    // Determine which KV head this query head maps to (GQA)
-    int kv_head = head_idx / (num_heads / num_kv_heads);
+    __shared__ float s_query[HEAD_DIM];
+    __shared__ uint32_t s_max;
+    __shared__ float s_sum;
+    __shared__ float s_acc[HEAD_DIM];
 
-    // Load query vector for this token and head
-    const scalar_t* q_ptr = q + (token_idx * num_heads + head_idx) * head_dim;
-    float query[HEAD_DIM];
-    #pragma unroll
-    for (int i = 0; i < HEAD_DIM; ++i) {
-        query[i] = psp_to_float(q_ptr[i]);
+    const scalar_t* q_ptr = q + ((int64_t)seq_idx * num_heads + head_idx) * head_dim;
+    for (int i = tid; i < HEAD_DIM; i += nthreads) s_query[i] = psp_to_float(q_ptr[i]);
+    if (tid == 0) {
+        s_max = psp_f2u_mono(-INFINITY);
+        s_sum = 0.0f;
+        for (int d = 0; d < HEAD_DIM; ++d) s_acc[d] = 0.0f;
     }
+    __syncthreads();
 
-    // Accumulators for output
-    float acc[HEAD_DIM] = {0.0f};
-    float max_score = -INFINITY;
-    float sum_exp = 0.0f;
+    const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    // Iterate over blocks belonging to this sequence
-    int num_blocks = (context_lens[seq_idx] + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
-        int physical_block = block_tables[seq_idx * max_blocks_per_seq + block_idx];
-
-        // Compute start token index within this block
-        int start_token = block_idx * BLOCK_SIZE;
-        int tokens_in_block = min(BLOCK_SIZE, context_lens[seq_idx] - start_token);
-
-        // Per-block FP8 format (1=e4m3, 2=e5m2; 0 reserved for FP16).
-        int fp8_fmt = (int)precision_table[physical_block];
-
-        // Load scale for this KV head and block (zero-points are unused for FP8).
-        float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
-        float v_scale = v_scales[physical_block * num_kv_heads + kv_head];
-
-        // Byte stride for this block's precision.
+    // Phase 1: per-thread max over this thread's assigned blocks.
+    float local_max = -INFINITY;
+    for (int b = tid; b < num_blocks; b += nthreads) {
+        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
+        const int fp8_fmt = (int)precision_table[physical_block];
+        const float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
         int block_bytes_per_head;
         if (fp8_fmt == 0)      block_bytes_per_head = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
         else if (fp8_fmt == 3) block_bytes_per_head = BLOCK_SIZE * HEAD_DIM / 2;
         else                   block_bytes_per_head = BLOCK_SIZE * HEAD_DIM;
-
-        const uint8_t* k_block_base = k_cache + block_offsets[physical_block]
-                                    + (size_t)kv_head * block_bytes_per_head;
-        const uint8_t* v_block_base = v_cache + block_offsets[physical_block]
-                                    + (size_t)kv_head * block_bytes_per_head;
-
-
-
-        // Iterate over tokens in this block
+        const uint8_t* k_base = k_cache + block_offsets[physical_block]
+                              + (size_t)kv_head * block_bytes_per_head;
+        const int start_token = b * BLOCK_SIZE;
+        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
         for (int t = 0; t < tokens_in_block; ++t) {
-            // Compute dot product between query and key (dequantize key on‑the‑fly)
-            float score = 0.0f;
-            int elem_base = t * HEAD_DIM;
-            #pragma unroll
+            float s = 0.0f;
+            const int elem_base = t * HEAD_DIM;
             for (int d = 0; d < HEAD_DIM; ++d) {
-                float k_val = psp_packed_dequant<scalar_t>(k_block_base, elem_base + d, fp8_fmt, k_scale);
-                score += query[d] * k_val;
+                s += s_query[d] * psp_packed_dequant<scalar_t>(k_base, elem_base + d, fp8_fmt, k_scale);
             }
-            score *= scale;
+            s *= scale;
+            local_max = fmaxf(local_max, s);
+        }
+    }
+    atomicMax(&s_max, psp_f2u_mono(local_max));
+    __syncthreads();
+    const float gmax = psp_u2f_mono(s_max);
 
-            // Update running max and sum for online softmax
-            float new_max = fmaxf(max_score, score);
-            float exp_old = expf(max_score - new_max);
-            float exp_new = expf(score - new_max);
-            sum_exp = sum_exp * exp_old + exp_new;
-            max_score = new_max;
-
-            // Dequantize value vector and accumulate with the current score (will be normalized later)
-            float weight = exp_new; // temporary unnormalized weight
-            #pragma unroll
+    // Phase 2: per-thread sum + weighted V (token-major V[t, d]).
+    float local_sum = 0.0f;
+    float acc[HEAD_DIM];
+    for (int d = 0; d < HEAD_DIM; ++d) acc[d] = 0.0f;
+    for (int b = tid; b < num_blocks; b += nthreads) {
+        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
+        const int fp8_fmt = (int)precision_table[physical_block];
+        const float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
+        const float v_scale = v_scales[physical_block * num_kv_heads + kv_head];
+        int block_bytes_per_head;
+        if (fp8_fmt == 0)      block_bytes_per_head = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
+        else if (fp8_fmt == 3) block_bytes_per_head = BLOCK_SIZE * HEAD_DIM / 2;
+        else                   block_bytes_per_head = BLOCK_SIZE * HEAD_DIM;
+        const uint8_t* k_base = k_cache + block_offsets[physical_block]
+                              + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v_base = v_cache + block_offsets[physical_block]
+                              + (size_t)kv_head * block_bytes_per_head;
+        const int start_token = b * BLOCK_SIZE;
+        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
+        for (int t = 0; t < tokens_in_block; ++t) {
+            float s = 0.0f;
+            const int elem_base = t * HEAD_DIM;
             for (int d = 0; d < HEAD_DIM; ++d) {
-                float v_val = psp_packed_dequant<scalar_t>(v_block_base, elem_base + d, fp8_fmt, v_scale);
-                acc[d] = acc[d] * exp_old + weight * v_val;
+                s += s_query[d] * psp_packed_dequant<scalar_t>(k_base, elem_base + d, fp8_fmt, k_scale);
+            }
+            s *= scale;
+            const float w = expf(s - gmax);
+            local_sum += w;
+            for (int d = 0; d < HEAD_DIM; ++d) {
+                acc[d] += w * psp_packed_dequant<scalar_t>(v_base, elem_base + d, fp8_fmt, v_scale);
             }
         }
     }
+    atomicAdd(&s_sum, local_sum);
+    for (int d = 0; d < HEAD_DIM; ++d) atomicAdd(&s_acc[d], acc[d]);
+    __syncthreads();
 
-    // Normalize accumulators by sum_exp
-    float inv_sum = 1.0f / sum_exp;
-    scalar_t* out_ptr = out + (token_idx * num_heads + head_idx) * head_dim;
-    #pragma unroll
-    for (int d = 0; d < HEAD_DIM; ++d) {
-        out_ptr[d] = psp_from_float<scalar_t>(acc[d] * inv_sum);
+    if (tid == 0) {
+        const float inv_sum = 1.0f / s_sum;
+        scalar_t* out_ptr = out + ((int64_t)seq_idx * num_heads + head_idx) * head_dim;
+        for (int d = 0; d < HEAD_DIM; ++d) out_ptr[d] = psp_from_float<scalar_t>(s_acc[d] * inv_sum);
     }
 }
 
@@ -177,15 +168,15 @@ void launch_paged_attention_basic(
     float scale,
     cudaStream_t stream = 0)
 {
-    dim3 grid(num_tokens, num_heads, num_seqs);
+    // Decode: one block per (head, seq), THREADS threads cooperate per head.
+    dim3 grid(num_heads, num_seqs);
     psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
         constexpr int HEAD_DIM = decltype(hd)::value;
-        paged_attention_basic_kernel<scalar_t, HEAD_DIM><<<grid, 1, 0, stream>>>(
-        out, q, k_cache, v_cache,
-        k_scales, k_zero_points, v_scales, v_zero_points,
-        block_tables, context_lens, precision_table, block_offsets,
-        max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale
-    );
+        paged_attention_basic_kernel<scalar_t, HEAD_DIM><<<grid, THREADS, 0, stream>>>(
+            out, q, k_cache, v_cache,
+            k_scales, k_zero_points, v_scales, v_zero_points,
+            block_tables, context_lens, precision_table, block_offsets,
+            max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale);
     });
 }
 

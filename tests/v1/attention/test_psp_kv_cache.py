@@ -96,6 +96,7 @@ def test_quantize_and_scatter_kv_schema():
         "block_offsets",
         "scale_table",
         "num_tokens",
+        "format_generation",
     ]
 
 
@@ -127,4 +128,5 @@ def test_quantize_and_scatter_kv_rejects_wrong_dtype():
             torch.zeros(num_blocks, dtype=torch.int32, device="cuda"),
             torch.zeros(num_blocks, num_kv_heads, dtype=torch.float32, device="cuda"),
             num_tokens,
+            1,
         )

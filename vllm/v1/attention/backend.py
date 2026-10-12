@@ -428,6 +428,8 @@ class CommonAttentionMetadata:
     Required only for BT-KV format (format_generation=2)."""
     format_generation: int = 1
     """0=Basic, 1=Enhanced, 2=BT-KV. Determines which PSP-KV kernel to dispatch."""
+    block_offsets: torch.Tensor | None = None
+    """(max_num_blocks,) int32 per-block byte offsets into the KV byte buffer."""
     # ====================================================
 
     def batch_size(self) -> int:

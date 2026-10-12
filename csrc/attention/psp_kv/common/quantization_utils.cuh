@@ -54,11 +54,16 @@ template <> __device__ inline __nv_fp8_e5m2 psp_from_float<__nv_fp8_e5m2>(float 
     return r;
 }
 
-// Portable float-to-uint32 bit conversion for both host and device.
+// Portable float<->uint32 bit conversion for both host and device.
 __host__ __device__ inline uint32_t float_as_uint(float value) {
     union { float f; uint32_t u; } conv;
     conv.f = value;
     return conv.u;
+}
+__host__ __device__ inline float uint_as_float(uint32_t value) {
+    union { uint32_t u; float f; } conv;
+    conv.u = value;
+    return conv.f;
 }
 
 // FP8 E4M3 (1 sign, 4 exponent, 3 mantissa, bias 7)
@@ -103,21 +108,17 @@ __host__ __device__ inline uint8_t quantize_fp8_e4m3(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp8_e4m3(uint8_t q) {
-    uint8_t sign = (q >> 7) & 0x1;
-    uint8_t exp = (q >> 3) & 0xF;
-    uint8_t mant = q & 0x7;
-
-    float value;
+    uint32_t exp = (q >> 3) & 0xFu;
+    uint32_t mant = q & 0x7u;
     if (exp == 0) {
         // subnormal: 0.mmm * 2^-6 = mant * 2^-9
-        value = (float)mant * powf(2.0f, -9.0f);
-    } else if (exp == 15 && mant == 7) {
-        value = NAN;
-    } else {
-        value = (1.0f + mant / 8.0f) * powf(2.0f, (float)(exp - 7));
+        float v = (float)mant * 0.001953125f;
+        return (q & 0x80u) ? -v : v;
     }
-
-    return sign ? -value : value;
+    if (exp == 15 && mant == 7) return NAN;
+    // Normal: (1 + mant/8) * 2^(exp-7), built directly as an IEEE-754 fp32.
+    uint32_t bits = ((q & 0x80u) << 24) | ((exp - 7 + 127) << 23) | (mant << 20);
+    return uint_as_float(bits);
 }
 
 // FP8 E5M2 (1 sign, 5 exponent, 2 mantissa, bias 15)
@@ -162,21 +163,17 @@ __host__ __device__ inline uint8_t quantize_fp8_e5m2(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp8_e5m2(uint8_t q) {
-    uint8_t sign = (q >> 7) & 0x1;
-    uint8_t exp = (q >> 2) & 0x1F;
-    uint8_t mant = q & 0x3;
-
-    float value;
+    uint32_t exp = (q >> 2) & 0x1Fu;
+    uint32_t mant = q & 0x3u;
     if (exp == 0) {
         // subnormal: 0.mm * 2^-14 = mant * 2^-16
-        value = (float)mant * powf(2.0f, -16.0f);
-    } else if (exp == 31) {
-        value = (mant == 0) ? INFINITY : NAN;
-    } else {
-        value = (1.0f + mant / 4.0f) * powf(2.0f, (float)(exp - 15));
+        float v = (float)mant * 0.0000152587890625f;
+        return (q & 0x80u) ? -v : v;
     }
-
-    return sign ? -value : value;
+    if (exp == 31) return (mant == 0) ? INFINITY : NAN;
+    // Normal: (1 + mant/4) * 2^(exp-15), built directly as an IEEE-754 fp32.
+    uint32_t bits = ((q & 0x80u) << 24) | ((exp - 15 + 127) << 23) | (mant << 21);
+    return uint_as_float(bits);
 }
 
 // Forward declarations for the FP4 helpers (defined later in this header).
@@ -296,20 +293,16 @@ __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp4_e2m1(uint8_t q) {
-    uint8_t sign = (q >> 3) & 0x1;
-    uint8_t exp = (q >> 1) & 0x3;
-    uint8_t mant = q & 0x1;
-
-    float value;
+    uint32_t exp = (q >> 1) & 0x3u;
+    uint32_t mant = q & 0x1u;
     if (exp == 0) {
-        value = mant * 0.5f;  // subnormal
-    } else if (exp == 3) {
-        value = INFINITY;     // infinity
-    } else {
-        value = (1.0f + mant / 2.0f) * powf(2.0f, (float)(exp - 1));
+        float v = mant * 0.5f;  // subnormal
+        return (q & 0x8u) ? -v : v;
     }
-
-    return sign ? -value : value;
+    if (exp == 3) return INFINITY;  // infinity
+    // Normal: (1 + mant/2) * 2^(exp-1), built directly as an IEEE-754 fp32.
+    uint32_t bits = ((q & 0x8u) << 28) | ((exp - 1 + 127) << 23) | (mant << 22);
+    return uint_as_float(bits);
 }
 
 // Variable-stride (byte-buffer) dequant/quantize. The cache is a uint8 byte

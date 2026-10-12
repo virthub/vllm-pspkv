@@ -1,15 +1,20 @@
 // virthub/kernels/common/quantize_and_scatter_kernel.cu
 //
-// Reference quantize-and-scatter kernel for the PSP-KV prefill write path.
+// Quantize-and-scatter kernel for the PSP-KV prefill write path.
 //
-// Each fp16 value is quantized to real FP8 (e4m3 or e5m2, selected per-block by
-// the precision_table) as  q = quantize_fp8(x / scale, fmt)  with a unit scale
-// (scale = 1.0). This is the inverse of the reference attention kernels'
-// dequant (x = dequantize_fp8(q, fmt) * scale), so a quantize -> attention
-// round-trip is internally consistent.
+// Each fp16/bf16/fp8 value is quantized to the per-block inner precision
+// selected by the precision_table (lossless / fp8 e4m3 / fp8 e5m2 / fp4 e2m1)
+// as  q = quantize(x / scale, fmt), with a per-(block, head) scale estimated
+// from the block's max-abs value:
 //
-// Per-block scale estimation (max-abs -> scale) is a follow-up; this reference
-// uses unit scale and relies on the input being already in a bounded range.
+//   scale = max_abs(block, head) / fp_max(fmt)
+//
+// This is the inverse of the attention kernels' dequant
+// (x = dequantize(q, fmt) * scale), so a quantize -> attention round-trip is
+// internally consistent and the fp8/fp4 value range is adapted per block.
+//
+// The scale is written to scale_table[num_blocks, num_kv_heads], which the
+// decode kernels read as k_scales/v_scales.
 
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
@@ -17,16 +22,91 @@
 
 #include "quantization_utils.cuh"
 
+// Largest finite value representable for each precision (matches the
+// dequantize_* helpers in quantization_utils.cuh).
+__device__ inline float psp_kv_fp_max(int fmt) {
+    if (fmt == 3) return 3.0f;      // fp4 e2m1
+    if (fmt == 2) return 57344.0f;  // fp8 e5m2
+    return 240.0f;                  // fp8 e4m3 (default)
+}
+
+// ---------------------------------------------------------------------------
+// Pass 1: per-(block, head) max-abs via atomic-max reduction.
+// ---------------------------------------------------------------------------
+template <typename scalar_t>
+__global__ void estimate_block_scales_kernel(
+    const scalar_t* __restrict__ prefill_scratch,  // [num_tokens, 2, num_kv_heads, head_dim]
+    const int64_t* __restrict__ slot_mapping,      // [num_tokens]
+    const uint8_t* __restrict__ precision_table,   // [num_blocks]
+    float* __restrict__ max_abs,                   // [num_blocks, num_kv_heads]
+    int num_tokens, int num_kv_heads, int block_size, int head_dim)
+{
+    int token = blockIdx.x * blockDim.x + threadIdx.x;
+    if (token >= num_tokens) return;
+
+    const int64_t slot = slot_mapping[token];
+    const int block_id = static_cast<int>(slot / block_size);
+    const int fp8_fmt = static_cast<int>(precision_table[block_id]);
+    if (fp8_fmt == 0) return;  // lossless: scale stays 1.0
+
+    for (int h = 0; h < num_kv_heads; ++h) {
+        const scalar_t* k_row = prefill_scratch +
+            ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
+        const scalar_t* v_row = prefill_scratch +
+            ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
+
+        float m = 0.0f;
+        for (int d = 0; d < head_dim; ++d) {
+            m = fmaxf(m, fabsf(psp_to_float(k_row[d])));
+            m = fmaxf(m, fabsf(psp_to_float(v_row[d])));
+        }
+
+        // max_abs is >= 0, so its IEEE-754 bit pattern is monotonically
+        // ordered and a signed int atomicMax yields the float max.
+        int idx = block_id * num_kv_heads + h;
+        atomicMax(reinterpret_cast<int*>(&max_abs[idx]), __float_as_int(m));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pass 2: convert max-abs -> scale and store into scale_table.
+// ---------------------------------------------------------------------------
+__global__ void finalize_block_scales_kernel(
+    const float* __restrict__ max_abs,             // [num_blocks, num_kv_heads]
+    const uint8_t* __restrict__ precision_table,   // [num_blocks]
+    float* __restrict__ scale_table,               // [num_blocks, num_kv_heads]
+    int num_blocks, int num_kv_heads)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_blocks * num_kv_heads) return;
+
+    int block_id = idx / num_kv_heads;
+    int fp8_fmt = static_cast<int>(precision_table[block_id]);
+
+    float scale;
+    if (fp8_fmt == 0) {
+        scale = 1.0f;  // lossless: no quantization
+    } else {
+        scale = max_abs[idx] / psp_kv_fp_max(fp8_fmt);
+        if (scale < 1e-8f) scale = 1.0f;  // all-zero block: avoid zero scale
+    }
+    scale_table[idx] = scale;
+}
+
+// ---------------------------------------------------------------------------
+// Pass 3: quantize each token's K/V with the per-block scale and scatter.
+// ---------------------------------------------------------------------------
 template <typename scalar_t>
 __global__ void quantize_and_scatter_kernel(
     const scalar_t* __restrict__ prefill_scratch,  // [num_tokens, 2, num_kv_heads, head_dim]
     uint8_t* __restrict__ key_cache,           // byte buffer
     uint8_t* __restrict__ value_cache,         // byte buffer
     const int64_t* __restrict__ slot_mapping,  // [num_tokens]
-    const uint8_t* __restrict__ precision_table,  // [num_blocks] (0=lossless, 1=e4m3, 2=e5m2)
+    const uint8_t* __restrict__ precision_table,  // [num_blocks] (0=lossless, 1=e4m3, 2=e5m2, 3=fp4)
     const uint32_t* __restrict__ block_offsets,   // [num_blocks] byte offsets
-    float* __restrict__ scale_table,           // [num_blocks, num_kv_heads]
-    int num_tokens, int num_kv_heads, int block_size, int head_dim)
+    const float* __restrict__ scale_table,     // [num_blocks, num_kv_heads]
+    int num_tokens, int num_kv_heads, int block_size, int head_dim,
+    int format_generation)
 {
     int token = blockIdx.x * blockDim.x + threadIdx.x;
     if (token >= num_tokens) return;
@@ -35,8 +115,6 @@ __global__ void quantize_and_scatter_kernel(
     const int block_id = static_cast<int>(slot / block_size);
     const int block_offset = static_cast<int>(slot % block_size);
     const int fp8_fmt = static_cast<int>(precision_table[block_id]);
-
-    const float scale = 1.0f;  // unit-scale reference
 
     int block_bytes_per_head;
     if (fp8_fmt == 0)      block_bytes_per_head = block_size * head_dim * (int)sizeof(scalar_t);
@@ -48,7 +126,7 @@ __global__ void quantize_and_scatter_kernel(
     else                   bytes_per_row = head_dim;
 
     for (int h = 0; h < num_kv_heads; ++h) {
-        scale_table[static_cast<int64_t>(block_id) * num_kv_heads + h] = scale;
+        const float scale = scale_table[static_cast<int64_t>(block_id) * num_kv_heads + h];
 
         const scalar_t* k_row = prefill_scratch +
             ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
@@ -58,8 +136,6 @@ __global__ void quantize_and_scatter_kernel(
         uint8_t* k_out = key_cache + block_offsets[block_id]
                        + (size_t)h * block_bytes_per_head
                        + block_offset * bytes_per_row;
-        // Enhanced/BT-KV store V transposed [head_dim, block_size]:
-        // element (d, t) lives at byte d*block_size + t.
         uint8_t* v_out = value_cache + block_offsets[block_id]
                        + (size_t)h * block_bytes_per_head;
 
@@ -67,11 +143,22 @@ __global__ void quantize_and_scatter_kernel(
             float k = psp_to_float(k_row[d]);
             float v = psp_to_float(v_row[d]);
             psp_packed_quantize<scalar_t>(k_out, d, k, fp8_fmt, scale);
-            psp_packed_quantize<scalar_t>(v_out, d * block_size + block_offset, v, fp8_fmt, scale);
+            int v_elem;
+            if (format_generation == 0) {
+                // Basic format: token-major V[t, d].
+                v_elem = block_offset * head_dim + d;
+            } else {
+                // Enhanced/BT-KV: transposed V[d, t].
+                v_elem = d * block_size + block_offset;
+            }
+            psp_packed_quantize<scalar_t>(v_out, v_elem, v, fp8_fmt, scale);
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Launch
+// ---------------------------------------------------------------------------
 template <typename scalar_t>
 void launch_quantize_and_scatter(
     const scalar_t* prefill_scratch,
@@ -81,25 +168,36 @@ void launch_quantize_and_scatter(
     const uint8_t* precision_table,
     const uint32_t* block_offsets,
     float* scale_table,
-    int num_tokens, int num_kv_heads, int block_size, int head_dim,
-    cudaStream_t stream)
+    float* max_abs,   // temp [num_blocks, num_kv_heads] workspace (zeroed)
+    int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
+    int format_generation, cudaStream_t stream)
 {
     const int threads = 256;
-    const int blocks = (num_tokens + threads - 1) / threads;
-    quantize_and_scatter_kernel<scalar_t><<<blocks, threads, 0, stream>>>(
+    const int token_blocks = (num_tokens + threads - 1) / threads;
+    const int scale_blocks = (num_blocks * num_kv_heads + threads - 1) / threads;
+
+    estimate_block_scales_kernel<scalar_t><<<token_blocks, threads, 0, stream>>>(
+        prefill_scratch, slot_mapping, precision_table, max_abs,
+        num_tokens, num_kv_heads, block_size, head_dim);
+
+    finalize_block_scales_kernel<<<scale_blocks, threads, 0, stream>>>(
+        max_abs, precision_table, scale_table, num_blocks, num_kv_heads);
+
+    quantize_and_scatter_kernel<scalar_t><<<token_blocks, threads, 0, stream>>>(
         prefill_scratch, key_cache, value_cache, slot_mapping, precision_table,
-        block_offsets, scale_table, num_tokens, num_kv_heads, block_size, head_dim);
+        block_offsets, scale_table, num_tokens, num_kv_heads, block_size, head_dim,
+        format_generation);
 }
 
 template void launch_quantize_and_scatter<half>(
     const half*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, cudaStream_t);
+    float*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_and_scatter<__nv_bfloat16>(
     const __nv_bfloat16*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, cudaStream_t);
+    float*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_and_scatter<__nv_fp8_e4m3>(
     const __nv_fp8_e4m3*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, cudaStream_t);
+    float*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_and_scatter<__nv_fp8_e5m2>(
     const __nv_fp8_e5m2*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, cudaStream_t);
+    float*, float*, int, int, int, int, int, int, cudaStream_t);

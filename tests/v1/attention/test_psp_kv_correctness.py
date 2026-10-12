@@ -172,17 +172,26 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
 
     torch.ops.psp_kv.quantize_and_scatter_kv(
         prefill, key_cache, value_cache, block_tables, slot_mapping,
-        precision_table, block_offsets, scale_table, num_tokens,
+        precision_table, block_offsets, scale_table, num_tokens, 1,
     )
+
+    # Per-block scale = max_abs / fp_max(fmt), matching the quantize kernel.
+    # The test uses a single block, so max_abs is the global prefill max.
+    fp_max = {0: 1.0, 1: 240.0, 2: 57344.0, 3: 3.0}[fmt]
+    max_abs = prefill.float().abs().max().item()
+    scale = max_abs / fp_max if fmt != 0 else 1.0
+    if scale < 1e-8:
+        scale = 1.0
 
     # expected byte buffer via the reference packer. The quantize-and-scatter
     # op writes V transposed (the enhanced/btkv layout), so use format_gen=1.
     k = prefill[:, 0].permute(1, 0, 2).unsqueeze(0)  # [1, num_kv_heads, num_tokens, head_size]
     v = prefill[:, 1].permute(1, 0, 2).unsqueeze(0)
-    expected_k, expected_v, _ = pack_kv_cache(k, v, 1, precision_table, dtype)
+    expected_k, expected_v, _ = pack_kv_cache(k, v, 1, precision_table, dtype, scale=scale)
     assert torch.equal(key_cache, expected_k)
     assert torch.equal(value_cache, expected_v)
-    assert torch.equal(scale_table, torch.ones(1, num_kv_heads, device="cuda"))
+    assert torch.equal(
+        scale_table, torch.full((1, num_kv_heads), scale, device="cuda"))
 
 
 @skip_if_no_ops

@@ -4,6 +4,7 @@
 from dataclasses import dataclass
 
 import torch
+import torch.nn.functional as F
 
 from vllm.config import VllmConfig
 from vllm.v1.attention.backend import (
@@ -208,15 +209,21 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         # The wrapper registers ops under `torch.ops.psp_kv.*`.
         ops = _get_psp_kv_ops()
 
-        # ----- Resolve per-block byte offsets (uniform fallback for fixed mode) -----
+        # ----- Resolve per-block byte offsets -----
         block_size = 16  # PSP-KV block size
         num_blocks = meta.precision_table.numel()
         block_offsets = getattr(meta, "block_offsets", None)
         if block_offsets is None:
-            # Fixed-stride fallback (storage.mode="fixed"): all blocks share the
-            # same precision, so per-block byte offsets are uniform. Avoid a
-            # device sync here by assuming fp8 (1 byte/elem) for the fallback.
-            elem_bytes = 1
+            # Fallback for callers that don't pass block_offsets through the
+            # metadata (e.g. unit tests): derive a uniform stride from the
+            # leading block's precision.
+            prec = int(meta.precision_table[0].item()) if num_blocks > 0 else 1
+            if prec == 0:
+                elem_bytes = query.element_size()
+            elif prec == 3:
+                elem_bytes = 0.5
+            else:
+                elem_bytes = 1
             block_bytes = int(block_size * head_size * elem_bytes * num_kv_heads)
             block_offsets = torch.arange(
                 num_blocks, dtype=torch.int32, device=query.device
@@ -326,18 +333,18 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             e = int(query_start_loc[i + 1].item())
             if e <= s:
                 continue
-            L = e - s
-            q_i = query[s:e].float()  # [L, H, D]
-            k_i = k[s:e].float()      # [L, H, D]
-            v_i = v[s:e].float()      # [L, H, D]
-            # scores: [H, L, L]  (plain cuBLAS matmul + softmax; no FlashAttention)
-            scores = torch.einsum("lhd,mhd->hlm", q_i, k_i) * scale
-            causal = torch.triu(
-                torch.ones(L, L, dtype=torch.bool, device=query.device), diagonal=1
-            )
-            scores = scores.masked_fill(causal.unsqueeze(0), float("-inf"))
-            weights = torch.softmax(scores, dim=-1)  # [H, L, L]
-            o_i = torch.einsum("hlm,mhd->lhd", weights, v_i)  # [L, H, D]
+            q_i = query[s:e]  # [L, H, D]
+            k_i = k[s:e]      # [L, H, D]
+            v_i = v[s:e]      # [L, H, D]
+            # Fused attention via SDPA (FlashAttention). [L, H, D] -> [1, H, L, D].
+            o_i = F.scaled_dot_product_attention(
+                q_i.transpose(0, 1).unsqueeze(0),
+                k_i.transpose(0, 1).unsqueeze(0),
+                v_i.transpose(0, 1).unsqueeze(0),
+                is_causal=True,
+                scale=scale,
+            )  # [1, H, L, D]
+            o_i = o_i.squeeze(0).transpose(0, 1)  # [L, H, D]
             parts.append(o_i.to(output.dtype))
 
         if parts:
@@ -354,7 +361,7 @@ class PSPKVAttentionBackend(AttentionBackend):
     classes for PSP-KV attention.
     """
 
-    # PSP-KV kernels are hardcoded to head_dim == 128 and block_size == 16.
+    # PSP-KV kernels dispatch on head_dim at runtime; block_size is fixed at 16.
     supported_dtypes = [torch.float16, torch.bfloat16]
     # The cache is a uint8 byte buffer: 1 byte/elem for the fp8 inner precisions.
     supported_kv_cache_dtypes = ["auto", "fp8"]

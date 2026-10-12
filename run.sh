@@ -126,7 +126,7 @@ show_help() {
 ${BOLD}Usage:${RESET} $0 [COMMAND] [OPTIONS]
 
 ${BOLD}Commands:${RESET}
-  ${BOLD}--test, -t${RESET}                Run all tests (unit + integration).
+  ${BOLD}--test, -t${RESET}                Run all tests (unit + integration + virthub).
   ${BOLD}--test-unit${RESET}               Run only unit tests (fast).
   ${BOLD}--test-integration${RESET}        Run end‑to‑end inference tests (requires GPU).
   ${BOLD}--test-virthub${RESET}            Run Virthub KV-cache connector tests (requires ./install.sh --virthub).
@@ -220,13 +220,15 @@ run_all_tests() {
     log_info "Running all tests..."
     run_unit_tests
     run_integration_tests
+    run_virthub_tests
     log_success "All tests passed!"
 }
 
 run_virthub_tests() {
     log_info "Running Virthub KV-cache connector tests..."
     if ! uv run --no-sync python -c "import virthub" >/dev/null 2>&1; then
-        log_error "Virthub bindings are not installed. Run ./install.sh --virthub first."
+        log_warning "Virthub bindings are not installed; skipping virthub tests (run ./install.sh --virthub to enable)."
+        return 0
     fi
 
     # 1. Fork-level integration test (self-contained; skip the fork's heavy conftest).
@@ -290,8 +292,13 @@ serve_model() {
 # Benchmark (placeholder)
 # ------------------------------------------------------------------
 run_benchmarks() {
-    log_info "Running benchmarks (not yet implemented)..."
-    log_warning "Please implement benchmark scripts as needed."
+    log_info "Running PSP-KV launcher benchmark (requires GPU)..."
+    if ! uv run --no-sync python -c "import torch; assert torch.cuda.is_available()" >/dev/null 2>&1; then
+        log_warning "CUDA GPU not available; skipping benchmark."
+        return 0
+    fi
+    uv run --no-sync python scripts/benchmark_psp_kv.py \
+        || log_error "Benchmark failed."
     log_success "Benchmark completed."
 }
 

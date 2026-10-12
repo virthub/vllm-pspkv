@@ -578,7 +578,7 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "quantize_and_scatter_kv("
       "    Tensor prefill_scratch, Tensor! key_cache, Tensor! value_cache,"
       "    Tensor block_tables, Tensor slot_mapping, Tensor precision_table, Tensor block_offsets,"
-      "    Tensor! scale_table, int num_tokens) -> ()");
+      "    Tensor! scale_table, int num_tokens, int format_generation) -> ()");
   ops.impl("quantize_and_scatter_kv", torch::kCUDA, &psp_kv::quantize_and_scatter_kv);
 
   ops.def(

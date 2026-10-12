@@ -80,9 +80,9 @@ void launch_quantize_and_scatter(
     uint8_t* key_cache, uint8_t* value_cache,
     const int64_t* slot_mapping,
     const uint8_t* precision_table, const uint32_t* block_offsets,
-    float* scale_table,
-    int num_tokens, int num_kv_heads, int block_size, int head_dim,
-    cudaStream_t stream);
+    float* scale_table, float* max_abs,
+    int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
+    int format_generation, cudaStream_t stream);
 
 template <typename scalar_t>
 void launch_dequant_kv(
@@ -374,7 +374,8 @@ void quantize_and_scatter_kv(
     at::Tensor& precision_table, // [num_blocks] uint8 (1=e4m3, 2=e5m2)
     at::Tensor& block_offsets,   // [num_blocks] int32 byte offsets
     at::Tensor& scale_table,     // [num_blocks, num_kv_heads] float32
-    int64_t num_tokens)
+    int64_t num_tokens,
+    int64_t format_generation)
 {
     TORCH_CHECK(num_tokens > 0, "num_tokens must be positive");
     TORCH_CHECK(num_tokens <= prefill_scratch.size(0),
@@ -401,6 +402,12 @@ void quantize_and_scatter_kv(
     const int num_kv_heads = static_cast<int>(prefill_scratch.size(2));
     const int block_size = 16;  // PSP-KV block size
     const int head_dim = static_cast<int>(prefill_scratch.size(3));
+    const int num_blocks = static_cast<int>(precision_table.size(0));
+
+    // Temporary per-(block, head) max-abs workspace for scale estimation.
+    // Zeroed each call; the persistent scale_table is overwritten by the
+    // finalize pass, so previously written blocks keep their scales.
+    auto max_abs = at::zeros({num_blocks, num_kv_heads}, scale_table.options());
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
     PSP_KV_DISPATCH_SCALAR(prefill_scratch, {
@@ -412,8 +419,9 @@ void quantize_and_scatter_kv(
             precision_table.data_ptr<uint8_t>(),
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
             scale_table.data_ptr<float>(),
-            static_cast<int>(num_tokens), num_kv_heads, block_size, head_dim,
-            stream);
+            max_abs.data_ptr<float>(),
+            static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
+            static_cast<int>(format_generation), stream);
     });
 }
 
@@ -557,7 +565,8 @@ TORCH_LIBRARY(psp_kv, m) {
         "Tensor precision_table, "
         "Tensor block_offsets, "
         "Tensor! scale_table, "
-        "int num_tokens"
+        "int num_tokens, "
+        "int format_generation"
         ") -> ()");
 
     m.def(

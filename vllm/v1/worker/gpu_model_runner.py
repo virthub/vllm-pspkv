@@ -2317,6 +2317,7 @@ class GPUModelRunner(
             precision_table=self.precision_table,
             scale_table=self.scale_table,
             tma_descriptors=self.tma_descriptors if self.format_generation == 2 else None,
+            block_offsets=self.block_offsets,
             format_generation=self.format_generation,
         )
 
@@ -4233,18 +4234,13 @@ class GPUModelRunner(
                         blk_table = self.input_batch.block_table[attn_gid].get_device_tensor(num_reqs_padded)
                         slot_map = slot_mappings_by_group[attn_gid]
 
-                        # Uniform byte offsets for the fixed-stride fp8 cache.
-                        # Each block holds num_kv_heads * block_size * head_size bytes.
-                        block_offsets = None
-                        for _c in self.kv_caches:
-                            if _c is not None and _c.dim() >= 1 and _c.size(0) == 2:
-                                _k0 = _c[0]
-                                _nblocks = _k0.size(0)
-                                _block_bytes = _k0.size(1) * _k0.size(2) * _k0.size(3)
-                                block_offsets = torch.arange(
-                                    _nblocks, dtype=torch.int32, device=_k0.device
-                                ) * _block_bytes
-                                break
+                        # Derive the per-block precision from the prefill's
+                        # magnitude (first layer is representative), then
+                        # recompute the variable-stride byte offsets.
+                        self._derive_precision_from_scratch(
+                            self.prefill_kv_scratch[0], slot_map, num_prefill_tokens
+                        )
+                        self._compute_block_offsets()
 
                         for layer_idx, layer_kv_cache in enumerate(self.kv_caches):
                             if layer_kv_cache is None:
@@ -4262,9 +4258,10 @@ class GPUModelRunner(
                                     blk_table,
                                     slot_map,
                                     self.precision_table,
-                                    block_offsets,
+                                    self.block_offsets,
                                     self.scale_table,
-                                    num_prefill_tokens
+                                    num_prefill_tokens,
+                                    self.format_generation,
                                 )
             # ==============================================================
 
@@ -6448,6 +6445,75 @@ class GPUModelRunner(
 
     # ========== PSP-KV Integration Methods ==========
 
+    def _compute_block_offsets(self):
+        """Compute variable-stride byte offsets from the precision table.
+
+        Each physical block occupies ``block_size * head_size * num_kv_heads``
+        bytes times the per-element size of its inner precision
+        (lossless=2, fp8=1, fp4=0.5). ``block_offsets[b]`` is the exclusive
+        prefix sum, so the total byte footprint equals the sum of the per-block
+        sizes — enabling the cache to shrink when the precision table marks
+        blocks as fp8/fp4 instead of lossless.
+        """
+        block_size = 16
+        head_size = self.model_config.get_head_size()
+        base = block_size * head_size * self.num_kv_heads
+        per_block = torch.where(
+            self.precision_table == 0,
+            base * 2,
+            torch.where(self.precision_table == 3, base // 2, base),
+        )
+        cumsum = torch.cumsum(per_block, dim=0)
+        self.block_offsets = (cumsum - per_block).to(torch.int32)
+
+    def _derive_precision_from_scratch(self, scratch, slot_map, num_tokens):
+        """Derive per-block precision from the prefill's max-abs magnitude.
+
+        A block's required mantissa bits grow with its worst-head max-abs value
+        (larger magnitude -> larger absolute quantization error for a fixed
+        format), so we map ``max_abs`` to lossless/fp8/fp4 with a calibrated
+        logarithmic threshold:
+
+            required_bits = log2(block_max_abs / (E * fp_max))
+
+        where ``E`` is the target relative error tolerance and ``fp_max`` is the
+        largest finite fp8 value (240 for e4m3). The derived format is written
+        into ``self.precision_table``; ``_compute_block_offsets`` then re-derives
+        the variable-stride byte layout.
+        """
+        block_size = 16
+        fp_max = 240.0  # fp8 e4m3 max finite value
+        E = 1e-3        # target relative error (tunable)
+
+        s = scratch[:num_tokens]                      # [T, 2, kv_heads, head_dim]
+        worst_head = s.abs().amax(dim=(1, 3))         # [T, kv_heads] -> max over K/V & head_dim
+        worst_head = worst_head.amax(dim=1).float()   # [T] (fp32 for scatter_reduce)
+        block_id = slot_map[:num_tokens] // block_size  # [T]
+
+        num_blocks = self.precision_table.numel()
+        block_max = torch.full(
+            (num_blocks,), 0.0, device=self.device, dtype=torch.float32
+        )
+        block_max.scatter_reduce_(
+            0, block_id, worst_head, reduce="amax", include_self=False
+        )
+
+        required_bits = torch.log2(block_max.clamp(min=1e-12) / (E * fp_max))
+        # NOTE: "lossless" (2 B/elem) is intentionally NOT produced here — the
+        # cache is still allocated at a fixed fp8 stride, so lossless would
+        # overflow it. The highest-magnitude blocks are therefore clamped to
+        # fp8 until a variable-size byte-buffer allocator lands (Phase 2).
+        new_prec = torch.where(
+            block_max == 0,
+            torch.full_like(block_max, float(self.precision_default)),
+            torch.where(
+                required_bits > 1,
+                torch.ones_like(block_max),       # fp8 e4m3 (lossless clamped)
+                torch.full_like(block_max, 3.0),  # fp4 e2m1
+            ),
+        )
+        self.precision_table.copy_(new_prec.to(torch.uint8))
+
     def initialize_psp_kv_tables(self):
         """Allocate static GPU and pinned host buffers for PSP-KV metadata."""
         if not hasattr(self, 'kv_cache_config') or self.kv_cache_config is None:
@@ -6467,14 +6533,19 @@ class GPUModelRunner(
             (total_blocks,), self.precision_default, dtype=torch.uint8, device=self.device
         )
         self.scale_table = torch.zeros(total_blocks, self.num_kv_heads, dtype=torch.float32, device=self.device)
-        self.tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.uint64, device=self.device)
+        self.tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.int64, device=self.device)
+
+        # Variable-stride byte offsets: cumulative prefix sum of each block's
+        # byte size (lossless=2B/elem, fp8=1B/elem, fp4=0.5B/elem), so the
+        # cache shrinks when the precision table marks blocks as fp8/fp4.
+        self._compute_block_offsets()
 
         # Pinned host staging buffers
         self.h_precision_table = torch.full(
             (total_blocks,), self.precision_default, dtype=torch.uint8, pin_memory=True
         )
         self.h_scale_table = torch.zeros(total_blocks, self.num_kv_heads, dtype=torch.float32, pin_memory=True)
-        self.h_tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.uint64, pin_memory=True)
+        self.h_tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.int64, pin_memory=True)
 
         # Scale validity flag (prevents overwriting GPU scales with stale zeros)
         self.h_has_scale = [False] * total_blocks
@@ -6589,6 +6660,10 @@ class GPUModelRunner(
                 self.is_dirty[b_id] = False
                 self.h_has_scale[b_id] = False
             self.dirty_block_ids.clear()
+
+            # Precision may have changed per-block, so recompute the
+            # variable-stride byte offsets.
+            self._compute_block_offsets()
 
     # ========== End PSP-KV Integration ==========
 

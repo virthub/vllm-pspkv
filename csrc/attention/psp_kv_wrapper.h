@@ -102,7 +102,8 @@ void quantize_and_scatter_kv(
     torch::Tensor& precision_table,
     torch::Tensor& block_offsets,
     torch::Tensor& scale_table,
-    int64_t num_tokens);
+    int64_t num_tokens,
+    int64_t format_generation);
 
 void psp_dequantize_kv(
     torch::Tensor& k_cache,
