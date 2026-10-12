@@ -6465,6 +6465,9 @@ class GPUModelRunner(
         )
         cumsum = torch.cumsum(per_block, dim=0)
         self.block_offsets = (cumsum - per_block).to(torch.int32)
+        # CPU copy of the per-block byte sizes, for the virthub connector's
+        # variable-size transfer provider.
+        self.block_sizes_cpu = per_block.to(torch.int32).cpu()
 
     def _derive_precision_from_scratch(self, scratch, slot_map, num_tokens):
         """Derive per-block precision from the prefill's max-abs magnitude.
@@ -6514,6 +6517,32 @@ class GPUModelRunner(
         )
         self.precision_table.copy_(new_prec.to(torch.uint8))
 
+    def _psp_kv_block_transfer_info(self, block_id):
+        """Backend hook for the virthub connector.
+
+        Returns the block's actual (variable) byte size plus an opaque sidecar.
+        The sidecar is currently empty; the serialized precision/scale metadata
+        will be added when the Rust transfer path is built out (Phase 4).
+        """
+        from virthub import KVBlockTransferInfo
+
+        size_bytes = 0
+        sizes = getattr(self, "block_sizes_cpu", None)
+        if sizes is not None and 0 <= block_id < len(sizes):
+            size_bytes = int(sizes[block_id].item())
+        return KVBlockTransferInfo(size_bytes=size_bytes, metadata=b"")
+
+    def _register_virthub_transfer_info_provider(self):
+        """Register the PSP-KV variable-size provider with the virthub connector."""
+        from vllm.distributed.kv_transfer import has_kv_transfer_group, get_kv_transfer_group
+
+        if not has_kv_transfer_group():
+            return
+        connector = get_kv_transfer_group()
+        setter = getattr(connector, "set_block_transfer_info_provider", None)
+        if callable(setter):
+            setter(self._psp_kv_block_transfer_info)
+
     def initialize_psp_kv_tables(self):
         """Allocate static GPU and pinned host buffers for PSP-KV metadata."""
         if not hasattr(self, 'kv_cache_config') or self.kv_cache_config is None:
@@ -6539,6 +6568,10 @@ class GPUModelRunner(
         # byte size (lossless=2B/elem, fp8=1B/elem, fp4=0.5B/elem), so the
         # cache shrinks when the precision table marks blocks as fp8/fp4.
         self._compute_block_offsets()
+
+        # Register the variable-size transfer provider with the virthub
+        # connector (generic hook; PSP-KV supplies size + sidecar).
+        self._register_virthub_transfer_info_provider()
 
         # Pinned host staging buffers
         self.h_precision_table = torch.full(

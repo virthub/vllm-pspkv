@@ -133,6 +133,7 @@ ${BOLD}Commands:${RESET}
   ${BOLD}--serve, -s${RESET}               Start the vLLM server with PSP‑KV.
   ${BOLD}--bench, -b${RESET}               Run performance benchmarks.
   ${BOLD}--clean${RESET}                   Remove build artifacts and generated files.
+  ${BOLD}--clean-all${RESET}               Remove everything incl. .venv (full rebuild required).
   ${BOLD}--help, -h${RESET}                Show this help message.
 
 ${BOLD}Options for --serve:${RESET}
@@ -314,7 +315,7 @@ run_clean() {
         rm -rf build
     fi
 
-    for dir in dist *.egg-info; do
+    for dir in .build .uv-cache dist *.egg-info; do
         if [ -d "$dir" ]; then
             log_info "Removing $dir ..."
             rm -rf "$dir"
@@ -344,7 +345,31 @@ run_clean() {
         fi
     done
 
+    # Cascade to the virthub sub-project (Rust target/ + runtime files).
+    if [ -f "third_party/virthub/run.sh" ]; then
+        log_info "Cleaning virthub build artifacts ..."
+        (cd third_party/virthub && bash run.sh --clean) || true
+    fi
+
     log_success "Clean completed."
+}
+
+run_clean_all() {
+    log_info "Cleaning everything (build artifacts, caches, and .venv) ..."
+    run_clean
+
+    if [ -d ".venv" ]; then
+        log_info "Removing .venv ..."
+        rm -rf .venv
+    fi
+
+    # Cascade the deep clean to the virthub sub-project (target/ + its own .venv).
+    if [ -f "third_party/virthub/run.sh" ]; then
+        log_info "Cleaning virthub (deep) ..."
+        (cd third_party/virthub && bash run.sh --clean-all) || true
+    fi
+
+    log_success "Deep clean completed. Re-run ./install.sh to rebuild."
 }
 
 # ==================================================================
@@ -365,6 +390,10 @@ shift
 case "$COMMAND" in
     --clean)
         run_clean
+        exit 0
+        ;;
+    --clean-all)
+        run_clean_all
         exit 0
         ;;
     --help|-h)
