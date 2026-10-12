@@ -17,7 +17,7 @@ from vllm.v1.attention.backend import (
     AttentionType,
     CommonAttentionMetadata,
 )
-from vllm.v1.kv_cache_interface import AttentionSpec
+from vllm.v1.kv_cache_interface import AttentionSpec, _psp_kv_avg_bytes
 
 
 @dataclass
@@ -397,8 +397,13 @@ class PSPKVAttentionBackend(AttentionBackend):
     ) -> tuple[int, ...]:
         """Return the shape of the unified KV cache.
 
-        The cache is laid out as
-            [2, num_blocks, num_kv_heads, block_size, head_size]
-        so that the first dimension separates key and value.
+        The cache is a flat byte buffer
+            [2, num_blocks * block_size * num_kv_heads * head_size * avg_bytes]
+        where the first dimension separates key and value and the second is the
+        per-K/V byte footprint. Per-block byte offsets are tracked separately
+        (``block_offsets``) because blocks can have different precisions.
         """
-        return (2, num_blocks, num_kv_heads, block_size, head_size)
+        per_kv_bytes = int(
+            num_blocks * block_size * num_kv_heads * head_size * _psp_kv_avg_bytes()
+        )
+        return (2, per_kv_bytes)

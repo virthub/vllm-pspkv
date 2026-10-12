@@ -132,6 +132,7 @@ ${BOLD}Commands:${RESET}
   ${BOLD}--test-virthub${RESET}            Run Virthub KV-cache connector tests (requires ./install.sh --virthub).
   ${BOLD}--serve, -s${RESET}               Start the vLLM server with PSP‑KV.
   ${BOLD}--bench, -b${RESET}               Run performance benchmarks.
+  ${BOLD}--bench-memory${RESET}           Evaluate KV-cache memory savings (CPU-only).
   ${BOLD}--clean${RESET}                   Remove build artifacts and generated files.
   ${BOLD}--clean-all${RESET}               Remove everything incl. .venv (full rebuild required).
   ${BOLD}--help, -h${RESET}                Show this help message.
@@ -303,6 +304,13 @@ run_benchmarks() {
     log_success "Benchmark completed."
 }
 
+run_bench_memory() {
+    log_info "Evaluating PSP-KV KV-cache memory savings (CPU-only)..."
+    uv run --no-sync python scripts/evaluate_memory_psp_kv.py "$@" \
+        || log_error "Memory evaluation failed."
+    log_success "Memory evaluation completed."
+}
+
 # ------------------------------------------------------------------
 # Clean function – removes build artifacts and generated files.
 # Does NOT require uv or .venv.
@@ -467,5 +475,6 @@ case "$COMMAND" in
     --test-virthub)         run_virthub_tests ;;
     --serve|-s)             serve_model "$@" ;;
     --bench|-b)             run_benchmarks ;;
+    --bench-memory)         shift; run_bench_memory "$@" ;;
     *)                      log_error "Unknown command: $COMMAND" ;;
 esac

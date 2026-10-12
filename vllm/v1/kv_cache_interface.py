@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from collections import Counter
 from dataclasses import dataclass, fields, replace
 from enum import IntEnum
@@ -271,6 +272,36 @@ class FullAttentionSpec(AttentionSpec):
             * self.num_kv_heads
             * (self.head_size + self.head_size_v)
             * get_dtype_size(self.dtype)
+        )
+
+
+def _psp_kv_avg_bytes() -> float:
+    """Average bytes-per-element budget for the PSP-KV byte-buffer cache.
+
+    Controls how much memory the paged allocator reserves per element: 1.0 for
+    the fp8 worst case, or a fraction (e.g. 0.75) when the per-block precision
+    is expected to mix fp4 (0.5 B/elem) with fp8 (1 B/elem). The per-block byte
+    offsets are tracked separately by the backend.
+    """
+    return float(os.environ.get("PSPKV_AVG_BYTES", "1.0"))
+
+
+@dataclass(frozen=True, kw_only=True)
+class PSPKVAttentionSpec(FullAttentionSpec):
+    """PSP-KV variable-size byte-buffer cache spec.
+
+    Reserves a reduced page size (the average bytes-per-element) instead of the
+    fp8 worst case. The cache is a flat byte buffer whose per-block offsets are
+    tracked by the backend via ``block_offsets``.
+    """
+
+    @property
+    def real_page_size_bytes(self) -> int:
+        return int(
+            self.block_size
+            * self.num_kv_heads
+            * (self.head_size + self.head_size_v)
+            * _psp_kv_avg_bytes()
         )
 
 

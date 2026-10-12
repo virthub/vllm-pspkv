@@ -66,7 +66,8 @@ def test_psp_kv_attention_backend_get_kv_cache_shape():
         num_kv_heads=8,
         head_size=128,
     )
-    assert shape == (2, 1024, 8, 16, 128)
+    # Flat byte buffer: (2, num_blocks * block_size * num_kv_heads * head_size).
+    assert shape == (2, 1024 * 16 * 8 * 128)
 
 
 def test_psp_kv_metadata_builder_build():

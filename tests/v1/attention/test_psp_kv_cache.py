@@ -23,7 +23,8 @@ def test_get_kv_cache_shape_is_dtype_independent(cache_dtype_str):
         head_size=128,
         cache_dtype_str=cache_dtype_str,
     )
-    assert shape == (2, 64, 8, 16, 128)
+    # Flat byte buffer: (2, num_blocks * block_size * num_kv_heads * head_size).
+    assert shape == (2, 64 * 16 * 8 * 128)
 
 
 @pytest.mark.parametrize(
@@ -42,7 +43,9 @@ def test_get_kv_cache_shape_geometry(num_blocks, block_size, num_kv_heads, head_
         num_kv_heads=num_kv_heads,
         head_size=head_size,
     )
-    assert shape == (2, num_blocks, num_kv_heads, block_size, head_size)
+    # Flat byte buffer: the second axis is the total per-K/V byte footprint.
+    per_kv_bytes = num_blocks * block_size * num_kv_heads * head_size
+    assert shape == (2, per_kv_bytes)
     # Leading axis separates key (index 0) from value (index 1).
     assert shape[0] == 2
 
@@ -56,8 +59,9 @@ def test_kv_cache_leading_axis_is_key_value():
     # An FP8 cache uses a uint8 container; the shape itself is dtype-agnostic.
     cache = torch.zeros(shape, dtype=torch.uint8)
     key_cache, value_cache = cache[0], cache[1]
-    assert key_cache.shape == (num_blocks, num_kv_heads, block_size, head_size)
-    assert value_cache.shape == (num_blocks, num_kv_heads, block_size, head_size)
+    per_kv_bytes = num_blocks * num_kv_heads * block_size * head_size
+    assert key_cache.shape == (per_kv_bytes,)
+    assert value_cache.shape == (per_kv_bytes,)
     # The two halves must be distinct, contiguous slices of the same storage.
     assert key_cache.data_ptr() != value_cache.data_ptr()
     assert key_cache.is_contiguous() and value_cache.is_contiguous()

@@ -41,6 +41,7 @@ from vllm.v1.attention.selector import get_attn_backend
 from vllm.v1.kv_cache_interface import (
     FullAttentionSpec,
     KVCacheSpec,
+    PSPKVAttentionSpec,
     SlidingWindowSpec,
     get_kv_quant_mode,
 )
@@ -618,6 +619,17 @@ class Attention(nn.Module, AttentionLayerBase):
                 head_size_v=self.head_size,
                 dtype=self.kv_cache_torch_dtype,
                 tq_slot_size=tq_config.slot_size_aligned,
+            )
+        elif getattr(self.attn_backend, "get_name", lambda: "")() == "PSP_KV":
+            # PSP-KV uses a variable-size byte-buffer cache: reserve the average
+            # bytes-per-element (not the fp8 worst case).
+            return PSPKVAttentionSpec(
+                block_size=block_size,
+                num_kv_heads=self.num_kv_heads,
+                head_size=self.head_size,
+                head_size_v=self.head_size_v,
+                dtype=self.kv_cache_torch_dtype,
+                kv_quant_mode=quant_mode,
             )
         else:
             return FullAttentionSpec(
