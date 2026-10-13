@@ -277,16 +277,14 @@ __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp4_e2m1(uint8_t q) {
-    uint32_t exp = (q >> 1) & 0x3u;
-    uint32_t mant = q & 0x1u;
-    if (exp == 0) {
-        float v = mant * 0.5f;  // subnormal
-        return (q & 0x8u) ? -v : v;
-    }
-    if (exp == 3) return INFINITY;  // infinity
-    // Normal: (1 + mant/2) * 2^(exp-1), built directly as an IEEE-754 fp32.
-    uint32_t bits = ((q & 0x8u) << 28) | ((exp - 1 + 127) << 23) | (mant << 22);
-    return uint_as_float(bits);
+    // 16-entry LUT for the e2m1 (1 sign, 2 exp, 1 mantissa) format. The
+    // `static const` array lives in constant memory on device, so the lookup
+    // is a single constant read instead of bit manipulation + branches.
+    static const float lut[16] = {
+        0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, INFINITY, INFINITY,
+        -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -INFINITY, -INFINITY
+    };
+    return lut[q & 0x0Fu];
 }
 
 // Variable-stride (byte-buffer) dequant/quantize. The cache is a uint8 byte

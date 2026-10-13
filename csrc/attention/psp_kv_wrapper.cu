@@ -48,6 +48,7 @@ void launch_paged_attention_basic(
     const float* v_scales, const float* v_zero_points,
     const int* block_tables, const int* context_lens,
     const uint8_t* precision_table, const uint32_t* block_offsets,
+    float* partials,
     int max_blocks_per_seq, int num_tokens, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
     cudaStream_t stream);
@@ -59,6 +60,7 @@ void launch_paged_attention_enhanced(
     const float* k_scales, const float* v_scales,
     const int* block_tables, const int* context_lens,
     const uint8_t* precision_table, const uint32_t* block_offsets,
+    float* partials,
     int max_blocks_per_seq, int num_tokens, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
     cudaStream_t stream);
@@ -70,6 +72,7 @@ void launch_paged_attention_btkv(
     const float* k_scales, const float* v_scales,
     const int* block_tables, const int* context_lens,
     const uint8_t* precision_table, const uint32_t* block_offsets,
+    float* partials,
     int max_blocks_per_seq, int num_tokens, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
     cudaStream_t stream);
@@ -184,6 +187,9 @@ void psp_attention_basic(
     auto v_zero_points = at::zeros({(int64_t)num_blocks, (int64_t)kv_heads}, opts);
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+    auto partials = at::empty(
+        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_basic<scalar_t>(
             reinterpret_cast<scalar_t*>(out.data_ptr()),
@@ -198,6 +204,7 @@ void psp_attention_basic(
             context_lens.data_ptr<int>(),
             precision_table.data_ptr<uint8_t>(),
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            partials.data_ptr<float>(),
             max_blocks_per_seq, num_tokens, num_seqs, num_heads, kv_heads, head_dim,
             static_cast<float>(softmax_scale), stream);
     });
@@ -261,6 +268,10 @@ void psp_attention_enhanced(
                 "scale_table must be float32");
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+    // Split-K scratch: [num_seqs*num_heads*2, 2+head_dim] partial (max, sum, acc).
+    auto partials = at::empty(
+        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_enhanced<scalar_t>(
             reinterpret_cast<scalar_t*>(out.data_ptr()),
@@ -273,6 +284,7 @@ void psp_attention_enhanced(
             context_lens.data_ptr<int>(),
             precision_table.data_ptr<uint8_t>(),
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            partials.data_ptr<float>(),
             max_blocks_per_seq, num_tokens, num_seqs, num_heads, kv_heads, head_dim,
             static_cast<float>(softmax_scale), stream);
     });
@@ -345,6 +357,9 @@ void psp_attention_btkv(
     // The reference BT-KV kernel does not consume the TMA descriptors; they are
     // only validated here. scale_table is passed through as float32.
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+    auto partials = at::empty(
+        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_btkv<scalar_t>(
             reinterpret_cast<scalar_t*>(out.data_ptr()),
@@ -357,6 +372,7 @@ void psp_attention_btkv(
             context_lens.data_ptr<int>(),
             precision_table.data_ptr<uint8_t>(),
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            partials.data_ptr<float>(),
             max_blocks_per_seq, num_tokens, num_seqs, num_heads, kv_heads, head_dim,
             static_cast<float>(softmax_scale), stream);
     });

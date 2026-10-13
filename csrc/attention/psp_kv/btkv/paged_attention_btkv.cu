@@ -1,13 +1,15 @@
 // virthub/kernels/btkv_format/paged_attention_btkv.cu
 //
-// BT-KV Format Paged Attention Kernel
+// BT-KV Format Paged Attention Kernel (split-K)
 //
 // Paged attention for the BT-KV PSP-KV format. KV cache blocks are stored in
 // quantized (FP8/FP4/lossless) representation with per-(block, head) float32
-// scales. K is token-major [B_t, D_head], V is transposed [D_head, B_t].
+// scales. Layout: K token-major [B_t, D_head], V token-major [B_t, D_head].
 //
-// Decode-only: one thread block per (query head, sequence), threads cooperate
-// on the context scan (two-phase online softmax with a block reduction).
+// Decode-only split-K: the context is split across `num_splits` blocks per
+// (head, seq); each block computes a partial (max, sum, acc) with the
+// vectorized fp8x4 dequant + single-pass online softmax, and a second tiny
+// kernel merges the partials.
 
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
@@ -20,6 +22,7 @@
 
 #define BLOCK_SIZE 16
 #define THREADS 128
+#define NUM_SPLITS 2
 
 __device__ inline uint32_t psp_f2u_mono(float f) {
     uint32_t u = __float_as_uint(f);
@@ -30,8 +33,8 @@ __device__ inline float psp_u2f_mono(uint32_t u) {
 }
 
 template <typename scalar_t, int HEAD_DIM>
-__global__ void paged_attention_btkv_kernel(
-    scalar_t* __restrict__ out,
+__global__ void paged_attention_btkv_split_kernel(
+    float* __restrict__ partials,
     const scalar_t* __restrict__ q,
     const uint8_t* __restrict__ k_cache,
     const uint8_t* __restrict__ v_cache,
@@ -45,10 +48,12 @@ __global__ void paged_attention_btkv_kernel(
     int num_heads,
     int num_kv_heads,
     int head_dim,
-    float scale)
+    float scale,
+    int num_splits)
 {
     const int head_idx = blockIdx.x;
     const int seq_idx = blockIdx.y;
+    const int split_idx = blockIdx.z;
     const int tid = threadIdx.x;
     const int nthreads = blockDim.x;
 
@@ -70,21 +75,20 @@ __global__ void paged_attention_btkv_kernel(
     __syncthreads();
 
     const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
+    const int split_start = split_idx * blocks_per_split;
+    const int split_end = min(split_start + blocks_per_split, num_blocks);
 
-    // Single pass: per-thread online softmax over this thread's blocks.
-    // K is dequantized once (no separate max pass); the running max rescales
-    // the partial sum and accumulator whenever it increases.
     float local_max = -INFINITY;
     float local_sum = 0.0f;
     float acc[HEAD_DIM];
     for (int d = 0; d < HEAD_DIM; ++d) acc[d] = 0.0f;
 
-    for (int b = tid; b < num_blocks; b += nthreads) {
+    for (int b = split_start + tid; b < split_end; b += nthreads) {
         const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
         const int fp8_fmt = (int)precision_table[physical_block];
         const float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
         const float v_scale = v_scales[physical_block * num_kv_heads + kv_head];
-        // Hoist the per-(block, head) K scale out of the dot product.
         const float k_scale_eff = (fp8_fmt == 0) ? 1.0f : k_scale;
         const float v_scale_eff = (fp8_fmt == 0) ? 1.0f : v_scale;
         const float combined_scale = k_scale_eff * scale;
@@ -107,7 +111,6 @@ __global__ void paged_attention_btkv_kernel(
                        + s_query[d + 2] * k4.z + s_query[d + 3] * k4.w;
             }
             const float s = s_raw * combined_scale;
-            // Online softmax: rescale the partial sum/acc when the max grows.
             if (s > local_max) {
                 const float rescale = __expf(local_max - s);
                 local_sum *= rescale;
@@ -127,22 +130,56 @@ __global__ void paged_attention_btkv_kernel(
         }
     }
 
-    // Combine per-thread partials: global max, then rescale + add.
     atomicMax(&s_max, psp_f2u_mono(local_max));
     __syncthreads();
     const float gmax = psp_u2f_mono(s_max);
-    const float g_rescale = __expf(local_max - gmax);
-    local_sum *= g_rescale;
-    for (int d = 0; d < HEAD_DIM; ++d) acc[d] *= g_rescale;
+    if (local_max > -INFINITY) {
+        const float g_rescale = __expf(local_max - gmax);
+        local_sum *= g_rescale;
+        for (int d = 0; d < HEAD_DIM; ++d) acc[d] *= g_rescale;
+    }
     atomicAdd(&s_sum, local_sum);
     for (int d = 0; d < HEAD_DIM; ++d) atomicAdd(&s_acc[d], acc[d]);
     __syncthreads();
 
     if (tid == 0) {
-        const float inv_sum = 1.0f / s_sum;
-        scalar_t* out_ptr = out + ((int64_t)seq_idx * num_heads + head_idx) * head_dim;
-        for (int d = 0; d < HEAD_DIM; ++d) out_ptr[d] = psp_from_float<scalar_t>(s_acc[d] * inv_sum);
+        const int64_t p_idx =
+            ((int64_t)seq_idx * num_heads + head_idx) * num_splits + split_idx;
+        float* p = partials + p_idx * (2 + HEAD_DIM);
+        p[0] = gmax;
+        p[1] = s_sum;
+        for (int d = 0; d < HEAD_DIM; ++d) p[2 + d] = s_acc[d];
     }
+}
+
+template <typename scalar_t, int HEAD_DIM>
+__global__ void paged_attention_btkv_merge_kernel(
+    scalar_t* __restrict__ out,
+    const float* __restrict__ partials,
+    int num_heads,
+    int num_seqs,
+    int num_splits)
+{
+    const int head_idx = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int tid = threadIdx.x;
+
+    const int64_t base = ((int64_t)seq_idx * num_heads + head_idx) * num_splits;
+    float global_max = -INFINITY;
+    for (int s = 0; s < num_splits; ++s) {
+        global_max = fmaxf(global_max, partials[(base + s) * (2 + HEAD_DIM) + 0]);
+    }
+    float global_sum = 0.0f;
+    float o = 0.0f;
+    for (int s = 0; s < num_splits; ++s) {
+        const float* p = partials + (base + s) * (2 + HEAD_DIM);
+        const float rescale = __expf(p[0] - global_max);
+        global_sum += p[1] * rescale;
+        o += p[2 + tid] * rescale;
+    }
+    const float inv_sum = 1.0f / global_sum;
+    out[((int64_t)seq_idx * num_heads + head_idx) * HEAD_DIM + tid] =
+        psp_from_float<scalar_t>(o * inv_sum);
 }
 
 template <typename scalar_t>
@@ -157,6 +194,7 @@ void launch_paged_attention_btkv(
     const int* context_lens,
     const uint8_t* precision_table,
     const uint32_t* block_offsets,
+    float* partials,
     int max_blocks_per_seq,
     int num_tokens,
     int num_seqs,
@@ -166,15 +204,17 @@ void launch_paged_attention_btkv(
     float scale,
     cudaStream_t stream = 0)
 {
-    // Decode: one block per (head, seq), THREADS threads cooperate per head.
-    dim3 grid(num_heads, num_seqs);
+    dim3 grid(num_heads, num_seqs, NUM_SPLITS);
     psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
         constexpr int HEAD_DIM = decltype(hd)::value;
-        paged_attention_btkv_kernel<scalar_t, HEAD_DIM><<<grid, THREADS, 0, stream>>>(
-            out, q, k_cache, v_cache,
+        paged_attention_btkv_split_kernel<scalar_t, HEAD_DIM><<<grid, THREADS, 0, stream>>>(
+            partials, q, k_cache, v_cache,
             k_scales, v_scales,
             block_tables, context_lens, precision_table, block_offsets,
-            max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale);
+            max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale, NUM_SPLITS);
+        paged_attention_btkv_merge_kernel<scalar_t, HEAD_DIM>
+            <<<dim3(num_heads, num_seqs), THREADS, 0, stream>>>(
+            out, partials, num_heads, num_seqs, NUM_SPLITS);
     });
 
     cudaError_t err = cudaGetLastError();
@@ -186,16 +226,16 @@ void launch_paged_attention_btkv(
 template void launch_paged_attention_btkv<half>(
     half*, const half*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_btkv<__nv_bfloat16>(
     __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_btkv<__nv_fp8_e4m3>(
     __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_btkv<__nv_fp8_e5m2>(
     __nv_fp8_e5m2*, const __nv_fp8_e5m2*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, cudaStream_t);
