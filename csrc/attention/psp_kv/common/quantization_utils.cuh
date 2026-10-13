@@ -338,6 +338,75 @@ __device__ inline float4 psp_packed_dequant4(const uint8_t* base, int elem_idx, 
     return (float4)f;
 }
 
+// Compile-time-format vectorized dequant: FMT is a template constant, so the
+// branch is eliminated at compile time (no per-element runtime dispatch).
+template <typename scalar_t, int FMT>
+__device__ inline float4 psp_dequant4_ct(const uint8_t* base, int elem_idx) {
+    if (FMT == 0) {
+        const scalar_t* s = reinterpret_cast<const scalar_t*>(
+            base + elem_idx * sizeof(scalar_t));
+        return make_float4(
+            psp_to_float(s[0]), psp_to_float(s[1]),
+            psp_to_float(s[2]), psp_to_float(s[3]));
+    }
+    if (FMT == 3) {
+        uint16_t packed = *reinterpret_cast<const uint16_t*>(base + (elem_idx >> 1));
+        return make_float4(
+            dequantize_fp4_e2m1((uint8_t)(packed & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 4) & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 8) & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 12) & 0x0Fu)));
+    }
+    uint32_t packed = *reinterpret_cast<const uint32_t*>(base + elem_idx);
+    if (FMT == 2) {
+        __nv_fp8x4_e5m2 f = *reinterpret_cast<const __nv_fp8x4_e5m2*>(&packed);
+        return (float4)f;
+    }
+    __nv_fp8x4_e4m3 f = *reinterpret_cast<const __nv_fp8x4_e4m3*>(&packed);
+    return (float4)f;
+}
+
+// Branchless decode of one block's token range for a compile-time format.
+// The K dot product spans the full HEAD_DIM; the V weighted sum covers a
+// DIM_COUNT-wide dim subset starting at dim_offset (split-H uses HEAD_DIM/2,
+// non-split uses HEAD_DIM with dim_offset=0).
+template <typename scalar_t, int HEAD_DIM, int FMT, int DIM_COUNT>
+__device__ inline void psp_decode_block(
+    const float* __restrict__ s_query,
+    float& local_max, float& local_sum, float* __restrict__ acc,
+    const uint8_t* __restrict__ k_base, const uint8_t* __restrict__ v_base,
+    int tokens_in_block, float combined_scale, float v_scale_eff, int dim_offset)
+{
+    for (int t = 0; t < tokens_in_block; ++t) {
+        float s_raw = 0.0f;
+        const int elem_base = t * HEAD_DIM;
+        #pragma unroll
+        for (int d = 0; d < HEAD_DIM; d += 4) {
+            float4 k4 = psp_dequant4_ct<scalar_t, FMT>(k_base, elem_base + d);
+            s_raw += s_query[d] * k4.x + s_query[d + 1] * k4.y
+                   + s_query[d + 2] * k4.z + s_query[d + 3] * k4.w;
+        }
+        const float s = s_raw * combined_scale;
+        if (s > local_max) {
+            const float rescale = __expf(local_max - s);
+            local_sum *= rescale;
+            for (int d = 0; d < DIM_COUNT; ++d) acc[d] *= rescale;
+            local_max = s;
+        }
+        const float w = __expf(s - local_max);
+        local_sum += w;
+        const float w_scaled = w * v_scale_eff;
+        #pragma unroll
+        for (int d = 0; d < DIM_COUNT; d += 4) {
+            float4 v4 = psp_dequant4_ct<scalar_t, FMT>(v_base, elem_base + dim_offset + d);
+            acc[d]     += w_scaled * v4.x;
+            acc[d + 1] += w_scaled * v4.y;
+            acc[d + 2] += w_scaled * v4.z;
+            acc[d + 3] += w_scaled * v4.w;
+        }
+    }
+}
+
 template <typename scalar_t>
 __device__ inline void psp_packed_quantize(
     uint8_t* base, int elem_idx, float x, int fmt, float scale)

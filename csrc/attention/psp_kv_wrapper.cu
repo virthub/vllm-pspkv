@@ -188,7 +188,7 @@ void psp_attention_basic(
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
     auto partials = at::empty(
-        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        {(int64_t)num_seqs * num_heads * 2 * 2 * (2 + head_dim / 2)},
         at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_basic<scalar_t>(
@@ -268,9 +268,9 @@ void psp_attention_enhanced(
                 "scale_table must be float32");
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
-    // Split-K scratch: [num_seqs*num_heads*2, 2+head_dim] partial (max, sum, acc).
+    // Split-K x split-H scratch: [num_seqs*num_heads*2*2, 2+head_dim/2] partial.
     auto partials = at::empty(
-        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        {(int64_t)num_seqs * num_heads * 2 * 2 * (2 + head_dim / 2)},
         at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_enhanced<scalar_t>(
@@ -358,7 +358,7 @@ void psp_attention_btkv(
     // only validated here. scale_table is passed through as float32.
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
     auto partials = at::empty(
-        {(int64_t)num_seqs * num_heads * 2 * (2 + head_dim)},
+        {(int64_t)num_seqs * num_heads * 2 * 2 * (2 + head_dim / 2)},
         at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_SCALAR(query, {
         launch_paged_attention_btkv<scalar_t>(
