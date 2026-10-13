@@ -73,43 +73,23 @@ __global__ void paged_attention_basic_kernel(
 
     const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    // Phase 1: per-thread max over this thread's assigned blocks.
+    // Single pass: per-thread online softmax over this thread's blocks.
+    // K is dequantized once (no separate max pass); the running max rescales
+    // the partial sum and accumulator whenever it increases.
     float local_max = -INFINITY;
-    for (int b = tid; b < num_blocks; b += nthreads) {
-        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
-        const int fp8_fmt = (int)precision_table[physical_block];
-        const float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
-        int block_bytes_per_head;
-        if (fp8_fmt == 0)      block_bytes_per_head = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
-        else if (fp8_fmt == 3) block_bytes_per_head = BLOCK_SIZE * HEAD_DIM / 2;
-        else                   block_bytes_per_head = BLOCK_SIZE * HEAD_DIM;
-        const uint8_t* k_base = k_cache + block_offsets[physical_block]
-                              + (size_t)kv_head * block_bytes_per_head;
-        const int start_token = b * BLOCK_SIZE;
-        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
-        for (int t = 0; t < tokens_in_block; ++t) {
-            float s = 0.0f;
-            const int elem_base = t * HEAD_DIM;
-            for (int d = 0; d < HEAD_DIM; ++d) {
-                s += s_query[d] * psp_packed_dequant<scalar_t>(k_base, elem_base + d, fp8_fmt, k_scale);
-            }
-            s *= scale;
-            local_max = fmaxf(local_max, s);
-        }
-    }
-    atomicMax(&s_max, psp_f2u_mono(local_max));
-    __syncthreads();
-    const float gmax = psp_u2f_mono(s_max);
-
-    // Phase 2: per-thread sum + weighted V (token-major V[t, d]).
     float local_sum = 0.0f;
     float acc[HEAD_DIM];
     for (int d = 0; d < HEAD_DIM; ++d) acc[d] = 0.0f;
+
     for (int b = tid; b < num_blocks; b += nthreads) {
         const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
         const int fp8_fmt = (int)precision_table[physical_block];
         const float k_scale = k_scales[physical_block * num_kv_heads + kv_head];
         const float v_scale = v_scales[physical_block * num_kv_heads + kv_head];
+        // Hoist the per-(block, head) K scale out of the dot product.
+        const float k_scale_eff = (fp8_fmt == 0) ? 1.0f : k_scale;
+        const float v_scale_eff = (fp8_fmt == 0) ? 1.0f : v_scale;
+        const float combined_scale = k_scale_eff * scale;
         int block_bytes_per_head;
         if (fp8_fmt == 0)      block_bytes_per_head = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
         else if (fp8_fmt == 3) block_bytes_per_head = BLOCK_SIZE * HEAD_DIM / 2;
@@ -121,19 +101,41 @@ __global__ void paged_attention_basic_kernel(
         const int start_token = b * BLOCK_SIZE;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
         for (int t = 0; t < tokens_in_block; ++t) {
-            float s = 0.0f;
+            float s_raw = 0.0f;
             const int elem_base = t * HEAD_DIM;
-            for (int d = 0; d < HEAD_DIM; ++d) {
-                s += s_query[d] * psp_packed_dequant<scalar_t>(k_base, elem_base + d, fp8_fmt, k_scale);
+            for (int d = 0; d < HEAD_DIM; d += 4) {
+                float4 k4 = psp_packed_dequant4<scalar_t>(k_base, elem_base + d, fp8_fmt);
+                s_raw += s_query[d] * k4.x + s_query[d + 1] * k4.y
+                       + s_query[d + 2] * k4.z + s_query[d + 3] * k4.w;
             }
-            s *= scale;
-            const float w = expf(s - gmax);
+            const float s = s_raw * combined_scale;
+            // Online softmax: rescale the partial sum/acc when the max grows.
+            if (s > local_max) {
+                const float rescale = __expf(local_max - s);
+                local_sum *= rescale;
+                for (int d = 0; d < HEAD_DIM; ++d) acc[d] *= rescale;
+                local_max = s;
+            }
+            const float w = __expf(s - local_max);
             local_sum += w;
-            for (int d = 0; d < HEAD_DIM; ++d) {
-                acc[d] += w * psp_packed_dequant<scalar_t>(v_base, elem_base + d, fp8_fmt, v_scale);
+            const float w_scaled = w * v_scale_eff;
+            for (int d = 0; d < HEAD_DIM; d += 4) {
+                float4 v4 = psp_packed_dequant4<scalar_t>(v_base, elem_base + d, fp8_fmt);
+                acc[d]     += w_scaled * v4.x;
+                acc[d + 1] += w_scaled * v4.y;
+                acc[d + 2] += w_scaled * v4.z;
+                acc[d + 3] += w_scaled * v4.w;
             }
         }
     }
+
+    // Combine per-thread partials: global max, then rescale + add.
+    atomicMax(&s_max, psp_f2u_mono(local_max));
+    __syncthreads();
+    const float gmax = psp_u2f_mono(s_max);
+    const float g_rescale = __expf(local_max - gmax);
+    local_sum *= g_rescale;
+    for (int d = 0; d < HEAD_DIM; ++d) acc[d] *= g_rescale;
     atomicAdd(&s_sum, local_sum);
     for (int d = 0; d < HEAD_DIM; ++d) atomicAdd(&s_acc[d], acc[d]);
     __syncthreads();

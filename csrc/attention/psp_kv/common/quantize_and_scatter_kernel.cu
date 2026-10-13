@@ -143,14 +143,9 @@ __global__ void quantize_and_scatter_kernel(
             float k = psp_to_float(k_row[d]);
             float v = psp_to_float(v_row[d]);
             psp_packed_quantize<scalar_t>(k_out, d, k, fp8_fmt, scale);
-            int v_elem;
-            if (format_generation == 0) {
-                // Basic format: token-major V[t, d].
-                v_elem = block_offset * head_dim + d;
-            } else {
-                // Enhanced/BT-KV: transposed V[d, t].
-                v_elem = d * block_size + block_offset;
-            }
+            // All formats use token-major V[t, d] so the decode kernels can
+            // dequantize V in a vectorized (4-wide) fashion.
+            int v_elem = block_offset * head_dim + d;
             psp_packed_quantize<scalar_t>(v_out, v_elem, v, fp8_fmt, scale);
         }
     }

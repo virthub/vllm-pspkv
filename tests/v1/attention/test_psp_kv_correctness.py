@@ -184,7 +184,7 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
         scale = 1.0
 
     # expected byte buffer via the reference packer. The quantize-and-scatter
-    # op writes V transposed (the enhanced/btkv layout), so use format_gen=1.
+    # op writes V token-major (all formats), so use format_gen=1 for the scale.
     k = prefill[:, 0].permute(1, 0, 2).unsqueeze(0)  # [1, num_kv_heads, num_tokens, head_size]
     v = prefill[:, 1].permute(1, 0, 2).unsqueeze(0)
     expected_k, expected_v, _ = pack_kv_cache(k, v, 1, precision_table, dtype, scale=scale)

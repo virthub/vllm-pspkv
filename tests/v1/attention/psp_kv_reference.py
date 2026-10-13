@@ -143,12 +143,8 @@ def pack_kv_cache(k_full: torch.Tensor, v_full: torch.Tensor, format_gen: int,
     for b in range(num_blocks):
         fmt = int(precision_table[b].item())
         k_bytes = _pack_elements(k_full[b], fmt, dtype, scale)
-        if format_gen == 0:
-            v_bytes = _pack_elements(v_full[b], fmt, dtype, scale)
-        else:
-            # enhanced/btkv V is stored transposed [head_size, block_size]
-            # (i.e. [num_kv_heads, head_size, block_size] = V[h, d, t]).
-            v_bytes = _pack_elements(v_full[b].permute(0, 2, 1), fmt, dtype, scale)
+        # All formats use token-major V[t, d] (enables vectorized dequant).
+        v_bytes = _pack_elements(v_full[b], fmt, dtype, scale)
         off = offsets[b]
         k_buf[off:off + block_bytes[b]] = k_bytes
         v_buf[off:off + block_bytes[b]] = v_bytes
@@ -222,12 +218,8 @@ def reference_paged_attention(
 
             k = _dequant_elements(key_cache[off:off + bb], fmt, query.dtype,
                                   (num_kv_heads, block_size, head_dim), 1.0)
-            if format_gen == 0:
-                v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
-                                      (num_kv_heads, block_size, head_dim), 1.0)
-            else:
-                v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
-                                      (num_kv_heads, head_dim, block_size), 1.0).transpose(1, 2)
+            v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
+                                  (num_kv_heads, block_size, head_dim), 1.0)
             if format_gen != 0 and fmt != 0:
                 s = scale_table[bid].float()[:, None, None]
                 k = k * s

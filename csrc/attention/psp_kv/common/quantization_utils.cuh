@@ -108,17 +108,9 @@ __host__ __device__ inline uint8_t quantize_fp8_e4m3(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp8_e4m3(uint8_t q) {
-    uint32_t exp = (q >> 3) & 0xFu;
-    uint32_t mant = q & 0x7u;
-    if (exp == 0) {
-        // subnormal: 0.mmm * 2^-6 = mant * 2^-9
-        float v = (float)mant * 0.001953125f;
-        return (q & 0x80u) ? -v : v;
-    }
-    if (exp == 15 && mant == 7) return NAN;
-    // Normal: (1 + mant/8) * 2^(exp-7), built directly as an IEEE-754 fp32.
-    uint32_t bits = ((q & 0x80u) << 24) | ((exp - 7 + 127) << 23) | (mant << 20);
-    return uint_as_float(bits);
+    // Native hardware conversion (cvt.rn.f32.e4m3 on SM 89+); exact for e4m3.
+    __nv_fp8_e4m3 f = *reinterpret_cast<const __nv_fp8_e4m3*>(&q);
+    return (float)f;
 }
 
 // FP8 E5M2 (1 sign, 5 exponent, 2 mantissa, bias 15)
@@ -163,17 +155,9 @@ __host__ __device__ inline uint8_t quantize_fp8_e5m2(float value) {
 }
 
 __host__ __device__ inline float dequantize_fp8_e5m2(uint8_t q) {
-    uint32_t exp = (q >> 2) & 0x1Fu;
-    uint32_t mant = q & 0x3u;
-    if (exp == 0) {
-        // subnormal: 0.mm * 2^-14 = mant * 2^-16
-        float v = (float)mant * 0.0000152587890625f;
-        return (q & 0x80u) ? -v : v;
-    }
-    if (exp == 31) return (mant == 0) ? INFINITY : NAN;
-    // Normal: (1 + mant/4) * 2^(exp-15), built directly as an IEEE-754 fp32.
-    uint32_t bits = ((q & 0x80u) << 24) | ((exp - 15 + 127) << 23) | (mant << 21);
-    return uint_as_float(bits);
+    // Native hardware conversion (cvt.rn.f32.e5m2 on SM 89+); exact for e5m2.
+    __nv_fp8_e5m2 f = *reinterpret_cast<const __nv_fp8_e5m2*>(&q);
+    return (float)f;
 }
 
 // Forward declarations for the FP4 helpers (defined later in this header).
@@ -322,6 +306,38 @@ __device__ inline float psp_packed_dequant(
         return dequantize_fp4_e2m1(nibble) * scale;
     }
     return dequantize_fp8(base[elem_idx], fmt) * scale;
+}
+
+// Vectorized dequant: 4 packed elements -> float4 in one load + one conversion.
+// ``base`` is the block byte pointer and ``elem_idx`` is the logical element
+// index (0-based within the block), matching ``psp_packed_dequant``'s
+// addressing so the byte offset is derived from the format.
+template <typename scalar_t>
+__device__ inline float4 psp_packed_dequant4(const uint8_t* base, int elem_idx, int fmt) {
+    if (fmt == 0) {
+        const scalar_t* s = reinterpret_cast<const scalar_t*>(
+            base + elem_idx * sizeof(scalar_t));
+        return make_float4(
+            psp_to_float(s[0]), psp_to_float(s[1]),
+            psp_to_float(s[2]), psp_to_float(s[3]));
+    }
+    if (fmt == 3) {
+        // 4 fp4 nibbles packed into 2 bytes.
+        uint16_t packed = *reinterpret_cast<const uint16_t*>(base + (elem_idx >> 1));
+        return make_float4(
+            dequantize_fp4_e2m1((uint8_t)(packed & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 4) & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 8) & 0x0Fu)),
+            dequantize_fp4_e2m1((uint8_t)((packed >> 12) & 0x0Fu)));
+    }
+    // fp8: 4 bytes -> float4 via native hardware conversion.
+    uint32_t packed = *reinterpret_cast<const uint32_t*>(base + elem_idx);
+    if (fmt == 2) {
+        __nv_fp8x4_e5m2 f = *reinterpret_cast<const __nv_fp8x4_e5m2*>(&packed);
+        return (float4)f;
+    }
+    __nv_fp8x4_e4m3 f = *reinterpret_cast<const __nv_fp8x4_e4m3*>(&packed);
+    return (float4)f;
 }
 
 template <typename scalar_t>
