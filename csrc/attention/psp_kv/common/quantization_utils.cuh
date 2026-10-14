@@ -68,43 +68,10 @@ __host__ __device__ inline float uint_as_float(uint32_t value) {
 
 // FP8 E4M3 (1 sign, 4 exponent, 3 mantissa, bias 7)
 __host__ __device__ inline uint8_t quantize_fp8_e4m3(float value) {
-    if (isnan(value)) return 0x7F;
-    if (value == 0.0f) return 0x00;
-
-    uint32_t bits = float_as_uint(value);
-    uint8_t sign = (bits >> 31) & 0x1;
-    float abs_value = fabsf(value);
-
-    if (isinf(abs_value)) return (sign << 7) | 0x78;
-
-    int f32_exp = ((bits >> 23) & 0xFF) - 127;
-    uint32_t f32_mant = bits & 0x7FFFFF;
-
-    int fp8_exp = f32_exp + 7;
-    uint8_t mant = f32_mant >> (23 - 3);
-    uint8_t round_bit = (f32_mant >> (23 - 3 - 1)) & 1;
-    uint8_t sticky = (f32_mant & ((1 << (23 - 3 - 1)) - 1)) != 0;
-
-    if (round_bit && (sticky || (mant & 1))) {
-        mant++;
-        if (mant == 0x8) {
-            mant = 0;
-            fp8_exp++;
-        }
-    }
-
-    if (fp8_exp >= 15) {
-        return (sign << 7) | 0x78;  // infinity
-    } else if (fp8_exp <= 0) {
-        if (fp8_exp < -7) {
-            return sign << 7;       // underflow to zero
-        }
-        // subnormal
-        mant = ((0x8 | mant) >> (1 - fp8_exp)) & 0x7;
-        fp8_exp = 0;
-    }
-
-    return (sign << 7) | ((fp8_exp & 0xF) << 3) | mant;
+    // Native hardware conversion (cvt.rn.fp8.e4m3.f32 on SM 89+); the caller
+    // normalizes to the fp8 range so no saturation is needed.
+    __nv_fp8_e4m3 f = (__nv_fp8_e4m3)value;
+    return *reinterpret_cast<const uint8_t*>(&f);
 }
 
 __host__ __device__ inline float dequantize_fp8_e4m3(uint8_t q) {
@@ -115,43 +82,10 @@ __host__ __device__ inline float dequantize_fp8_e4m3(uint8_t q) {
 
 // FP8 E5M2 (1 sign, 5 exponent, 2 mantissa, bias 15)
 __host__ __device__ inline uint8_t quantize_fp8_e5m2(float value) {
-    if (isnan(value)) return 0x7F;
-    if (value == 0.0f) return 0x00;
-
-    uint32_t bits = float_as_uint(value);
-    uint8_t sign = (bits >> 31) & 0x1;
-    float abs_value = fabsf(value);
-
-    if (isinf(abs_value)) return (sign << 7) | 0x7C;
-
-    int f32_exp = ((bits >> 23) & 0xFF) - 127;
-    uint32_t f32_mant = bits & 0x7FFFFF;
-
-    int fp8_exp = f32_exp + 15;
-    uint8_t mant = f32_mant >> (23 - 2);
-    uint8_t round_bit = (f32_mant >> (23 - 2 - 1)) & 1;
-    uint8_t sticky = (f32_mant & ((1 << (23 - 2 - 1)) - 1)) != 0;
-
-    if (round_bit && (sticky || (mant & 1))) {
-        mant++;
-        if (mant == 0x4) {
-            mant = 0;
-            fp8_exp++;
-        }
-    }
-
-    if (fp8_exp >= 31) {
-        return (sign << 7) | 0x7C;  // infinity
-    } else if (fp8_exp <= 0) {
-        if (fp8_exp < -1) {
-            return sign << 7;       // underflow to zero
-        }
-        // subnormal
-        mant = ((0x4 | mant) >> (1 - fp8_exp)) & 0x3;
-        fp8_exp = 0;
-    }
-
-    return (sign << 7) | ((fp8_exp & 0x1F) << 2) | mant;
+    // Native hardware conversion (cvt.rn.fp8.e5m2.f32 on SM 89+); the caller
+    // normalizes to the fp8 range so no saturation is needed.
+    __nv_fp8_e5m2 f = (__nv_fp8_e5m2)value;
+    return *reinterpret_cast<const uint8_t*>(&f);
 }
 
 __host__ __device__ inline float dequantize_fp8_e5m2(uint8_t q) {
@@ -424,6 +358,37 @@ __device__ inline void psp_packed_quantize(
         }
     } else {
         base[elem_idx] = quantize_fp8(x / scale, fmt);
+    }
+}
+
+// Compile-time-format quantize of one element (no runtime fmt branch).
+template <typename scalar_t, int FMT>
+__device__ inline void psp_quantize_ct(uint8_t* base, int elem_idx, float x, float scale) {
+    if (FMT == 0) {
+        scalar_t* s = reinterpret_cast<scalar_t*>(base + elem_idx * sizeof(scalar_t));
+        *s = psp_from_float<scalar_t>(x);
+    } else if (FMT == 3) {
+        uint8_t* b = base + (elem_idx >> 1);
+        uint8_t q = quantize_fp4_e2m1(x / scale);
+        if (elem_idx & 1) *b = (*b & 0x0Fu) | ((q & 0x0Fu) << 4);
+        else *b = (*b & 0xF0u) | (q & 0x0Fu);
+    } else {
+        base[elem_idx] = (FMT == 2) ? quantize_fp8_e5m2(x / scale) : quantize_fp8_e4m3(x / scale);
+    }
+}
+
+// Branchless quantize of one K/V row pair for a compile-time format.
+template <typename scalar_t, int FMT>
+__device__ inline void psp_quantize_row(
+    const scalar_t* __restrict__ k_row, const scalar_t* __restrict__ v_row,
+    uint8_t* __restrict__ k_out, uint8_t* __restrict__ v_out,
+    int head_dim, float scale, int block_offset)
+{
+    for (int d = 0; d < head_dim; ++d) {
+        const float k = psp_to_float(k_row[d]);
+        const float v = psp_to_float(v_row[d]);
+        psp_quantize_ct<scalar_t, FMT>(k_out, d, k, scale);
+        psp_quantize_ct<scalar_t, FMT>(v_out, block_offset * head_dim + d, v, scale);
     }
 }
 

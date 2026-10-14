@@ -41,7 +41,12 @@ __global__ void estimate_block_scales_kernel(
     float* __restrict__ max_abs,                   // [num_blocks, num_kv_heads]
     int num_tokens, int num_kv_heads, int block_size, int head_dim)
 {
-    int token = blockIdx.x * blockDim.x + threadIdx.x;
+    // One thread per (token, head): num_kv_heads x more parallelism than the
+    // old one-thread-per-token layout, so each thread reduces only 2*head_dim
+    // elements instead of 2*num_kv_heads*head_dim (a short fmaxf chain).
+    const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int token = global_tid / num_kv_heads;
+    const int h = global_tid % num_kv_heads;
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
@@ -49,23 +54,22 @@ __global__ void estimate_block_scales_kernel(
     const int fp8_fmt = static_cast<int>(precision_table[block_id]);
     if (fp8_fmt == 0) return;  // lossless: scale stays 1.0
 
-    for (int h = 0; h < num_kv_heads; ++h) {
-        const scalar_t* k_row = prefill_scratch +
-            ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
-        const scalar_t* v_row = prefill_scratch +
-            ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
+    const scalar_t* k_row = prefill_scratch +
+        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
+    const scalar_t* v_row = prefill_scratch +
+        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
 
-        float m = 0.0f;
-        for (int d = 0; d < head_dim; ++d) {
-            m = fmaxf(m, fabsf(psp_to_float(k_row[d])));
-            m = fmaxf(m, fabsf(psp_to_float(v_row[d])));
-        }
-
-        // max_abs is >= 0, so its IEEE-754 bit pattern is monotonically
-        // ordered and a signed int atomicMax yields the float max.
-        int idx = block_id * num_kv_heads + h;
-        atomicMax(reinterpret_cast<int*>(&max_abs[idx]), __float_as_int(m));
+    float m = 0.0f;
+    #pragma unroll 4
+    for (int d = 0; d < head_dim; ++d) {
+        m = fmaxf(m, fabsf(psp_to_float(k_row[d])));
+        m = fmaxf(m, fabsf(psp_to_float(v_row[d])));
     }
+
+    // max_abs is >= 0, so its IEEE-754 bit pattern is monotonically ordered
+    // and a signed int atomicMax yields the float max.
+    atomicMax(reinterpret_cast<int*>(&max_abs[block_id * num_kv_heads + h]),
+              __float_as_int(m));
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +112,11 @@ __global__ void quantize_and_scatter_kernel(
     int num_tokens, int num_kv_heads, int block_size, int head_dim,
     int format_generation)
 {
-    int token = blockIdx.x * blockDim.x + threadIdx.x;
+    // One thread per (token, head): num_kv_heads x more parallelism than the
+    // old one-thread-per-token layout, so each thread quantizes one row pair.
+    const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int token = global_tid / num_kv_heads;
+    const int h = global_tid % num_kv_heads;
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
@@ -125,29 +133,27 @@ __global__ void quantize_and_scatter_kernel(
     else if (fp8_fmt == 3) bytes_per_row = head_dim / 2;
     else                   bytes_per_row = head_dim;
 
-    for (int h = 0; h < num_kv_heads; ++h) {
-        const float scale = scale_table[static_cast<int64_t>(block_id) * num_kv_heads + h];
+    const float scale = scale_table[static_cast<int64_t>(block_id) * num_kv_heads + h];
 
-        const scalar_t* k_row = prefill_scratch +
-            ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
-        const scalar_t* v_row = prefill_scratch +
-            ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
+    const scalar_t* k_row = prefill_scratch +
+        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
+    const scalar_t* v_row = prefill_scratch +
+        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
 
-        uint8_t* k_out = key_cache + block_offsets[block_id]
-                       + (size_t)h * block_bytes_per_head
-                       + block_offset * bytes_per_row;
-        uint8_t* v_out = value_cache + block_offsets[block_id]
-                       + (size_t)h * block_bytes_per_head;
+    uint8_t* k_out = key_cache + block_offsets[block_id]
+                   + (size_t)h * block_bytes_per_head
+                   + block_offset * bytes_per_row;
+    uint8_t* v_out = value_cache + block_offsets[block_id]
+                   + (size_t)h * block_bytes_per_head;
 
-        for (int d = 0; d < head_dim; ++d) {
-            float k = psp_to_float(k_row[d]);
-            float v = psp_to_float(v_row[d]);
-            psp_packed_quantize<scalar_t>(k_out, d, k, fp8_fmt, scale);
-            // All formats use token-major V[t, d] so the decode kernels can
-            // dequantize V in a vectorized (4-wide) fashion.
-            int v_elem = block_offset * head_dim + d;
-            psp_packed_quantize<scalar_t>(v_out, v_elem, v, fp8_fmt, scale);
-        }
+    // Branchless per-block dispatch: the format is fixed per block, so the
+    // quantize loop below is compiled once per format without a runtime
+    // fmt branch inside the element loop.
+    switch (fp8_fmt) {
+        case 0: psp_quantize_row<scalar_t, 0>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
+        case 1: psp_quantize_row<scalar_t, 1>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
+        case 2: psp_quantize_row<scalar_t, 2>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
+        default: psp_quantize_row<scalar_t, 3>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
     }
 }
 
@@ -168,17 +174,18 @@ void launch_quantize_and_scatter(
     int format_generation, cudaStream_t stream)
 {
     const int threads = 256;
-    const int token_blocks = (num_tokens + threads - 1) / threads;
+    // Both the estimate and the quantize now use one thread per (token, head).
+    const int pair_blocks = ((int64_t)num_tokens * num_kv_heads + threads - 1) / threads;
     const int scale_blocks = (num_blocks * num_kv_heads + threads - 1) / threads;
 
-    estimate_block_scales_kernel<scalar_t><<<token_blocks, threads, 0, stream>>>(
+    estimate_block_scales_kernel<scalar_t><<<pair_blocks, threads, 0, stream>>>(
         prefill_scratch, slot_mapping, precision_table, max_abs,
         num_tokens, num_kv_heads, block_size, head_dim);
 
     finalize_block_scales_kernel<<<scale_blocks, threads, 0, stream>>>(
         max_abs, precision_table, scale_table, num_blocks, num_kv_heads);
 
-    quantize_and_scatter_kernel<scalar_t><<<token_blocks, threads, 0, stream>>>(
+    quantize_and_scatter_kernel<scalar_t><<<pair_blocks, threads, 0, stream>>>(
         prefill_scratch, key_cache, value_cache, slot_mapping, precision_table,
         block_offsets, scale_table, num_tokens, num_kv_heads, block_size, head_dim,
         format_generation);
