@@ -622,13 +622,14 @@ class Attention(nn.Module, AttentionLayerBase):
             )
         elif getattr(self.attn_backend, "get_name", lambda: "")() == "PSP_KV":
             # PSP-KV uses a variable-size byte-buffer cache: reserve the average
-            # bytes-per-element (not the fp8 worst case).
+            # bytes-per-element (not the fp8 worst case). The cache is a raw
+            # uint8 byte buffer (K/V are packed per the per-block precision).
             return PSPKVAttentionSpec(
                 block_size=block_size,
                 num_kv_heads=self.num_kv_heads,
                 head_size=self.head_size,
                 head_size_v=self.head_size_v,
-                dtype=self.kv_cache_torch_dtype,
+                dtype=torch.uint8,
                 kv_quant_mode=quant_mode,
             )
         else:

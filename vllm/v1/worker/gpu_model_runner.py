@@ -596,6 +596,9 @@ class GPUModelRunner(
         self.cross_layers_attn_backend: type[AttentionBackend] | None = None
         # indexes: [kv_cache_group_id][attn_group]
         self.attn_groups: list[list[AttentionGroup]] = []
+        # True when any attention group uses the PSP-KV backend; gates the
+        # PSP-KV prefill quantization path so non-PSP-KV backends are unaffected.
+        self.use_psp_kv = False
         # self.kv_cache_config: KVCacheConfig
 
         # mm_hash ->  encoder_output
@@ -861,6 +864,7 @@ class GPUModelRunner(
         self.precision_table = None
         self.scale_table = None
         self.tma_descriptors = None
+        self.block_offsets = None
         self.h_precision_table = None
         self.h_scale_table = None
         self.h_tma_descriptors = None
@@ -4205,8 +4209,10 @@ class GPUModelRunner(
 
             # ========== PSP-KV: Prefill quantization ==========
             # If there are prefill tokens, we need to quantize the KV cache
-            # from the scratch buffer and scatter into the FP8 cache.
-            if self.prefill_kv_scratch is not None and self.precision_table is not None:
+            # from the scratch buffer and scatter into the byte-buffer cache.
+            if (self.use_psp_kv
+                    and self.prefill_kv_scratch is not None
+                    and self.precision_table is not None):
                 # Use the correct is_prefilling detection from the batch.
                 # Compute is_prefilling from input_batch state.
                 num_computed_tokens_cpu = self.input_batch.num_computed_tokens_cpu_tensor[:num_reqs]
@@ -6787,6 +6793,12 @@ class GPUModelRunner(
         for i, attn_backend_map in enumerate(attention_backend_maps):
             self.attn_groups.append(create_attn_groups(attn_backend_map, i))
 
+        self.use_psp_kv = any(
+            getattr(group.backend, "get_name", lambda: "")() == "PSP_KV"
+            for groups in self.attn_groups
+            for group in groups
+        )
+
     def initialize_metadata_builders(
         self, kv_cache_config: KVCacheConfig, kernel_block_sizes: list[int]
     ) -> None:
@@ -7296,10 +7308,6 @@ class GPUModelRunner(
         kv_cache_config = deepcopy(kv_cache_config)
         self.kv_cache_config = kv_cache_config
 
-        # ========== PSP-KV: allocate metadata tables ==========
-        self.initialize_psp_kv_tables()
-        # ======================================================
-
         self._mamba_copy_bufs = None
         self.may_add_encoder_only_layers_to_kv_cache_config()
         self.maybe_add_kv_sharing_layers_to_kv_cache_groups(kv_cache_config)
@@ -7307,6 +7315,11 @@ class GPUModelRunner(
         initialize_mamba_ssu_backend(
             self.vllm_config.mamba_config, self.kv_cache_config
         )
+
+        # ========== PSP-KV: allocate metadata tables (only for PSP-KV) ==========
+        if self.use_psp_kv:
+            self.initialize_psp_kv_tables()
+        # ======================================================================
         # The kernel block size for all KV cache groups. For example, if
         # kv_cache_manager uses block_size 256 for a given group, but the attention
         # backends for that group only supports block_size 64, we will return
