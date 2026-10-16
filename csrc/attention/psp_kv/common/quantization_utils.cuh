@@ -317,8 +317,10 @@ __device__ inline void psp_decode_block(
         #pragma unroll
         for (int d = 0; d < HEAD_DIM; d += 4) {
             float4 k4 = psp_dequant4_ct<scalar_t, FMT>(k_base, elem_base + d);
-            s_raw += s_query[d] * k4.x + s_query[d + 1] * k4.y
-                   + s_query[d + 2] * k4.z + s_query[d + 3] * k4.w;
+            s_raw = fmaf(s_query[d], k4.x, s_raw);
+            s_raw = fmaf(s_query[d + 1], k4.y, s_raw);
+            s_raw = fmaf(s_query[d + 2], k4.z, s_raw);
+            s_raw = fmaf(s_query[d + 3], k4.w, s_raw);
         }
         const float s = s_raw * combined_scale;
         if (s > local_max) {
@@ -333,10 +335,10 @@ __device__ inline void psp_decode_block(
         #pragma unroll
         for (int d = 0; d < DIM_COUNT; d += 4) {
             float4 v4 = psp_dequant4_ct<scalar_t, FMT>(v_base, elem_base + dim_offset + d);
-            acc[d]     += w_scaled * v4.x;
-            acc[d + 1] += w_scaled * v4.y;
-            acc[d + 2] += w_scaled * v4.z;
-            acc[d + 3] += w_scaled * v4.w;
+            acc[d]     = fmaf(w_scaled, v4.x, acc[d]);
+            acc[d + 1] = fmaf(w_scaled, v4.y, acc[d + 1]);
+            acc[d + 2] = fmaf(w_scaled, v4.z, acc[d + 2]);
+            acc[d + 3] = fmaf(w_scaled, v4.w, acc[d + 3]);
         }
     }
 }

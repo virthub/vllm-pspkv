@@ -91,11 +91,16 @@ def main():
         q = torch.randn(1, num_heads, 1, head_dim, device=device).to(dtype)
         kk = k_seq.to(dtype)
         vv = v_seq.to(dtype)
+        # fp8 has no fused SDPA backend; cast to fp16 for a latency baseline
+        # at the same target precision (the fp8 quantization of q/k/v is free
+        # relative to the SDPA cost and keeps the comparison same-precision).
+        if dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+            q = q.half(); kk = kk.half(); vv = vv.half()
         return F.scaled_dot_product_attention(q, kk, vv, is_causal=False, scale=scale)
 
-    # Full-precision SDPA baselines (fp8 has no fused SDPA backend).
+    # SDPA baselines at every target precision.
     baseline = {}
-    for name in ("fp16", "bf16"):
+    for name in TARGET_DTYPES:
         baseline[name] = _time(
             lambda d=TARGET_DTYPES[name]: sdpa_baseline(d), args.iters, args.warmup
         )
@@ -156,14 +161,14 @@ def main():
             print(row)
 
     print()
-    print(f"Slowdown vs SDPA-fp16 baseline (kernel_us / baseline_us):")
-    base_us = baseline["fp16"] * 1000.0
+    print(f"Slowdown vs SDPA baseline at the SAME target precision:")
     for launcher in LAUNCHERS:
         for inner_name in INNER_FMTS:
             row = f"{launcher:<10} {inner_name:<10} "
             for target_name in TARGET_DTYPES:
                 us = results[(launcher, inner_name, target_name)]
-                row += f"{us / base_us:>11.0f}x "
+                base_us = baseline[target_name] * 1000.0
+                row += f"{us / base_us:>11.1f}x "
             print(row)
 
 

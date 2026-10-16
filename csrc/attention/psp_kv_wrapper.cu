@@ -88,6 +88,24 @@ void launch_quantize_and_scatter(
     int format_generation, cudaStream_t stream);
 
 template <typename scalar_t>
+void launch_derive_precision(
+    const scalar_t* prefill_scratch,
+    const int64_t* slot_mapping,
+    uint8_t* precision_table,
+    float* max_abs,
+    int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
+    int default_precision, cudaStream_t stream);
+
+template <typename scalar_t>
+void launch_quantize_single_token(
+    const scalar_t* key, const scalar_t* value,
+    uint8_t* key_cache, uint8_t* value_cache,
+    const int64_t* slot_mapping,
+    const uint8_t* precision_table, const uint32_t* block_offsets,
+    const float* scale_table,
+    int num_kv_heads, int block_size, int head_dim, cudaStream_t stream);
+
+template <typename scalar_t>
 void launch_dequant_kv(
     const uint8_t* k_cache, const uint8_t* v_cache,
     const uint32_t* block_offsets, const uint8_t* precision_table,
@@ -442,6 +460,79 @@ void quantize_and_scatter_kv(
 }
 
 // ----------------------------------------------------------------------------
+// Fused precision derivation: estimate max-abs + derive per-block precision.
+// ----------------------------------------------------------------------------
+void derive_precision_kv(
+    at::Tensor& prefill_scratch, // [num_tokens, 2, num_kv_heads, head_dim]
+    at::Tensor& slot_mapping,    // [num_tokens] int64
+    at::Tensor& precision_table, // [num_blocks] uint8 (in/out)
+    at::Tensor& scale_table,     // [num_blocks, num_kv_heads] float32 (scale_table reused as max-abs workspace dtype)
+    int64_t num_tokens,
+    int64_t default_precision)
+{
+    TORCH_CHECK(num_tokens > 0, "num_tokens must be positive");
+    TORCH_CHECK(prefill_scratch.is_contiguous(), "prefill_scratch must be contiguous");
+    TORCH_CHECK(slot_mapping.is_contiguous(), "slot_mapping must be contiguous");
+    TORCH_CHECK(precision_table.is_contiguous(), "precision_table must be contiguous");
+
+    const int num_kv_heads = static_cast<int>(prefill_scratch.size(2));
+    const int block_size = 16;
+    const int head_dim = static_cast<int>(prefill_scratch.size(3));
+    const int num_blocks = static_cast<int>(precision_table.size(0));
+
+    auto max_abs = at::zeros({num_blocks, num_kv_heads}, scale_table.options());
+
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+    PSP_KV_DISPATCH_SCALAR(prefill_scratch, {
+        launch_derive_precision<scalar_t>(
+            reinterpret_cast<const scalar_t*>(prefill_scratch.data_ptr()),
+            slot_mapping.data_ptr<int64_t>(),
+            precision_table.data_ptr<uint8_t>(),
+            max_abs.data_ptr<float>(),
+            static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
+            static_cast<int>(default_precision), stream);
+    });
+}
+
+// ----------------------------------------------------------------------------
+// Decode write-back: quantize one token's K/V with the block's existing scale.
+// ----------------------------------------------------------------------------
+void quantize_single_token(
+    at::Tensor& key,             // [1, num_kv_heads, head_dim] fp16/bf16
+    at::Tensor& value,           // [1, num_kv_heads, head_dim] fp16/bf16
+    at::Tensor& key_cache,       // uint8 byte buffer
+    at::Tensor& value_cache,     // uint8 byte buffer
+    at::Tensor& slot_mapping,    // [1] int64
+    at::Tensor& precision_table, // [num_blocks] uint8
+    at::Tensor& block_offsets,   // [num_blocks] int32
+    at::Tensor& scale_table,     // [num_blocks, num_kv_heads] float32
+    int64_t format_generation)
+{
+    TORCH_CHECK(key.is_contiguous() && value.is_contiguous(),
+                "key and value must be contiguous");
+    TORCH_CHECK(key_cache.scalar_type() == at::kByte, "key_cache must be uint8");
+    TORCH_CHECK(value_cache.scalar_type() == at::kByte, "value_cache must be uint8");
+
+    const int num_kv_heads = static_cast<int>(key.size(1));
+    const int block_size = 16;
+    const int head_dim = static_cast<int>(key.size(2));
+
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+    PSP_KV_DISPATCH_SCALAR(key, {
+        launch_quantize_single_token<scalar_t>(
+            reinterpret_cast<const scalar_t*>(key.data_ptr()),
+            reinterpret_cast<const scalar_t*>(value.data_ptr()),
+            key_cache.data_ptr<uint8_t>(),
+            value_cache.data_ptr<uint8_t>(),
+            slot_mapping.data_ptr<int64_t>(),
+            precision_table.data_ptr<uint8_t>(),
+            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            scale_table.data_ptr<float>(),
+            num_kv_heads, block_size, head_dim, stream);
+    });
+}
+
+// ----------------------------------------------------------------------------
 // Dequantize-and-interpolate helper (Basic-format staging path)
 // ----------------------------------------------------------------------------
 void psp_dequantize_kv(
@@ -586,6 +677,29 @@ TORCH_LIBRARY(psp_kv, m) {
         ") -> ()");
 
     m.def(
+        "derive_precision_kv("
+        "Tensor prefill_scratch, "
+        "Tensor slot_mapping, "
+        "Tensor! precision_table, "
+        "Tensor scale_table, "
+        "int num_tokens, "
+        "int default_precision"
+        ") -> ()");
+
+    m.def(
+        "quantize_single_token("
+        "Tensor key, "
+        "Tensor value, "
+        "Tensor! key_cache, "
+        "Tensor! value_cache, "
+        "Tensor slot_mapping, "
+        "Tensor precision_table, "
+        "Tensor block_offsets, "
+        "Tensor scale_table, "
+        "int format_generation"
+        ") -> ()");
+
+    m.def(
         "psp_dequantize_kv("
         "Tensor k_cache, "
         "Tensor v_cache, "
@@ -619,6 +733,8 @@ TORCH_LIBRARY_IMPL(psp_kv, CUDA, m) {
     m.impl("psp_attention_enhanced",  &psp_kv::psp_attention_enhanced);
     m.impl("psp_attention_btkv",      &psp_kv::psp_attention_btkv);
     m.impl("quantize_and_scatter_kv", &psp_kv::quantize_and_scatter_kv);
+    m.impl("derive_precision_kv", &psp_kv::derive_precision_kv);
+    m.impl("quantize_single_token", &psp_kv::quantize_single_token);
     m.impl("psp_dequantize_kv", &psp_kv::psp_dequantize_kv);
     m.impl("psp_attention_uniform", &psp_kv::psp_attention_uniform);
 }

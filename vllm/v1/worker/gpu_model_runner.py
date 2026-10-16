@@ -486,6 +486,28 @@ def _read_psp_kv_storage_mode() -> str:
     return mode if mode in ("fixed", "variable") else "fixed"
 
 
+def _read_psp_kv_profile() -> bool:
+    """Whether to emit per-step PSP-KV prefill timing (PSPKV_PROFILE=1).
+
+    Opt-in profiling of the prefill quantization path: the precision-derivation
+    pass, the block-offset recompute, and the quantize+scatter kernels are each
+    timed with CUDA events and logged. Off by default (no overhead).
+    """
+    return os.getenv("PSPKV_PROFILE", "0").strip().lower() in ("1", "true", "on")
+
+
+def _read_psp_kv_adaptive_precision() -> bool:
+    """Whether to derive per-block precision from the prefill magnitude.
+
+    When enabled (``PSPKV_ADAPTIVE_PRECISION=1``), the per-prefill
+    ``_derive_precision_from_scratch`` pass adapts each block's inner precision
+    to its magnitude. When disabled (default), the precision stays at the
+    configured default (``PSPKV_PRECISION``) and the per-prefill Torch pass is
+    skipped, removing a large prefill latency cost.
+    """
+    return os.getenv("PSPKV_ADAPTIVE_PRECISION", "0").strip().lower() in ("1", "true", "on")
+
+
 class GPUModelRunner(
     LoRAModelRunnerMixin, KVConnectorModelRunnerMixin, ECConnectorModelRunnerMixin
 ):
@@ -884,6 +906,10 @@ class GPUModelRunner(
         self.precision_default = _read_psp_kv_precision()  # 1=e4m3, 2=e5m2
         # Prefill scratch buffer (will be allocated in initialize_psp_kv_tables)
         self.prefill_kv_scratch = None
+        # Opt-in per-step prefill timing (PSPKV_PROFILE=1)
+        self.psp_kv_profile = _read_psp_kv_profile()
+        # Per-prefill adaptive precision derivation (PSPKV_ADAPTIVE_PRECISION=1)
+        self.psp_kv_adaptive_precision = _read_psp_kv_adaptive_precision()
         # ====================================================
 
         # Layer pairings for cross-layer KV sharing.
@@ -4240,13 +4266,34 @@ class GPUModelRunner(
                         blk_table = self.input_batch.block_table[attn_gid].get_device_tensor(num_reqs_padded)
                         slot_map = slot_mappings_by_group[attn_gid]
 
-                        # Derive the per-block precision from the prefill's
-                        # magnitude (first layer is representative), then
-                        # recompute the variable-stride byte offsets.
-                        self._derive_precision_from_scratch(
-                            self.prefill_kv_scratch[0], slot_map, num_prefill_tokens
-                        )
-                        self._compute_block_offsets()
+                        prof = self.psp_kv_profile
+                        if prof:
+                            ev_derive = (torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True))
+                            ev_offsets = (torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True))
+                            ev_quant = (torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True))
+                            ev_derive[0].record()
+
+                        # Derive per-block precision from the prefill magnitude
+                        # (only when adaptive precision is enabled) and recompute
+                        # the variable-stride byte offsets. The derivation is a
+                        # fused kernel (estimate max-abs + derive) reusing the
+                        # quantize path's max-abs, so no Torch pass is needed.
+                        if self.psp_kv_adaptive_precision:
+                            torch.ops.psp_kv.derive_precision_kv(
+                                self.prefill_kv_scratch[0],
+                                slot_map,
+                                self.precision_table,
+                                self.scale_table,
+                                num_prefill_tokens,
+                                self.precision_default,
+                            )
+                            self._compute_block_offsets()
+
+                        if prof:
+                            ev_derive[1].record()
+                            ev_offsets[0].record()
+                            ev_offsets[1].record()
+                            ev_quant[0].record()
 
                         for layer_idx, layer_kv_cache in enumerate(self.kv_caches):
                             if layer_kv_cache is None:
@@ -4269,6 +4316,18 @@ class GPUModelRunner(
                                     num_prefill_tokens,
                                     self.format_generation,
                                 )
+
+                        if prof:
+                            ev_quant[1].record()
+                            torch.cuda.synchronize()
+                            logger.warning(
+                                "[PSP-KV profile] prefill=%d tok derive=%.3fms "
+                                "offsets=%.3fms quantize=%.3fms",
+                                num_prefill_tokens,
+                                ev_derive[0].elapsed_time(ev_derive[1]),
+                                ev_offsets[0].elapsed_time(ev_offsets[1]),
+                                ev_quant[0].elapsed_time(ev_quant[1]),
+                            )
             # ==============================================================
 
             if not self.broadcast_pp_output:
@@ -6612,6 +6671,10 @@ class GPUModelRunner(
             dtype=self.dtype,
             device=self.device,
         )
+        # Expose the scratch to the PSP-KV attention impl so the prefill forward
+        # can write the projected K/V into it (quantize_and_scatter reads it).
+        from vllm.v1.attention.backends.psp_kv_attn import set_prefill_kv_scratch
+        set_prefill_kv_scratch(self.prefill_kv_scratch)
 
     def update_block_metadata(self, block_id: int, precision_level: int, scale: list[float] | None):
         """Called by the connector when a block is allocated or precision changes."""

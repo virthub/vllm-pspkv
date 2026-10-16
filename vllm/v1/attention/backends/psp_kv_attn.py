@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import os
 from dataclasses import dataclass
 
 import torch
 import torch.nn.functional as F
 
 from vllm.config import VllmConfig
+from vllm.model_executor.models.utils import extract_layer_index
 from vllm.v1.attention.backend import (
     AttentionBackend,
     AttentionCGSupport,
@@ -18,6 +20,16 @@ from vllm.v1.attention.backend import (
     CommonAttentionMetadata,
 )
 from vllm.v1.kv_cache_interface import AttentionSpec, _psp_kv_avg_bytes
+
+# Module-level reference to the model runner's prefill scratch buffer
+# [num_layers, max_num_tokens, 2, num_kv_heads, head_size]. Set by
+# GPUModelRunner.initialize_psp_kv_tables via set_prefill_kv_scratch().
+_prefill_kv_scratch: torch.Tensor | None = None
+
+
+def set_prefill_kv_scratch(scratch: torch.Tensor | None) -> None:
+    global _prefill_kv_scratch
+    _prefill_kv_scratch = scratch
 
 
 @dataclass
@@ -177,7 +189,9 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
 
         context_lens = getattr(meta, "context_lens", None)
         if context_lens is None:
-            context_lens = meta.seq_lens
+            # seq_lens is the optimistic length (includes the current decode
+            # token); the cache holds one fewer token, so subtract 1.
+            context_lens = meta.seq_lens - 1
 
         # ----- Ensure required tensor invariants for CUDA kernels -----
         # The model runner must provide these in the correct format before
@@ -295,6 +309,19 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 f"Unsupported PSP-KV format_generation: {format_gen}"
             )
 
+        # Decode write-back: quantize this step's K/V with the block's existing
+        # scale and scatter it into the byte cache so the next step sees it.
+        slot_mapping = getattr(meta, "slot_mapping", None)
+        if slot_mapping is not None and key is not None and value is not None:
+            ops.quantize_single_token(
+                key, value, k_cache, v_cache,
+                slot_mapping,
+                meta.precision_table,
+                block_offsets,
+                meta.scale_table,
+                format_gen,
+            )
+
         return output
 
     def _prefill_forward(
@@ -317,35 +344,56 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         num_kv_heads = key.size(1)
         scale = self.scale
 
-        # GQA: broadcast K/V to the number of query heads.
+        # GQA ratio: pass K/V un-broadcast and let the SDPA backend handle GQA
+        # natively (enable_gqa=True), avoiding the repeat_interleave copy.
         g = num_heads // num_kv_heads
-        k = key.repeat_interleave(g, dim=1) if g > 1 else key
-        v = value.repeat_interleave(g, dim=1) if g > 1 else value
 
         query_start_loc = getattr(meta, "query_start_loc_cpu", None)
         if query_start_loc is None:
             query_start_loc = meta.query_start_loc.cpu()
         num_reqs = int(meta.num_reqs)
 
+        # Prefill scratch: write the projected K/V so the model runner can
+        # quantize them afterwards (the scratch is read by quantize_and_scatter_kv).
+        scratch = _prefill_kv_scratch
+        layer_idx = extract_layer_index(layer.layer_name) if scratch is not None else -1
+
+        # Single-sequence fast path: one fused SDPA call, no Python loop.
+        if num_reqs == 1:
+            s = int(query_start_loc[0].item())
+            e = int(query_start_loc[1].item())
+            if e > s:
+                if scratch is not None:
+                    scratch[layer_idx, s:e, 0].copy_(key[s:e])
+                    scratch[layer_idx, s:e, 1].copy_(value[s:e])
+                q = query[s:e].transpose(0, 1).unsqueeze(0)   # [1, H, L, D]
+                k = key[s:e].transpose(0, 1).unsqueeze(0)     # [1, H_kv, L, D]
+                v = value[s:e].transpose(0, 1).unsqueeze(0)
+                o = F.scaled_dot_product_attention(
+                    q, k, v, is_causal=True, scale=scale, enable_gqa=(g > 1)
+                )
+                output[s:e].copy_(o.squeeze(0).transpose(0, 1).to(output.dtype))
+            return output
+
+        # Multi-sequence: per-sequence SDPA with native GQA (no repeat_interleave).
         parts = []
         for i in range(num_reqs):
             s = int(query_start_loc[i].item())
             e = int(query_start_loc[i + 1].item())
             if e <= s:
                 continue
-            q_i = query[s:e]  # [L, H, D]
-            k_i = k[s:e]      # [L, H, D]
-            v_i = v[s:e]      # [L, H, D]
-            # Fused attention via SDPA (FlashAttention). [L, H, D] -> [1, H, L, D].
+            if scratch is not None:
+                scratch[layer_idx, s:e, 0].copy_(key[s:e])
+                scratch[layer_idx, s:e, 1].copy_(value[s:e])
             o_i = F.scaled_dot_product_attention(
-                q_i.transpose(0, 1).unsqueeze(0),
-                k_i.transpose(0, 1).unsqueeze(0),
-                v_i.transpose(0, 1).unsqueeze(0),
+                query[s:e].transpose(0, 1).unsqueeze(0),
+                key[s:e].transpose(0, 1).unsqueeze(0),
+                value[s:e].transpose(0, 1).unsqueeze(0),
                 is_causal=True,
                 scale=scale,
+                enable_gqa=(g > 1),
             )  # [1, H, L, D]
-            o_i = o_i.squeeze(0).transpose(0, 1)  # [L, H, D]
-            parts.append(o_i.to(output.dtype))
+            parts.append(o_i.squeeze(0).transpose(0, 1).to(output.dtype))
 
         if parts:
             out = torch.cat(parts, dim=0)
