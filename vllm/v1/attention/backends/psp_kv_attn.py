@@ -32,6 +32,41 @@ def set_prefill_kv_scratch(scratch: torch.Tensor | None) -> None:
     _prefill_kv_scratch = scratch
 
 
+_verify_stats = {"max": 0.0, "sum": 0.0, "n": 0, "calls": 0}
+
+
+def _verify_fp32_closeness(query, k_cache, v_cache, block_tables, context_lens,
+                           precision_table, scale_table, block_offsets,
+                           num_kv_heads, softmax_scale, output, format_gen):
+    """Compare the PSP-KV decode output against the fp32 reference (opt-in).
+
+    This is the correctness criterion: the max/mean absolute difference to a
+    reference fp32 paged attention over the same byte cache. It is gated by
+    PSPKV_VERIFY=1 and is never on the default path.
+    """
+    import sys as _sys
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    if _root not in _sys.path:
+        _sys.path.insert(0, _root)
+    from tests.v1.attention.psp_kv_reference import reference_paged_attention
+
+    ref = reference_paged_attention(
+        query, k_cache, v_cache, block_tables, context_lens, format_gen,
+        precision_table, scale_table, block_offsets, num_kv_heads, 16,
+        softmax_scale,
+    )
+    diff = (output.float() - ref.float()).abs()
+    _verify_stats["max"] = max(_verify_stats["max"], diff.max().item())
+    _verify_stats["sum"] += diff.sum().item()
+    _verify_stats["n"] += diff.numel()
+    _verify_stats["calls"] += 1
+    if _verify_stats["calls"] % 128 == 0:
+        mean = _verify_stats["sum"] / _verify_stats["n"]
+        print(f"[fp32-verify] max_abs={_verify_stats['max']:.3e} "
+              f"mean_abs={mean:.3e} elements={_verify_stats['n']}", flush=True)
+
+
 @dataclass
 class PSPKVAttentionMetadata(AttentionMetadata):
     """Container for PSP-KV attention metadata.
@@ -312,6 +347,11 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         # Decode write-back: quantize this step's K/V with the block's existing
         # scale and scatter it into the byte cache so the next step sees it.
         slot_mapping = getattr(meta, "slot_mapping", None)
+        if os.environ.get("PSPKV_VERIFY") == "1" and slot_mapping is not None:
+            _verify_fp32_closeness(
+                query, k_cache, v_cache, block_tables, context_lens,
+                meta.precision_table, meta.scale_table, block_offsets,
+                num_kv_heads, softmax_scale, output, format_gen)
         if slot_mapping is not None and key is not None and value is not None:
             ops.quantize_single_token(
                 key, value, k_cache, v_cache,
