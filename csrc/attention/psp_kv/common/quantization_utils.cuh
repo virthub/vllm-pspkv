@@ -272,6 +272,38 @@ __device__ inline float4 psp_packed_dequant4(const uint8_t* base, int elem_idx, 
     return (float4)f;
 }
 
+// Lossless (FMT=0) dequant of 4 elements: vectorized via the native 2-wide
+// packed types so the bf16/fp16 case is 2 loads + 2 converts instead of 4
+// scalar loads + 4 converts (fp8 already uses the fp8x4 hardware path below).
+template <typename scalar_t> struct psp_lossless_dequant4 {
+    static __device__ float4 load(const scalar_t* s) {
+        return make_float4(
+            psp_to_float(s[0]), psp_to_float(s[1]),
+            psp_to_float(s[2]), psp_to_float(s[3]));
+    }
+};
+template <> struct psp_lossless_dequant4<__nv_bfloat16> {
+    static __device__ float4 load(const __nv_bfloat16* s) {
+        const __nv_bfloat162* p = reinterpret_cast<const __nv_bfloat162*>(s);
+        float2 f0 = __bfloat1622float2(p[0]);
+        float2 f1 = __bfloat1622float2(p[1]);
+        return make_float4(f0.x, f0.y, f1.x, f1.y);
+    }
+};
+template <> struct psp_lossless_dequant4<half> {
+    static __device__ float4 load(const half* s) {
+        const __half2* p = reinterpret_cast<const __half2*>(s);
+        float2 f0 = __half22float2(p[0]);
+        float2 f1 = __half22float2(p[1]);
+        return make_float4(f0.x, f0.y, f1.x, f1.y);
+    }
+};
+template <> struct psp_lossless_dequant4<float> {
+    static __device__ float4 load(const float* s) {
+        return *reinterpret_cast<const float4*>(s);
+    }
+};
+
 // Compile-time-format vectorized dequant: FMT is a template constant, so the
 // branch is eliminated at compile time (no per-element runtime dispatch).
 template <typename scalar_t, int FMT>
@@ -279,9 +311,7 @@ __device__ inline float4 psp_dequant4_ct(const uint8_t* base, int elem_idx) {
     if (FMT == 0) {
         const scalar_t* s = reinterpret_cast<const scalar_t*>(
             base + elem_idx * sizeof(scalar_t));
-        return make_float4(
-            psp_to_float(s[0]), psp_to_float(s[1]),
-            psp_to_float(s[2]), psp_to_float(s[3]));
+        return psp_lossless_dequant4<scalar_t>::load(s);
     }
     if (FMT == 3) {
         uint16_t packed = *reinterpret_cast<const uint16_t*>(base + (elem_idx >> 1));
@@ -309,11 +339,12 @@ __device__ inline void psp_decode_block(
     const float* __restrict__ s_query,
     float& local_max, float& local_sum, float* __restrict__ acc,
     const uint8_t* __restrict__ k_base, const uint8_t* __restrict__ v_base,
-    int tokens_in_block, float combined_scale, float v_scale_eff, int dim_offset)
+    int tokens_in_block, float combined_scale, float v_scale_eff, int dim_offset,
+    int token_offset)
 {
     for (int t = 0; t < tokens_in_block; ++t) {
         float s_raw = 0.0f;
-        const int elem_base = t * HEAD_DIM;
+        const int elem_base = (token_offset + t) * HEAD_DIM;
         #pragma unroll
         for (int d = 0; d < HEAD_DIM; d += 4) {
             float4 k4 = psp_dequant4_ct<scalar_t, FMT>(k_base, elem_base + d);

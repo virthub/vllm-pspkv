@@ -76,6 +76,9 @@ template void launch_dequant_kv<half>(
 template void launch_dequant_kv<__nv_bfloat16>(
     const uint8_t*, const uint8_t*, const uint32_t*, const uint8_t*, const float*,
     __nv_bfloat16*, __nv_bfloat16*, int, int, int, int, cudaStream_t);
+template void launch_dequant_kv<float>(
+    const uint8_t*, const uint8_t*, const uint32_t*, const uint8_t*, const float*,
+    float*, float*, int, int, int, int, cudaStream_t);
 template void launch_dequant_kv<__nv_fp8_e4m3>(
     const uint8_t*, const uint8_t*, const uint32_t*, const uint8_t*, const float*,
     __nv_fp8_e4m3*, __nv_fp8_e4m3*, int, int, int, int, cudaStream_t);

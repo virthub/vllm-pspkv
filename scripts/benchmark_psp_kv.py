@@ -132,7 +132,7 @@ def main():
                     elif li == 1:
                         ops.psp_attention_enhanced(
                             qq, kb, vb, block_tables, context_lens, precision_table,
-                            block_offsets, scale_table, scale, num_kv_heads, head_dim, oo,
+                            block_offsets, scale_table, scale, num_kv_heads, head_dim, -1, oo,
                         )
                     else:
                         ops.psp_attention_btkv(

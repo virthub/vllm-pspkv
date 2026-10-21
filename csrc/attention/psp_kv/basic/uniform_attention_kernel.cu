@@ -118,6 +118,9 @@ template void launch_paged_attention_uniform<half>(
 template void launch_paged_attention_uniform<__nv_bfloat16>(
     __nv_bfloat16*, const __nv_bfloat16*, const __nv_bfloat16*, const __nv_bfloat16*,
     const int*, const int*, int, int, int, int, int, int, float, cudaStream_t);
+template void launch_paged_attention_uniform<float>(
+    float*, const float*, const float*, const float*,
+    const int*, const int*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_uniform<__nv_fp8_e4m3>(
     __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const __nv_fp8_e4m3*,
     const int*, const int*, int, int, int, int, int, int, float, cudaStream_t);

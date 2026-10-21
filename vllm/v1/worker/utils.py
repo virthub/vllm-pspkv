@@ -139,6 +139,12 @@ class KVBlockZeroer:
                 kv = static_forward_context[layer_name].kv_cache
                 if not isinstance(kv, torch.Tensor):
                     continue
+                if kv.dim() == 2:
+                    # PSP-KV flat byte buffer: the num_blocks dimension is
+                    # folded into the byte footprint (tracked via block_offsets),
+                    # so there is no per-block stride to zero. The quantize path
+                    # overwrites the K/V bytes, making the zeroing redundant.
+                    continue
                 dp = kv.data_ptr()
                 if dp in seen_ptrs:
                     continue

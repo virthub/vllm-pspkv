@@ -14,6 +14,8 @@ already lowers that policy to a *base_precision* matching the PSP-KV kernel
 """
 
 import dataclasses
+import math
+import struct
 from enum import IntEnum
 
 
@@ -100,3 +102,59 @@ def sidecar_to_tables(sidecars: list[PspKvSidecarDescriptor],
     precision_table = [s.base_precision for s in sidecars]
     block_offsets = [s.data_page_base_ptr - buffer_base_ptr for s in sidecars]
     return precision_table, block_offsets
+
+
+# bincode 1.3 serializes the Rust #[repr(C, align(64))] struct as the packed,
+# little-endian sequence of its fields (no padding): 64 bytes total.
+_SIDECAR_PACKED_SIZE = 64
+
+
+def fp32_to_e8m0(scale: float) -> int:
+    """Convert an fp32 per-head scale to E8M0 (value = 2^(bits - 127)).
+
+    A non-positive scale means "unset", which maps to 127 (= 1.0), the
+    identity scale. The kernel scale_table is zero-initialized, so this keeps
+    the sidecar's default consistent with the lossless/unscaled behavior.
+    """
+    if scale <= 0.0:
+        return 127
+    e = int(round(math.log2(scale))) + 127
+    return max(0, min(255, e))
+
+
+def serialize_sidecar(base_precision: int,
+                      per_head_scales: list[float] | None = None,
+                      data_page_base_ptr: int = 0) -> bytes:
+    """Serialize ``PspKvSidecarDescriptor`` to the virthub wire format.
+
+    Matches ``bincode::serialize`` of the Rust struct (packed, little-endian):
+
+        data_page_base_ptr  u64
+        residual_page_ptr   u64
+        head_presence_mask  u64
+        base_precision      u8
+        compression_level   u8
+        head_group_size     u8
+        reserved_flags      u8
+        per_head_scale_e8m0 [u8; 8]
+        reserved_padding    [u8; 28]
+    """
+    if per_head_scales is None:
+        per_head_scales = []
+    scales = [fp32_to_e8m0(s) for s in per_head_scales][:8]
+    scales += [0] * (8 - len(scales))
+    # base_precision -> compression_level (the Virthub policy tier).
+    compression_level = {0: 0, 1: 1, 2: 1, 3: 3}[int(base_precision) & 3]
+    header = struct.pack(
+        "<QQQBBBB",
+        data_page_base_ptr & 0xFFFFFFFFFFFFFFFF,
+        0,                      # residual_page_ptr (unused)
+        0xFFFFFFFFFFFFFFFF,     # head_presence_mask (all heads present)
+        int(base_precision) & 0xFF,
+        compression_level,
+        1,                      # head_group_size
+        0,                      # reserved_flags
+    )
+    out = header + bytes(scales) + bytes(28)
+    assert len(out) == _SIDECAR_PACKED_SIZE
+    return out

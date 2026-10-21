@@ -231,6 +231,9 @@ template void launch_quantize_and_scatter<half>(
 template void launch_quantize_and_scatter<__nv_bfloat16>(
     const __nv_bfloat16*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
     float*, float*, int, int, int, int, int, int, cudaStream_t);
+template void launch_quantize_and_scatter<float>(
+    const float*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
+    float*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_and_scatter<__nv_fp8_e4m3>(
     const __nv_fp8_e4m3*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*, const uint32_t*,
     float*, float*, int, int, int, int, int, int, cudaStream_t);
@@ -264,6 +267,8 @@ template void launch_derive_precision<half>(
     const half*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_derive_precision<__nv_bfloat16>(
     const __nv_bfloat16*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, cudaStream_t);
+template void launch_derive_precision<float>(
+    const float*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_derive_precision<__nv_fp8_e4m3>(
     const __nv_fp8_e4m3*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, cudaStream_t);
 template void launch_derive_precision<__nv_fp8_e5m2>(
@@ -344,6 +349,9 @@ template void launch_quantize_single_token<half>(
     const uint32_t*, const float*, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<__nv_bfloat16>(
     const __nv_bfloat16*, const __nv_bfloat16*, uint8_t*, uint8_t*, const int64_t*,
+    const uint8_t*, const uint32_t*, const float*, int, int, int, cudaStream_t);
+template void launch_quantize_single_token<float>(
+    const float*, const float*, uint8_t*, uint8_t*, const int64_t*,
     const uint8_t*, const uint32_t*, const float*, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<__nv_fp8_e4m3>(
     const __nv_fp8_e4m3*, const __nv_fp8_e4m3*, uint8_t*, uint8_t*, const int64_t*,

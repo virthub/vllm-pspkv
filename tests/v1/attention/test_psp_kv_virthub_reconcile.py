@@ -2,12 +2,16 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Tests for the Virthub <-> PSP-KV precision reconciliation + sidecar adapter."""
 
+import struct
+
 from vllm.v1.attention.psp_kv_virthub import (
     PspKvBasePrecision,
     PspKvSidecarDescriptor,
     VirthubPrecisionLevel,
     block_bytes,
     compute_block_offsets,
+    fp32_to_e8m0,
+    serialize_sidecar,
     sidecar_to_tables,
     virthub_precision_to_base,
 )
@@ -52,3 +56,34 @@ def test_sidecar_to_tables():
     precision_table, block_offsets = sidecar_to_tables(sidecars, buffer_base_ptr=base)
     assert precision_table == [0, 1, 3]
     assert block_offsets == [0, 8192, 12288]
+
+
+def test_fp32_to_e8m0():
+    assert fp32_to_e8m0(1.0) == 127
+    assert fp32_to_e8m0(2.0) == 128
+    assert fp32_to_e8m0(0.5) == 126
+    # non-positive means "unset" -> identity scale (1.0 -> 127)
+    assert fp32_to_e8m0(0.0) == 127
+    assert fp32_to_e8m0(-1.0) == 127
+
+
+def test_serialize_sidecar_wire_layout():
+    blob = serialize_sidecar(1, [1.0, 2.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0],
+                             data_page_base_ptr=4096)
+    assert len(blob) == 64
+    # header: 3 x u64 LE + 4 x u8, then 8 scale bytes, then 28 padding bytes
+    (data_ptr, residual, mask, base, comp, group, flags) = struct.unpack_from(
+        "<QQQBBBB", blob, 0
+    )
+    assert data_ptr == 4096
+    assert residual == 0
+    assert mask == 0xFFFFFFFFFFFFFFFF
+    assert (base, comp, group, flags) == (1, 1, 1, 0)
+    assert list(blob[28:36]) == [127, 128, 126, 127, 127, 127, 127, 127]
+    assert blob[36:] == bytes(28)
+
+
+def test_serialize_sidecar_compression_level_mapping():
+    # fp4 (3) maps to the pruned policy tier (compression_level=3)
+    blob = serialize_sidecar(3)
+    assert struct.unpack_from("<BBBB", blob, 24) == (3, 3, 1, 0)

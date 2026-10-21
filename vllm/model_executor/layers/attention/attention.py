@@ -42,6 +42,7 @@ from vllm.v1.kv_cache_interface import (
     FullAttentionSpec,
     KVCacheSpec,
     PSPKVAttentionSpec,
+    PSPKVSlidingWindowSpec,
     SlidingWindowSpec,
     get_kv_quant_mode,
 )
@@ -594,6 +595,16 @@ class Attention(nn.Module, AttentionLayerBase):
             assert not vllm_config.model_config.use_mla, (
                 "MLA is not supported for slidingwindow"
             )
+            if getattr(self.attn_backend, "get_name", lambda: "")() == "PSP_KV":
+                return PSPKVSlidingWindowSpec(
+                    block_size=block_size,
+                    num_kv_heads=self.num_kv_heads,
+                    head_size=self.head_size,
+                    head_size_v=self.head_size_v,
+                    dtype=torch.uint8,
+                    kv_quant_mode=quant_mode,
+                    sliding_window=self.sliding_window,
+                )
             return SlidingWindowSpec(
                 block_size=block_size,
                 num_kv_heads=self.num_kv_heads,

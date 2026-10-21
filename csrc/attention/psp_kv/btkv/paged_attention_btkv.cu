@@ -110,10 +110,10 @@ __global__ void paged_attention_btkv_split_kernel(
         const int start_token = b * BLOCK_SIZE;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
         switch (fp8_fmt) {
-            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            default: psp_decode_block<scalar_t, HEAD_DIM, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
+            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            default: psp_decode_block<scalar_t, HEAD_DIM, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
         }
     }
 
@@ -224,6 +224,10 @@ template void launch_paged_attention_btkv<half>(
     float*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_btkv<__nv_bfloat16>(
     __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
+    const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
+    float*, int, int, int, int, int, int, float, cudaStream_t);
+template void launch_paged_attention_btkv<float>(
+    float*, const float*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
     float*, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_paged_attention_btkv<__nv_fp8_e4m3>(

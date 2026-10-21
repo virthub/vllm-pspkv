@@ -14,12 +14,17 @@
 
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
+#include <mma.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "common/quantization_utils.cuh"
 #include "common/head_dim_dispatch.cuh"
+
+using namespace nvcuda;
+using namespace nvcuda::wmma;
 
 #define BLOCK_SIZE 16
 #define THREADS 128
@@ -51,7 +56,8 @@ __global__ void paged_attention_enhanced_split_kernel(
     int num_kv_heads,
     int head_dim,
     float scale,
-    int num_splits)
+    int num_splits,
+    int sliding_window)
 {
     constexpr int HALF = HEAD_DIM / 2;
 
@@ -79,9 +85,15 @@ __global__ void paged_attention_enhanced_split_kernel(
     }
     __syncthreads();
 
+    // Sliding window: only the trailing `sliding_window` tokens attend.
+    // The first window block may be partial (window_start not block-aligned).
+    const int window_start = (sliding_window > 0 && sliding_window < context_len)
+        ? context_len - sliding_window : 0;
+    const int start_block = window_start / BLOCK_SIZE;
     const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
-    const int split_start = split_idx * blocks_per_split;
+    const int win_blocks = num_blocks - start_block;
+    const int blocks_per_split = (win_blocks + num_splits - 1) / num_splits;
+    const int split_start = start_block + split_idx * blocks_per_split;
     const int split_end = min(split_start + blocks_per_split, num_blocks);
 
     float local_max = -INFINITY;
@@ -108,12 +120,13 @@ __global__ void paged_attention_enhanced_split_kernel(
         const uint8_t* v_base = v_cache + block_offsets[physical_block]
                               + (size_t)kv_head * block_bytes_per_head;
         const int start_token = b * BLOCK_SIZE;
-        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
+        const int token_offset = (b == start_block) ? (window_start - start_token) : 0;
+        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token) - token_offset;
         switch (fp8_fmt) {
-            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
-            default: psp_decode_block<scalar_t, HEAD_DIM, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset); break;
+            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, token_offset); break;
+            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, token_offset); break;
+            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, token_offset); break;
+            default: psp_decode_block<scalar_t, HEAD_DIM, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, token_offset); break;
         }
     }
 
@@ -177,6 +190,259 @@ __global__ void paged_attention_enhanced_merge_kernel(
     }
 }
 
+// ============================================================================
+// Tensor-core decode path (bf16 lossless inner precision).
+//
+// One warp per (kv_head, split-K chunk). The m16 tile holds the `gqa` query
+// heads (padded with zeros); K/V are the per-kv_head bf16 byte buffer loaded
+// via cp.async + wmma. The per-warp online softmax keeps a register-resident
+// accumulator; partials (max, sum, acc) are merged by a second kernel.
+// ============================================================================
+
+#define TC_NUM_SPLITS 8
+#define TC_THREADS 32
+
+__device__ __forceinline__ void cp_async_tc(uint8_t* smem, const uint8_t* gmem,
+                                            int tid, int bytes) {
+    const int chunks = bytes / 16;
+    #pragma unroll
+    for (int i = tid; i < chunks; i += 32) {
+        asm volatile("cp.async.cg.shared.global [%0], [%1], 16;" ::"r"(
+            (unsigned)__cvta_generic_to_shared(smem + i * 16)), "l"(gmem + i * 16));
+    }
+    asm volatile("cp.async.commit_group;");
+}
+
+template <int HEAD_DIM>
+__global__ void paged_attention_enhanced_tc_kernel(
+    float* __restrict__ partials,
+    const __nv_bfloat16* __restrict__ q,
+    const uint8_t* __restrict__ k_cache,
+    const uint8_t* __restrict__ v_cache,
+    const int* __restrict__ block_tables,
+    const int* __restrict__ context_lens,
+    const uint32_t* __restrict__ block_offsets,
+    int max_blocks_per_seq,
+    int num_heads,
+    int num_kv_heads,
+    float scale,
+    int num_splits)
+{
+    constexpr int NT8 = HEAD_DIM / 16;
+    constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM * 2;  // bf16 lossless
+
+    const int kv_head = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int split_idx = blockIdx.z;
+    const int gqa = num_heads / num_kv_heads;
+    const int tid = threadIdx.x;
+    const int lane = tid & 31, group = lane >> 2, tig = lane & 3;
+    const float log2e = 1.4426950408889634f;
+
+    __shared__ __nv_bfloat16 s_q[16 * HEAD_DIM];
+    __shared__ __nv_bfloat16 sk[2][16 * HEAD_DIM];
+    __shared__ __nv_bfloat16 sv[2][16 * HEAD_DIM];
+    __shared__ float s_score[16 * 16];
+    __shared__ __nv_bfloat16 s_prob[16 * 16];
+
+    fragment<matrix_a, 16, 16, 16, __nv_bfloat16, row_major> a[NT8];
+    fragment<matrix_b, 16, 16, 16, __nv_bfloat16, col_major> b_frag;
+    fragment<matrix_b, 16, 16, 16, __nv_bfloat16, row_major> vb;
+    fragment<matrix_a, 16, 16, 16, __nv_bfloat16, row_major> pa;
+    fragment<accumulator, 16, 16, 16, float> c;
+    fragment<accumulator, 16, 16, 16, float> acc[NT8];
+
+    // Padded Q: rows [0, gqa) = the query heads, rest zero.
+    for (int i = tid; i < 16 * HEAD_DIM; i += 32) s_q[i] = __float2bfloat16(0.0f);
+    __syncthreads();
+    const int head_base = kv_head * gqa;
+    for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
+        int h = head_base + i / HEAD_DIM;
+        int d = i % HEAD_DIM;
+        s_q[i] = q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d];
+    }
+    #pragma unroll
+    for (int kt = 0; kt < NT8; kt++) load_matrix_sync(a[kt], s_q + kt * 16, HEAD_DIM);
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) fill_fragment(acc[nt8], 0.0f);
+
+    float rmax0 = -1e30f, rmax1 = -1e30f, rsum0 = 0.0f, rsum1 = 0.0f;
+
+    const int context_len = context_lens[seq_idx];
+    const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
+    const int split_start = split_idx * blocks_per_split;
+    const int split_end = min(split_start + blocks_per_split, num_blocks);
+    const int chunk_blocks = split_end - split_start;
+
+    const int block_bytes_per_head = BLOCK_BYTES;
+
+    for (int n = 0; n < chunk_blocks; n++) {
+        const int b = split_start + n;
+        const int start_token = b * BLOCK_SIZE;
+        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
+        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
+        const uint8_t* k_base = k_cache + block_offsets[physical_block]
+                              + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v_base = v_cache + block_offsets[physical_block]
+                              + (size_t)kv_head * block_bytes_per_head;
+
+        int cur = n & 1, nxt = cur ^ 1;
+        cp_async_tc(reinterpret_cast<uint8_t*>(sk[cur]), k_base, tid, BLOCK_BYTES);
+        cp_async_tc(reinterpret_cast<uint8_t*>(sv[cur]), v_base, tid, BLOCK_BYTES);
+        asm volatile("cp.async.wait_group 0;");
+        __syncthreads();
+
+        // QK -> scores [16, 16]
+        fill_fragment(c, 0.0f);
+        #pragma unroll
+        for (int kt = 0; kt < NT8; kt++) {
+            load_matrix_sync(b_frag, sk[cur] + kt * 16, HEAD_DIM);
+            mma_sync(c, a[kt], b_frag, c);
+        }
+        for (int i = 0; i < c.num_elements; i++) c.x[i] *= scale;
+        store_matrix_sync(s_score, c, 16, mem_row_major);
+        __syncthreads();
+
+        // per-row online softmax (2 rows per thread), masked to valid tokens
+        for (int r = group; r < 16; r += 8) {
+            float mx = -1e30f;
+            for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
+            float& rmax = (r == group) ? rmax0 : rmax1;
+            float& rsum = (r == group) ? rsum0 : rsum1;
+            float m_new = fmaxf(rmax, mx);
+            float rescale_old = exp2f((rmax - m_new) * log2e);
+            float rescale_new = exp2f((mx - m_new) * log2e);
+            rsum *= rescale_old;
+            float tsum = 0.0f;
+            for (int cc = 0; cc < 16; cc++) {
+                float e = (cc < tokens_in_block)
+                    ? exp2f((s_score[r * 16 + cc] - mx) * log2e) : 0.0f;
+                s_prob[r * 16 + cc] = __float2bfloat16(e * rescale_new);
+                tsum += e;
+            }
+            rsum += tsum * rescale_new;
+            rmax = m_new;
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                if (r == group) {
+                    acc[nt8].x[0] *= rescale_old; acc[nt8].x[1] *= rescale_old;
+                    acc[nt8].x[4] *= rescale_old; acc[nt8].x[5] *= rescale_old;
+                } else {
+                    acc[nt8].x[2] *= rescale_old; acc[nt8].x[3] *= rescale_old;
+                    acc[nt8].x[6] *= rescale_old; acc[nt8].x[7] *= rescale_old;
+                }
+            }
+        }
+        __syncthreads();
+
+        // PV: acc += prob @ V_tile
+        load_matrix_sync(pa, s_prob, 16);
+        #pragma unroll
+        for (int nt8 = 0; nt8 < NT8; nt8++) {
+            load_matrix_sync(vb, sv[cur] + nt8 * 16, HEAD_DIM);
+            mma_sync(acc[nt8], pa, vb, acc[nt8]);
+        }
+        __syncthreads();
+    }
+
+    // Output partials: per (kv_head, seq, split, head, dim).
+    const int64_t p_base =
+        (((int64_t)kv_head * gridDim.y + seq_idx) * num_splits + split_idx) * gqa + group;
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) {
+        int c0 = nt8 * 16 + tig * 2, c1 = nt8 * 16 + 8 + tig * 2;
+        if (group < gqa) {
+            float* p = partials + p_base * (2 + HEAD_DIM);
+            p[2 + c0]      = acc[nt8].x[0];
+            p[2 + c0 + 1]  = acc[nt8].x[1];
+            p[2 + c1]      = acc[nt8].x[4];
+            p[2 + c1 + 1]  = acc[nt8].x[5];
+        }
+    }
+    if (tig == 0 && group < gqa) {
+        partials[p_base * (2 + HEAD_DIM) + 0] = rmax0;
+        partials[p_base * (2 + HEAD_DIM) + 1] = rsum0;
+    }
+}
+
+template <int HEAD_DIM>
+__global__ void paged_attention_enhanced_tc_merge_kernel(
+    __nv_bfloat16* __restrict__ out,
+    const float* __restrict__ partials,
+    int num_kv_heads,
+    int num_seqs,
+    int num_heads,
+    int num_splits)
+{
+    const int kv_head = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int tid = threadIdx.x;
+    const int gqa = num_heads / num_kv_heads;
+
+    for (int h = 0; h < gqa; ++h) {
+        const float* base = partials
+            + (((int64_t)kv_head * num_seqs + seq_idx) * num_splits) * gqa * (2 + HEAD_DIM)
+            + h * (2 + HEAD_DIM);
+        float global_max = -1e30f;
+        for (int s = 0; s < num_splits; ++s) {
+            global_max = fmaxf(global_max, base[s * gqa * (2 + HEAD_DIM) + 0]);
+        }
+        float global_sum = 0.0f;
+        for (int s = 0; s < num_splits; ++s) {
+            float rescale = __expf(base[s * gqa * (2 + HEAD_DIM) + 0] - global_max);
+            global_sum += base[s * gqa * (2 + HEAD_DIM) + 1] * rescale;
+        }
+        float inv_sum = 1.0f / global_sum;
+        const int head = kv_head * gqa + h;
+        for (int d = tid; d < HEAD_DIM; d += blockDim.x) {
+            float o = 0.0f;
+            for (int s = 0; s < num_splits; ++s) {
+                o += base[s * gqa * (2 + HEAD_DIM) + 2 + d]
+                     * __expf(base[s * gqa * (2 + HEAD_DIM) + 0] - global_max);
+            }
+            out[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)head * HEAD_DIM + d] =
+                __float2bfloat16(o * inv_sum);
+        }
+    }
+}
+
+void launch_paged_attention_enhanced_tc(
+    __nv_bfloat16* out,
+    const __nv_bfloat16* q,
+    const uint8_t* k_cache,
+    const uint8_t* v_cache,
+    const int* block_tables,
+    const int* context_lens,
+    const uint32_t* block_offsets,
+    float* partials,
+    int max_blocks_per_seq,
+    int num_seqs,
+    int num_heads,
+    int num_kv_heads,
+    int head_dim,
+    float scale,
+    cudaStream_t stream = 0)
+{
+    const int num_splits = TC_NUM_SPLITS;
+    dim3 grid(num_kv_heads, num_seqs, num_splits);
+    psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
+        constexpr int HEAD_DIM = decltype(hd)::value;
+        paged_attention_enhanced_tc_kernel<HEAD_DIM><<<grid, TC_THREADS, 0, stream>>>(
+            partials, q, k_cache, v_cache,
+            block_tables, context_lens, block_offsets,
+            max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits);
+        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM>
+            <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
+            out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
+    });
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Enhanced TC paged attention launch failed: %s\n", cudaGetErrorString(err));
+    }
+}
+
 template <typename scalar_t>
 void launch_paged_attention_enhanced(
     scalar_t* out,
@@ -197,6 +463,7 @@ void launch_paged_attention_enhanced(
     int num_kv_heads,
     int head_dim,
     float scale,
+    int sliding_window,
     cudaStream_t stream = 0)
 {
     dim3 grid(num_heads, num_seqs, NUM_SPLITS * NUM_SPLITS_H);
@@ -206,7 +473,8 @@ void launch_paged_attention_enhanced(
             partials, q, k_cache, v_cache,
             k_scales, v_scales,
             block_tables, context_lens, precision_table, block_offsets,
-            max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale, NUM_SPLITS);
+            max_blocks_per_seq, num_heads, num_kv_heads, head_dim, scale, NUM_SPLITS,
+            sliding_window);
         paged_attention_enhanced_merge_kernel<scalar_t, HEAD_DIM>
             <<<dim3(num_heads, num_seqs, NUM_SPLITS_H), THREADS, 0, stream>>>(
             out, partials, num_heads, num_seqs, NUM_SPLITS);
@@ -221,16 +489,20 @@ void launch_paged_attention_enhanced(
 template void launch_paged_attention_enhanced<half>(
     half*, const half*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, int, cudaStream_t);
 template void launch_paged_attention_enhanced<__nv_bfloat16>(
     __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, int, cudaStream_t);
+template void launch_paged_attention_enhanced<float>(
+    float*, const float*, const uint8_t*, const uint8_t*,
+    const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
+    float*, int, int, int, int, int, int, float, int, cudaStream_t);
 template void launch_paged_attention_enhanced<__nv_fp8_e4m3>(
     __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, int, cudaStream_t);
 template void launch_paged_attention_enhanced<__nv_fp8_e5m2>(
     __nv_fp8_e5m2*, const __nv_fp8_e5m2*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
-    float*, int, int, int, int, int, int, float, cudaStream_t);
+    float*, int, int, int, int, int, int, float, int, cudaStream_t);

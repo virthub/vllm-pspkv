@@ -63,6 +63,16 @@ void launch_paged_attention_enhanced(
     float* partials,
     int max_blocks_per_seq, int num_tokens, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
+    int sliding_window, cudaStream_t stream);
+
+void launch_paged_attention_enhanced_tc(
+    __nv_bfloat16* out, const __nv_bfloat16* q,
+    const uint8_t* k_cache, const uint8_t* v_cache,
+    const int* block_tables, const int* context_lens,
+    const uint32_t* block_offsets,
+    float* partials,
+    int max_blocks_per_seq, int num_seqs,
+    int num_heads, int num_kv_heads, int head_dim, float scale,
     cudaStream_t stream);
 
 template <typename scalar_t>
@@ -134,6 +144,9 @@ namespace psp_kv {
         } else if ((query).scalar_type() == at::kBFloat16) {        \
             using scalar_t = __nv_bfloat16;                         \
             scalar_body                                              \
+        } else if ((query).scalar_type() == at::kFloat) {           \
+            using scalar_t = float;                                 \
+            scalar_body                                              \
         } else if ((query).scalar_type() == at::kFloat8_e4m3fn) {   \
             using scalar_t = __nv_fp8_e4m3;                         \
             scalar_body                                              \
@@ -193,7 +206,7 @@ void psp_attention_basic(
     TORCH_CHECK(out.size(0) == num_tokens && out.size(1) == num_heads &&
                 out.size(2) == head_size, "output shape mismatch");
 
-    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
+    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
                 "psp_attention_basic supports fp16/bf16/fp8 target precision only");
 
     // Basic has no out-of-band scale_table (in-band metadata); use unit scale
@@ -243,6 +256,7 @@ void psp_attention_enhanced(
     double softmax_scale,
     int64_t num_kv_heads,
     int64_t head_size,
+    int64_t sliding_window,
     at::Tensor& out)
 {
     TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
@@ -280,12 +294,34 @@ void psp_attention_enhanced(
     TORCH_CHECK(scale_table.size(0) == num_blocks, "scale_table num_blocks mismatch");
     TORCH_CHECK(scale_table.size(1) == kv_heads, "scale_table num_kv_heads mismatch");
 
-    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
+    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
                 "psp_attention_enhanced supports fp16/bf16/fp8 target precision only");
     TORCH_CHECK(scale_table.scalar_type() == at::kFloat,
                 "scale_table must be float32");
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+
+    // Tensor-core path: bf16 lossless (all blocks FMT=0) + no sliding window.
+    const bool all_lossless = (precision_table.numel() == 0) ||
+        (precision_table.max().item<int>() == 0);
+    if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && all_lossless) {
+        auto tc_partials = at::empty(
+            {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
+            at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
+        launch_paged_attention_enhanced_tc(
+            reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
+            reinterpret_cast<const __nv_bfloat16*>(query.data_ptr()),
+            key_cache.data_ptr<uint8_t>(),
+            value_cache.data_ptr<uint8_t>(),
+            block_tables.data_ptr<int>(),
+            context_lens.data_ptr<int>(),
+            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            tc_partials.data_ptr<float>(),
+            max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
+            static_cast<float>(softmax_scale), stream);
+        return;
+    }
+
     // Split-K x split-H scratch: [num_seqs*num_heads*2*2, 2+head_dim/2] partial.
     auto partials = at::empty(
         {(int64_t)num_seqs * num_heads * 2 * 2 * (2 + head_dim / 2)},
@@ -304,7 +340,7 @@ void psp_attention_enhanced(
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
             partials.data_ptr<float>(),
             max_blocks_per_seq, num_tokens, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), stream);
+            static_cast<float>(softmax_scale), static_cast<int>(sliding_window), stream);
     });
 }
 
@@ -369,7 +405,7 @@ void psp_attention_btkv(
     TORCH_CHECK(kv_heads == num_kv_heads, "key_cache num_kv_heads mismatch");
     TORCH_CHECK(head_dim == head_size, "head size mismatch");
 
-    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
+    TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
                 "psp_attention_btkv supports fp16/bf16/fp8 target precision only");
 
     // The reference BT-KV kernel does not consume the TMA descriptors; they are
@@ -423,8 +459,8 @@ void quantize_and_scatter_kv(
     TORCH_CHECK(block_offsets.is_contiguous(), "block_offsets must be contiguous");
     TORCH_CHECK(scale_table.is_contiguous(), "scale_table must be contiguous");
 
-    TORCH_CHECK(prefill_scratch.scalar_type() == at::kHalf || prefill_scratch.scalar_type() == at::kBFloat16 || prefill_scratch.scalar_type() == at::kFloat8_e4m3fn || prefill_scratch.scalar_type() == at::kFloat8_e5m2,
-                "quantize_and_scatter_kv supports fp16/bf16/fp8 prefill scratch only");
+    TORCH_CHECK(prefill_scratch.scalar_type() == at::kHalf || prefill_scratch.scalar_type() == at::kBFloat16 || prefill_scratch.scalar_type() == at::kFloat || prefill_scratch.scalar_type() == at::kFloat8_e4m3fn || prefill_scratch.scalar_type() == at::kFloat8_e5m2,
+                "quantize_and_scatter_kv supports fp16/bf16/fp32/fp8 prefill scratch only");
     TORCH_CHECK(block_tables.scalar_type() == at::kInt, "block_tables must be int32");
     TORCH_CHECK(slot_mapping.scalar_type() == at::kLong, "slot_mapping must be int64");
     TORCH_CHECK(precision_table.scalar_type() == at::kByte, "precision_table must be uint8");
@@ -642,6 +678,7 @@ TORCH_LIBRARY(psp_kv, m) {
         "float softmax_scale, "
         "int num_kv_heads, "
         "int head_size, "
+        "int sliding_window, "
         "Tensor! out"
         ") -> ()");
 

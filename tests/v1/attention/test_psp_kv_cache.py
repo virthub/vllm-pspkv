@@ -120,10 +120,10 @@ def test_quantize_and_scatter_kv_rejects_wrong_dtype():
     num_tokens, num_kv_heads, block_size, head_dim = 4, 2, 16, 64
     num_blocks = 8
     with pytest.raises(
-        RuntimeError, match="supports fp16/bf16/fp8 prefill scratch only"
+        RuntimeError, match="supports fp16/bf16"
     ):
         op(
-            torch.zeros(num_tokens, 2, num_kv_heads, head_dim, dtype=torch.float32, device="cuda"),
+            torch.zeros(num_tokens, 2, num_kv_heads, head_dim, dtype=torch.int64, device="cuda"),
             torch.zeros(num_blocks * num_kv_heads * block_size * head_dim, dtype=torch.uint8, device="cuda"),
             torch.zeros(num_blocks * num_kv_heads * block_size * head_dim, dtype=torch.uint8, device="cuda"),
             torch.zeros(1, num_blocks, dtype=torch.int32, device="cuda"),

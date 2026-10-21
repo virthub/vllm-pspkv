@@ -315,6 +315,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 softmax_scale,
                 num_kv_heads,
                 head_size,
+                self.sliding_window[0] + self.sliding_window[1] + 1,
                 output,
             )
         elif format_gen == 2:
@@ -450,7 +451,7 @@ class PSPKVAttentionBackend(AttentionBackend):
     """
 
     # PSP-KV kernels dispatch on head_dim at runtime; block_size is fixed at 16.
-    supported_dtypes = [torch.float16, torch.bfloat16]
+    supported_dtypes = [torch.float16, torch.bfloat16, torch.float32]
     # The cache is a uint8 byte buffer: 1 byte/elem for the fp8 inner precisions.
     supported_kv_cache_dtypes = ["auto", "fp8"]
 
@@ -466,6 +467,20 @@ class PSPKVAttentionBackend(AttentionBackend):
     @classmethod
     def get_supported_kernel_block_sizes(cls) -> list[int]:
         return [16]
+
+    @classmethod
+    def get_kv_cache_block_dim(
+        cls,
+        block_size: int,
+        num_kv_heads: int,
+        head_size: int,
+        cache_dtype_str: str = "auto",
+    ) -> int:
+        # The PSP-KV cache is a flat byte buffer (num_blocks is folded into the
+        # byte footprint and tracked via block_offsets), so there is no block
+        # dimension to re-layout for hybrid models. Returning 0 makes the
+        # hybrid-layout update skip this group.
+        return 0
 
     @staticmethod
     def get_impl_cls():

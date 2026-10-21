@@ -484,6 +484,25 @@ class SlidingWindowSpec(AttentionSpec):
 
 
 @dataclass(frozen=True, kw_only=True)
+class PSPKVSlidingWindowSpec(SlidingWindowSpec):
+    """PSP-KV sliding-window byte-buffer cache spec.
+
+    Same as ``PSPKVAttentionSpec`` (flat uint8 byte buffer with the average
+    bytes-per-element reservation) but carrying a sliding window so the
+    ``SlidingWindowManager`` still governs block admission and eviction.
+    """
+
+    @property
+    def real_page_size_bytes(self) -> int:
+        return int(
+            self.block_size
+            * self.num_kv_heads
+            * (self.head_size + self.head_size_v)
+            * _psp_kv_avg_bytes()
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
 class SlidingWindowMLASpec(SlidingWindowSpec):
     """Sliding window attention with MLA cache format."""
 

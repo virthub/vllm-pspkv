@@ -92,7 +92,8 @@ class TestPSPKVMultiblock:
                precision_table, block_offsets, softmax_scale, num_kv_heads, head_dim, kernel_out)
         elif format_gen == 1:
             op(query, key_cache, value_cache, block_tables, context_lens,
-               precision_table, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim, kernel_out)
+               precision_table, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim,
+               -1, kernel_out)
         else:
             tma_descriptors = torch.zeros(num_blocks, 16, dtype=torch.int64, device="cuda")
             op(query, key_cache, value_cache, block_tables, context_lens,
@@ -132,7 +133,8 @@ class TestPSPKVMultiblock:
             out = torch.empty_like(query)
             self.ops.psp_attention_enhanced(
                 query, key_cache, value_cache, block_tables, context_lens,
-                prec, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim, out,
+                prec, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim,
+                -1, out,
             )
             return out
 

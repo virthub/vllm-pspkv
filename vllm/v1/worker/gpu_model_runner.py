@@ -887,6 +887,10 @@ class GPUModelRunner(
         self.scale_table = None
         self.tma_descriptors = None
         self.block_offsets = None
+        self.block_sizes_cpu = None
+        self.block_offsets_cpu = None
+        self.precision_cpu = None
+        self.scale_cpu = None
         self.h_precision_table = None
         self.h_scale_table = None
         self.h_tma_descriptors = None
@@ -4296,7 +4300,11 @@ class GPUModelRunner(
                             ev_quant[0].record()
 
                         for layer_idx, layer_kv_cache in enumerate(self.kv_caches):
-                            if layer_kv_cache is None:
+                            # Hybrid models store the mamba/linear-attention
+                            # state as a list of tensors; only the full
+                            # attention layers hold a byte-buffer tensor.
+                            if (layer_kv_cache is None
+                                    or not isinstance(layer_kv_cache, torch.Tensor)):
                                 continue
                             # Assume layer_kv_cache has shape (2, ...)
                             if layer_kv_cache.dim() >= 1 and layer_kv_cache.size(0) == 2:
@@ -6530,9 +6538,12 @@ class GPUModelRunner(
         )
         cumsum = torch.cumsum(per_block, dim=0)
         self.block_offsets = (cumsum - per_block).to(torch.int32)
-        # CPU copy of the per-block byte sizes, for the virthub connector's
-        # variable-size transfer provider.
+        # CPU copies for the virthub connector's variable-size transfer
+        # provider and sidecar serialization.
         self.block_sizes_cpu = per_block.to(torch.int32).cpu()
+        self.block_offsets_cpu = self.block_offsets.cpu()
+        self.precision_cpu = self.precision_table.to(torch.uint8).cpu()
+        self.scale_cpu = self.scale_table.to(torch.float32).cpu()
 
     def _derive_precision_from_scratch(self, scratch, slot_map, num_tokens):
         """Derive per-block precision from the prefill's max-abs magnitude.
@@ -6585,17 +6596,31 @@ class GPUModelRunner(
     def _psp_kv_block_transfer_info(self, block_id):
         """Backend hook for the virthub connector.
 
-        Returns the block's actual (variable) byte size plus an opaque sidecar.
-        The sidecar is currently empty; the serialized precision/scale metadata
-        will be added when the Rust transfer path is built out (Phase 4).
+        Returns the block's actual (variable) byte size plus the serialized
+        PSP-KV sidecar (base precision, per-head E8M0 scales, byte offset).
         """
         from virthub import KVBlockTransferInfo
+        from vllm.v1.attention.psp_kv_virthub import serialize_sidecar
 
         size_bytes = 0
         sizes = getattr(self, "block_sizes_cpu", None)
         if sizes is not None and 0 <= block_id < len(sizes):
             size_bytes = int(sizes[block_id].item())
-        return KVBlockTransferInfo(size_bytes=size_bytes, metadata=b"")
+
+        metadata = b""
+        precisions = getattr(self, "precision_cpu", None)
+        if precisions is not None and 0 <= block_id < len(precisions):
+            base_precision = int(precisions[block_id].item())
+            per_head = []
+            scales = getattr(self, "scale_cpu", None)
+            if scales is not None and 0 <= block_id < len(scales):
+                per_head = scales[block_id].tolist()
+            base_ptr = 0
+            offsets = getattr(self, "block_offsets_cpu", None)
+            if offsets is not None and 0 <= block_id < len(offsets):
+                base_ptr = int(offsets[block_id].item())
+            metadata = serialize_sidecar(base_precision, per_head, base_ptr)
+        return KVBlockTransferInfo(size_bytes=size_bytes, metadata=metadata)
 
     def _register_virthub_transfer_info_provider(self):
         """Register the PSP-KV variable-size provider with the virthub connector."""
