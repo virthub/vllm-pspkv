@@ -1,0 +1,35 @@
+--- a/vllm_ascend/platform.py
++++ b/vllm_ascend/platform.py
+@@ -607,6 +607,16 @@
+         use_compress = getattr(attn_selector_config, "use_compress", False)
+         key = (attn_selector_config.use_mla, attn_selector_config.use_sparse)
+ 
++        if selected_backend == AttentionBackendEnum.PSP_KV:
++            if attn_selector_config.use_mla or attn_selector_config.use_sparse or use_compress:
++                raise ValueError("PSP-KV Ascend supports dense GQA attention only")
++            # The Ascend model runner first probes the backend with None;
++            # attention layers subsequently pass the configured cache dtype.
++            if attn_selector_config.kv_cache_dtype not in (None, "fp8"):
++                raise ValueError("PSP-KV Ascend requires --kv-cache-dtype fp8")
++            logger.info("Using the PSP-KV Ascend FP8 reference attention backend")
++            return "vllm.v1.attention.backends.psp_kv_ascend.PSPKVAscendBackend"
++
+         if selected_backend == AttentionBackendEnum.FLASH_ATTN and cls._validate_fa3_backend(key, attn_selector_config):
+             return "vllm_ascend.attention.fa3_v1.AscendFABackend"
+ 
+@@ -949,11 +959,12 @@
+                 att_config.flash_attn_version = None
+ 
+             # Notify user that the backend will be managed by Ascend plugins,
+-            # and for training-inference consistency, when att_config.backend
+-            # == AttentionBackendEnum.FLASH_ATTN,it is NOT reset to None
++            # Preserve FLASH_ATTN for training-inference consistency and
++            # PSP_KV when its explicit reference backend is requested.
+             if (
+                 getattr(att_config, "backend", None) is not None
+-                and att_config.backend != AttentionBackendEnum.FLASH_ATTN
++                and att_config.backend
++                not in (AttentionBackendEnum.FLASH_ATTN, AttentionBackendEnum.PSP_KV)
+             ):
+                 logger.info(
+                     "User specified attention backend '%s'. Note that Ascend NPU "

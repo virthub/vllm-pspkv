@@ -1,0 +1,188 @@
+[
+  {
+    "case": "warmup",
+    "seconds": 10.253943208605051,
+    "response": {
+      "id": "cmpl-b96ea1026cc70375",
+      "object": "text_completion",
+      "created": 1792496295,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "Question，",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 1,
+        "total_tokens": 3,
+        "completion_tokens": 2,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital",
+    "seconds": 9.528373032808304,
+    "response": {
+      "id": "cmpl-9055fe52e5388c6c",
+      "object": "text_completion",
+      "created": 1792496305,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "arithmetic",
+    "seconds": 1.0629397220909595,
+    "response": {
+      "id": "cmpl-9f706a99f9f7de30",
+      "object": "text_completion",
+      "created": 1792496315,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "2, 1+1=2, 1+1=2,",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 4,
+        "total_tokens": 20,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "english",
+    "seconds": 0.980404507368803,
+    "response": {
+      "id": "cmpl-bc1f1cf7e9a2293f",
+      "object": "text_completion",
+      "created": 1792496316,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": " Paris. The capital of Italy is Rome. The capital of Spain is Madrid.",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 5,
+        "total_tokens": 21,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "cross_page",
+    "seconds": 3.2030970603227615,
+    "response": {
+      "id": "cmpl-a3622b146b9cd4f9",
+      "object": "text_completion",
+      "created": 1792496317,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital_replay",
+    "seconds": 2.0094656236469746,
+    "response": {
+      "id": "cmpl-b60b8025a599db4f",
+      "object": "text_completion",
+      "created": 1792496320,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  }
+]

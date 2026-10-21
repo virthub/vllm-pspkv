@@ -1,0 +1,71 @@
+{
+  "serving": [
+    {
+      "mode": "asymmetric",
+      "capacity_tokens": 503168,
+      "capital_replay_seconds": 7.083,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都理工大学science Science & J&;ish, but now it's your own country. Let me know our own it is for this.\n\nSo far bf,",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "grouped-fp4",
+      "capacity_tokens": 754816,
+      "capital_replay_seconds": 12.858,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都，也是中国最重要的工业和商业中心之一。中国是世界上拥有最多城市化率的国家之一，也是全球最大的经济体之一。中国作为全球",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "native-fp4",
+      "capacity_tokens": 754688,
+      "capital_replay_seconds": 4.628,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都IMITER ​​                                                                                            yzialy大气房rost和� cop专、“.getId AABB观*******/\n蟠บorean-leftURED,o\\DesktopözAxisSizeETH,Auto",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "native-fp8",
+      "capacity_tokens": 377344,
+      "capital_replay_seconds": 2.009,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "static-fp8",
+      "capacity_tokens": 377344,
+      "capital_replay_seconds": 3.003,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都，也是中国最大的城市。北京的面积是160000平方千米，这个数在表示面积时，应该用什么单位？",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "stock-bf16",
+      "capacity_tokens": 188672,
+      "capital_replay_seconds": 1.75,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都，也是中国最大的城市。北京的面积是160000平方公里，那么北京的面积是多少平方千米？  用科学记",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    },
+    {
+      "mode": "variable-native",
+      "capacity_tokens": 377344,
+      "capital_replay_seconds": 3.771,
+      "capital_replay_output_tokens": 32,
+      "capital_replay_text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "cross_page_prompt_tokens": 135,
+      "replay_equal": true
+    }
+  ],
+  "dynamic_format_codes_observed": [
+    1,
+    2
+  ]
+}

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import os
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -41,6 +42,7 @@ from vllm.v1.attention.selector import get_attn_backend
 from vllm.v1.kv_cache_interface import (
     FullAttentionSpec,
     KVCacheSpec,
+    PSPKVUniformFP4AttentionSpec,
     SlidingWindowSpec,
     get_kv_quant_mode,
 )
@@ -620,7 +622,20 @@ class Attention(nn.Module, AttentionLayerBase):
                 tq_slot_size=tq_config.slot_size_aligned,
             )
         else:
-            return FullAttentionSpec(
+            spec_cls: type[FullAttentionSpec] = FullAttentionSpec
+            if (
+                self.attn_backend.__module__
+                == "vllm.v1.attention.backends.psp_kv_ascend"
+            ):
+                if os.environ.get("PSPKV_ASCEND_VARIABLE_PRECISION") == "1":
+                    from vllm.v1.kv_cache_interface import PSPKVAttentionSpec
+
+                    # The variable-width path owns flat uint8 byte arenas;
+                    # the FP8 dtype only selects the byte storage container.
+                    spec_cls = PSPKVAttentionSpec
+                elif os.environ.get("PSPKV_ASCEND_UNIFORM_FP4") == "1":
+                    spec_cls = PSPKVUniformFP4AttentionSpec
+            return spec_cls(
                 block_size=block_size,
                 num_kv_heads=self.num_kv_heads,
                 head_size=self.head_size,

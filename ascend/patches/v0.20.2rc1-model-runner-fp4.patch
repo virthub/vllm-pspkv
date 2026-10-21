@@ -1,0 +1,21 @@
+--- a/vllm_ascend/worker/model_runner_v1.py
++++ b/vllm_ascend/worker/model_runner_v1.py
+@@ -62,7 +62,8 @@
+     KVCacheGroupSpec,
+     KVCacheSpec,
+     MambaSpec,
+     MLAAttentionSpec,
++    PSPKVUniformFP4AttentionSpec,
+     SlidingWindowMLASpec,
+     UniformTypeKVCacheSpecs,
+ )
+@@ -3952,6 +3953,8 @@
+                     if not isinstance(current_kv_cache_spec, MLAAttentionSpec):
+                         k_shape = kv_cache_shape[1:]
+-                        if hasattr(current_kv_cache_spec, "head_size_v"):
++                        if isinstance(current_kv_cache_spec, PSPKVUniformFP4AttentionSpec):
++                            v_shape = k_shape
++                        elif hasattr(current_kv_cache_spec, "head_size_v"):
+                             v_shape = (*kv_cache_shape[1:-1], current_kv_cache_spec.head_size_v)
+                         else:
+                             v_shape = k_shape

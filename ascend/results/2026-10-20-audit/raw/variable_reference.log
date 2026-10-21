@@ -1,0 +1,3 @@
+/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_arena.py:229: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  self.scratch_values = torch.zeros_like(self.scratch_keys)
+NPU variable-width arena, compaction and attention match CPU

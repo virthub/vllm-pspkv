@@ -1,0 +1,10 @@
+/workspace/pspkv-src/ascend/native/check_native_fp8_npu.py:31: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  native_v = torch.zeros_like(native_k)
+FP8 scatter/decode matched: 4 tokens, 32 elements per token, 3 physical blocks
+FP8 native attention matched: 1 tokens
+FP8 native attention matched: 16 tokens
+FP8 native attention matched: 17 tokens
+FP8 native attention matched: 25 tokens
+FP8 native attention matched: 48 query heads
+FP8 scatter/decode matched: 24 tokens, 32 elements per token, 4 physical blocks
+FP8 scatter/decode matched: 384 tokens, 1024 elements per token, 6 physical blocks

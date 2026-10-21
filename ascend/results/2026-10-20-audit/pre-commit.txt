@@ -1,0 +1,77 @@
+ruff check..........................................................................................Passed
+ruff format.........................................................................................Passed
+typos...............................................................................................Passed
+clang-format....................................................................(no files to check)Skipped
+markdownlint-cli2...................................................................................Passed
+Lint GitHub Actions workflow files..............................................(no files to check)Skipped
+pip-compile.....................................................................(no files to check)Skipped
+pip-compile-rocm................................................................(no files to check)Skipped
+pip-compile-xpu.................................................................(no files to check)Skipped
+reformat test/nightly-torch.txt to be in sync with test/cuda.in.................(no files to check)Skipped
+Run mypy locally for lowest supported Python version................................................Failed
+- hook id: mypy-local
+- exit code: 1
+
+vllm/v1/kv_cache_interface.py:344: error: Argument 1 to "float" has incompatible type "str | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:295: error: "object" has no attribute "quantize_scatter_bf16"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:334: error: "object" has no attribute "decode_scores_bf16"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:343: error: "object" has no attribute "decode_weighted_value"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:360: error: Item "None" of "Any | None" has no attribute "index_select"  [union-attr]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:361: error: "object" has no attribute "decode_fp8"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_reference.py:362: error: "object" has no attribute "decode_fp8"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:70: error: "object" has no attribute "packed_scatter"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:106: error: "object" has no attribute "packed_dequant"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:118: error: "object" has no attribute "cast_fp8_output"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:119: error: "object" has no attribute "cast_fp8_output"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:149: error: "object" has no attribute "uniform_scores"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:153: error: "object" has no attribute "uniform_weighted_value"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:161: error: "object" has no attribute "cast_fp8_output"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:193: error: "object" has no attribute "packed_scores"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:207: error: "object" has no attribute "packed_weighted_value"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:222: error: "object" has no attribute "cast_fp8_output"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:326: error: "object" has no attribute "packed_scores_vec"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:343: error: "object" has no attribute "packed_weighted_value_vec"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:210: error: Incompatible types in assignment (expression has type "tuple[int, int]", variable has type "tuple[int, int, int, int]")  [assignment]
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:352: error: Incompatible types in assignment (expression has type "int | None", target has type "int")  [assignment]
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:580: error: Value of type "Any | None" is not indexable  [index]
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:642: error: "object" has no attribute "packed_scatter"  [attr-defined]
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:1028: error: Unexpected keyword argument "value_precision_table"; did you mean "precision_table"?  [call-arg]
+vllm/v1/attention/backends/psp_kv_ascend_ops.py:364: note: Called function defined here
+vllm/v1/attention/backends/psp_kv_ascend_arena.py:1028: error: Unexpected keyword argument "value_block_offsets"; did you mean "block_offsets"?  [call-arg]
+Found 25 errors in 4 files (checked 11 source files)
+tests/v1/attention/psp_kv_reference.py:301: error: Value of type "Any | None" is not indexable  [index]
+tests/v1/attention/test_psp_kv_correctness.py:222: error: "_DummyCommon" has no attribute "block_table_tensor"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:223: error: "_DummyCommon" has no attribute "context_lens"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:224: error: "_DummyCommon" has no attribute "seq_lens"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:224: error: "_DummyCommon" has no attribute "context_lens"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:225: error: "_DummyCommon" has no attribute "precision_table"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:226: error: "_DummyCommon" has no attribute "block_offsets"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:227: error: "_DummyCommon" has no attribute "scale_table"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:228: error: "_DummyCommon" has no attribute "tma_descriptors"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:229: error: "_DummyCommon" has no attribute "format_generation"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:230: error: "_DummyCommon" has no attribute "num_actual_tokens"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:231: error: "_DummyCommon" has no attribute "num_reqs"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:262: error: "_DummyCommon" has no attribute "block_table_tensor"  [attr-defined]
+tests/v1/attention/test_psp_kv_correctness.py:263: error: "_DummyCommon" has no attribute "context_lens"  [attr-defined]
+Found 14 errors in 2 files (checked 8 source files)
+$ mypy --python-version 3.10 --follow-imports skip 
+$ mypy --python-version 3.10 --follow-imports skip tests
+
+Lint shell scripts..................................................................................Passed
+Lint PNG exports from excalidraw................................................(no files to check)Skipped
+Check SPDX headers..................................................................................Passed
+Check root lazy imports.............................................................................Passed
+Check for spaces in all filenames...................................................................Passed
+Update Dockerfile dependency graph..................................................................Passed
+Check for forbidden imports.........................................................................Passed
+Prevent new 'torch.cuda' APIs call..................................................................Passed
+Validate configuration has default values and that each field has a docstring.......................Passed
+Validate docker/versions.json matches Dockerfile................................(no files to check)Skipped
+Check attention backend documentation is up to date.................................................Passed
+Check for boolean ops in with-statements............................................................Passed
+Suggestion..........................................................................................Passed
+- hook id: suggestion
+- duration: 0s
+
+To bypass all the pre-commit hooks, add --no-verify to git commit. To skip a specific hook, prefix the commit command with SKIP=<hook-id>.
+

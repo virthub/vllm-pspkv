@@ -1,0 +1,188 @@
+[
+  {
+    "case": "warmup",
+    "seconds": 10.491448279470205,
+    "response": {
+      "id": "cmpl-b6f8e021e5145097",
+      "object": "text_completion",
+      "created": 1792496139,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "Question，",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 1,
+        "total_tokens": 3,
+        "completion_tokens": 2,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital",
+    "seconds": 8.949604909867048,
+    "response": {
+      "id": "cmpl-bf11ea4cb473ea1b",
+      "object": "text_completion",
+      "created": 1792496150,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最大的城市。北京的面积是160000平方公里，那么北京的面积是多少平方千米？  用科学记",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "arithmetic",
+    "seconds": 0.8288509175181389,
+    "response": {
+      "id": "cmpl-b7ec77485e4b59a5",
+      "object": "text_completion",
+      "created": 1792496159,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "2, 1+1=2, 1+1=2,",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 4,
+        "total_tokens": 20,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "english",
+    "seconds": 0.8430290184915066,
+    "response": {
+      "id": "cmpl-b89c6102e7dccbc4",
+      "object": "text_completion",
+      "created": 1792496160,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": " Paris. The capital of France is also the capital of the French Republic. The",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 5,
+        "total_tokens": 21,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "cross_page",
+    "seconds": 1.6760665103793144,
+    "response": {
+      "id": "cmpl-8ddd52df363b86d7",
+      "object": "text_completion",
+      "created": 1792496161,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital_replay",
+    "seconds": 1.7504701688885689,
+    "response": {
+      "id": "cmpl-81c16303591575c2",
+      "object": "text_completion",
+      "created": 1792496162,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最大的城市。北京的面积是160000平方公里，那么北京的面积是多少平方千米？  用科学记",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  }
+]

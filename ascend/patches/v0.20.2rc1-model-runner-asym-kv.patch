@@ -1,0 +1,60 @@
+--- a/vllm_ascend/worker/model_runner_v1.py
++++ b/vllm_ascend/worker/model_runner_v1.py
+@@ -18,6 +18,7 @@
+ #
+ 
+ import math
++import os
+ import sys
+ import time
+ from collections import defaultdict
+@@ -3591,6 +3592,30 @@
+                 f"Expected MLAAttention layer for {layer_name}, got {type(attn_layer).__name__}."
+             )
+ 
++        if isinstance(kv_cache_spec, PSPKVAttentionSpec):
++            # Asymmetric K/V budgets: the plugin splits the raw KV buffer by
++            # the K:V dimension ratio, so scale each head dimension by its
++            # per-stream bytes-per-element budget.
++            def read_budget(name: str, fallback: float) -> float:
++                value = os.environ.get(name)
++                return float(value) if value not in (None, "") else fallback
++
++            default = read_budget("PSPKV_AVG_BYTES", 1.0)
++            k_avg = read_budget("PSPKV_AVG_K_BYTES", default)
++            v_avg = read_budget("PSPKV_AVG_V_BYTES", default)
++            k_dim = kv_cache_spec.head_size * k_avg
++            v_dim = kv_cache_spec.head_size * v_avg
++            if (
++                not float(k_dim).is_integer()
++                or not float(v_dim).is_integer()
++                or k_dim <= 0
++                or v_dim <= 0
++            ):
++                raise ValueError(
++                    "PSPKV_AVG_K_BYTES/PSPKV_AVG_V_BYTES must yield integral "
++                    "head dimensions for the plugin K/V split"
++                )
++            return int(k_dim), int(v_dim)
+         head_size_v = kv_cache_spec.head_size_v if hasattr(kv_cache_spec, "head_size_v") else kv_cache_spec.head_size
+         return kv_cache_spec.head_size, head_size_v
+ 
+@@ -3943,11 +3968,16 @@
+                             current_kv_cache_spec.num_kv_heads,
+                             current_kv_cache_spec.head_size,
+                         )
+-                    if not isinstance(current_kv_cache_spec, MLAAttentionSpec):
++                    if isinstance(current_kv_cache_spec, PSPKVAttentionSpec):
++                        # The raw K/V tensors were already split by the
++                        # per-stream byte budgets; expose flat byte arenas.
++                        k_shape = (raw_k_tensor.numel(),)
++                        v_shape = (raw_v_tensor.numel(),)
++                    elif not isinstance(current_kv_cache_spec, MLAAttentionSpec):
+                         k_shape = kv_cache_shape[1:]
+                         if isinstance(
+                             current_kv_cache_spec,
+-                            (PSPKVAttentionSpec, PSPKVUniformFP4AttentionSpec),
++                            (PSPKVUniformFP4AttentionSpec,),
+                         ):
+                             v_shape = k_shape
+                         elif hasattr(current_kv_cache_spec, "head_size_v"):

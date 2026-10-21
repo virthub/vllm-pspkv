@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from collections import Counter
 from dataclasses import dataclass, fields, replace
 from enum import IntEnum
@@ -307,6 +308,95 @@ class TQFullAttentionSpec(FullAttentionSpec):
             "All TQ layers in the same KV cache group must use the same tq_slot_size."
         )
         return replace(merged, tq_slot_size=specs[0].tq_slot_size)
+
+
+@dataclass(frozen=True, kw_only=True)
+class PSPKVUniformFP4AttentionSpec(FullAttentionSpec):
+    """Uniform packed E2M1 KV pages for the Ascend PSP-KV bring-up path.
+
+    K and V each use four bits per element, so their combined page size is
+    one byte per logical KV element. This does not express mixed-size pages.
+    """
+
+    @property
+    def real_page_size_bytes(self) -> int:
+        if self.dtype != torch.uint8 or self.head_size_v != self.head_size:
+            raise ValueError("PSP-KV uniform FP4 requires uint8 and equal K/V heads")
+        if self.head_size % 2:
+            raise ValueError("PSP-KV uniform FP4 requires an even head dimension")
+        return self.block_size * self.num_kv_heads * self.head_size
+
+
+def _psp_kv_avg_bytes(stream: str = "both") -> float:
+    """Average bytes-per-element budget for the PSP-KV variable-width cache.
+
+    Controls how much memory the paged allocator reserves per KV element:
+    1.0 for the FP8 worst case, or a fraction when the completed-block
+    precision policy is expected to mix packed FP4 (0.5 B/elem) with FP8
+    (1 B/elem). ``PSPKV_AVG_K_BYTES`` / ``PSPKV_AVG_V_BYTES`` override the
+    shared ``PSPKV_AVG_BYTES`` per stream so the K and V buffers can differ.
+    The per-block byte offsets live in the backend's compact arena; they are
+    not visible to the allocator.
+    """
+
+    def read(name: str, fallback: float) -> float:
+        value = os.environ.get(name)
+        return float(value) if value not in (None, "") else fallback
+
+    default = read("PSPKV_AVG_BYTES", 1.0)
+    if stream == "k":
+        return read("PSPKV_AVG_K_BYTES", default)
+    if stream == "v":
+        return read("PSPKV_AVG_V_BYTES", default)
+    return default
+
+
+@dataclass(frozen=True, kw_only=True)
+class PSPKVAttentionSpec(FullAttentionSpec):
+    """PSP-KV variable-width byte-buffer cache spec for the Ascend path.
+
+    Reserves an average bytes-per-element page budget instead of the FP8
+    worst case. The backend owns one flat uint8 byte arena per K/V stream
+    and tracks per-block ``block_offsets`` plus the per-block precision table
+    itself. The budget must yield an integral per-block byte size; otherwise
+    the worker and backend would disagree on the physical tensor shape.
+    """
+
+    def _stream_page_bytes(self, stream: str) -> int:
+        avg = _psp_kv_avg_bytes(stream)
+        per_kv_block = self.block_size * self.num_kv_heads * self.head_size * avg
+        # The backend views each flat K/V arena as rows of ``head_size``
+        # bytes, so the per-block byte count, the per-block row count and
+        # the per-row byte count must all be integral for every physical
+        # block count the worker can choose.
+        if (
+            not float(per_kv_block).is_integer()
+            or not float(self.block_size * self.num_kv_heads * avg).is_integer()
+            or not float(self.head_size * avg).is_integer()
+            or per_kv_block <= 0
+        ):
+            raise ValueError(
+                f"PSPKV_AVG_{stream.upper()}_BYTES must yield integral "
+                "per-block bytes, per-block rows and per-row bytes for "
+                f"{self.block_size}-token blocks with {self.num_kv_heads} KV "
+                f"heads of head size {self.head_size} (got {per_kv_block} "
+                f"bytes and {self.head_size * avg} bytes per head row)"
+            )
+        return int(per_kv_block)
+
+    @property
+    def k_page_size_bytes(self) -> int:
+        return self._stream_page_bytes("k")
+
+    @property
+    def v_page_size_bytes(self) -> int:
+        return self._stream_page_bytes("v")
+
+    @property
+    def real_page_size_bytes(self) -> int:
+        if self.dtype != torch.uint8 or self.head_size_v != self.head_size:
+            raise ValueError("PSP-KV variable width requires uint8 and equal K/V heads")
+        return self.k_page_size_bytes + self.v_page_size_bytes
 
 
 @dataclass(frozen=True, kw_only=True)

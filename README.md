@@ -8,15 +8,34 @@
 This is a **customised fork of vLLM 0.20.2** that integrates the **PSP‑KV (Precision‑Scalable Paged KV‑Cache)** backend from [Virthub](https://github.com/virthub/virthub).  
 PSP‑KV reduces GPU memory consumption for KV caches by up to **50%** through per‑block precision scaling (FP16, FP8, FP8+residual, and pruned), while maintaining model quality via a deterministic, allocation‑time precision predictor.
 
+> **Ascend 910B3 status:** The experimental `vllm-ascend` route has a working
+> fixed-page FP8 model path and an opt-in packed FP4 storage probe. The
+> variable-width route now serves live with UB-staged Ascend C decode
+> kernels (`PSPKV_ASCEND_NATIVE_VARIABLE=1`, 7.2x faster attention per
+> decode step and 7.8-13.3x end-to-end over the eager reference on a
+> 910B3) and supports a calibration-frozen allocation-time precision map
+> (`PSPKV_ASCEND_STATIC_PRECISION`, 2.0x KV slots with an all-FP4 map).
+> An opt-in Ascend C FP8 scatter/decode extension passed NPU and
+> Qwen3-0.6B tests. Uniform FP4 and allocation-time FP4 did not preserve
+> Qwen3-0.6B output quality in the current smoke tests. On one 910B3,
+> native FP4 increased token capacity fourfold over stock BF16 but served
+> fewer tokens per second. See [Ascend setup and validation](ascend/README.md)
+> and [the measured 910B3 results](ascend/results/910b3/README.md), plus
+> [the end-to-end architecture explanation](ascend/ARCHITECTURE.zh-CN.md).
+>
+> For the current checkpoint's test results and known checker/type-checking
+> failures, see [Ascend branch status](ascend/PUBLISH_STATUS.md) and the
+> [2026-10-20 hardware audit](ascend/results/2026-10-20-audit/REPORT.zh-CN.md).
+
 ---
 
 ## ✨ Key Features
 
 - **Precision‑Scalable KV Cache** – each block can store FP16, FP8, FP8+residual, or pruned values based on runtime memory pressure.
 - **Three Physical Formats**:
-  - **Basic** – in‑band metadata, symmetric 1D layout.
-  - **Enhanced** – out‑of‑band sidecar, asymmetric 1D layout, fused dequantisation.
-  - **BT‑KV** – hardware‑native 2D block‑tiled layout for Hopper (SM90+) and Blackwell (SM100+) GPUs (requires CUDA 12.3+).
+    - **Basic** – in‑band metadata, symmetric 1D layout.
+    - **Enhanced** – out‑of‑band sidecar, asymmetric 1D layout, fused dequantisation.
+    - **BT‑KV** – hardware‑native 2D block‑tiled layout for Hopper (SM90+) and Blackwell (SM100+) GPUs (requires CUDA 12.3+).
 - **Direct integration** with vLLM’s **V1 engine** via a custom `AttentionBackend`.
 - **Zero‑copy metadata updates** using pinned host buffers and chunked batch synchronisation.
 - **CUDA Graph support** (full decode only) for low‑overhead inference.

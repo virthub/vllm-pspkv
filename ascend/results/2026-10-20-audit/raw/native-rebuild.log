@@ -1,0 +1,837 @@
+can not use command: npu-smi info
+Using CPython 3.11.15 interpreter at: /usr/local/python3.11.15/bin/python3
+Creating virtual environment at: pspkv-native-build/.venv
+Activate with: source pspkv-native-build/.venv/bin/activate
+can not use command: npu-smi info
+Building /workspace/pspkv-native-build/libpspkv_ascend_native.so for dav-2201
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1135:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key.const_data_ptr(), (GM_ADDR)value.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1135:41: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key.const_data_ptr(), (GM_ADDR)value.const_data_ptr(),
+                                        ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1136:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)slots.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1136:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)slots.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1137:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key_cache.mutable_data_ptr(), (GM_ADDR)value_cache.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1137:49: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key_cache.mutable_data_ptr(), (GM_ADDR)value_cache.mutable_data_ptr(),
+                                                ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1158:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)bytes.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1158:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)bytes.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1159:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)output.mutable_data_ptr(), static_cast<uint32_t>(bytes.numel()),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1206:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1206:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1207:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)block_ids.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1207:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)block_ids.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1208:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scores.mutable_data_ptr(), static_cast<uint32_t>(seq_len),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1235:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1235:51: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+                                                  ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1236:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)block_ids.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1236:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)block_ids.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1237:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)output.mutable_data_ptr(), static_cast<uint32_t>(seq_len),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1340:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1340:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1341:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(), (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1341:50: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(), (GM_ADDR)context_lens.const_data_ptr(),
+                                                 ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1342:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1342:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1343:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)scores.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1343:44: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)scores.mutable_data_ptr(),
+                                           ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1384:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1384:51: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+                                                  ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1385:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(), (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1385:50: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(), (GM_ADDR)context_lens.const_data_ptr(),
+                                                 ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1386:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1386:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1387:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1387:44: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+                                           ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1412:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)source.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1412:44: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)source.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+                                           ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1474:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)prefill.const_data_ptr(), (GM_ADDR)key_cache.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1474:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)prefill.const_data_ptr(), (GM_ADDR)key_cache.mutable_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1475:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_cache.mutable_data_ptr(), (GM_ADDR)slot_mapping.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1475:51: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_cache.mutable_data_ptr(), (GM_ADDR)slot_mapping.const_data_ptr(),
+                                                  ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1476:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1476:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1477:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.mutable_data_ptr(), static_cast<uint32_t>(num_tokens),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1525:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key_cache.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1525:47: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)key_cache.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
+                                              ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1526:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)offsets.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1526:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)offsets.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1527:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)key_output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1527:44: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)key_output.mutable_data_ptr(),
+                                           ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1528:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1570:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1570:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1571:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1572:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(), (GM_ADDR)scores.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1572:50: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(), (GM_ADDR)scores.mutable_data_ptr(),
+                                                 ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1621:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1622:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1623:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1624:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1625:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1689:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1689:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1690:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1691:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1692:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1692:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1693:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1694:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)e4m3_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1695:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)e5m2_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1696:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)fp4_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1697:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scores.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1751:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)probabilities.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1752:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1753:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1754:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1755:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1755:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1756:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1757:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)e4m3_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1758:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)e5m2_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1759:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)fp4_table.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1760:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1812:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1812:43: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(),
+                                          ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1813:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)value_cache.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1814:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)block_tables.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1815:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)context_lens.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1816:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1816:45: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+                                            ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1817:10: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+         ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+/workspace/pspkv-src/ascend/native/pspkv_fp8.asc:1817:44: warning: 'cce_global' attribute ignored when parsing type [-Wignored-attributes]
+        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(),
+                                           ^~~~~~~
+/usr/local/Ascend/cann-9.0.0/aarch64-linux/tikcpp/tikcfw/impl/utils/kernel_utils_macros.h:23:17: note: expanded from macro 'GM_ADDR'
+#define GM_ADDR __gm__ uint8_t*
+                ^~~~~~
+/usr/local/Ascend/cann-9.0.0/tools/bisheng_compiler/lib/clang/15.0.5/include/__clang_cce_defines.h:61:31: note: expanded from macro '__gm__'
+#define __gm__ __attribute__((cce_global))
+                              ^~~~~~~~~~
+92 warnings generated.
+DrvMngGetConsoleLogLevel failed. (ret=4)
+Built /root/zhang/pspkv-audit-20261020/native-rebuild/libpspkv_ascend_native.so

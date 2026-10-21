@@ -1,0 +1,9 @@
+environment	0
+fp8_reference	0
+packed_reference	1
+variable_reference	0
+native_fp8	0
+native_variable	1
+cpu_tests	0
+correctness	0
+mixed_precision	0

@@ -18,7 +18,7 @@ import torch
 
 
 def dequantize_fp8(q: torch.Tensor, fmt: int) -> torch.Tensor:
-    """Bit-exact reimplementation of the CUDA dequantize_fp8_* helpers (uint8 -> f32)."""
+    """Bit-exact CUDA dequantize_fp8_* helpers (uint8 -> f32)."""
     q = q.to(torch.int32)
     if fmt == 2:
         sign = (q >> 7) & 1
@@ -27,7 +27,7 @@ def dequantize_fp8(q: torch.Tensor, fmt: int) -> torch.Tensor:
         normal = (1.0 + mant.to(torch.float32) / 4.0) * torch.pow(
             2.0, exp.to(torch.float32) - 15.0
         )
-        subnormal = mant.to(torch.float32) * (2.0 ** -16.0)
+        subnormal = mant.to(torch.float32) * (2.0**-16.0)
         special = torch.where(mant == 0, float("inf"), float("nan"))
     else:
         sign = (q >> 7) & 1
@@ -36,7 +36,7 @@ def dequantize_fp8(q: torch.Tensor, fmt: int) -> torch.Tensor:
         normal = (1.0 + mant.to(torch.float32) / 8.0) * torch.pow(
             2.0, exp.to(torch.float32) - 7.0
         )
-        subnormal = mant.to(torch.float32) * (2.0 ** -9.0)
+        subnormal = mant.to(torch.float32) * (2.0**-9.0)
         special = torch.where(mant == 7, float("nan"), normal)
     val = torch.where(exp == 0, subnormal, normal)
     max_exp = 31 if fmt == 2 else 15
@@ -54,9 +54,26 @@ def quantize_fp8(x: torch.Tensor, fmt: int) -> torch.Tensor:
 def dequantize_fp4_e2m1(q: torch.Tensor) -> torch.Tensor:
     """Bit-exact e2m1 dequant (nibble 0-15 -> float), matching the CUDA helper."""
     table = torch.tensor(
-        [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, float("inf"), float("inf"),
-         -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, float("-inf"), float("-inf")],
-        dtype=torch.float32, device=q.device,
+        [
+            0.0,
+            0.5,
+            1.0,
+            1.5,
+            2.0,
+            3.0,
+            float("inf"),
+            float("inf"),
+            -0.0,
+            -0.5,
+            -1.0,
+            -1.5,
+            -2.0,
+            -3.0,
+            float("-inf"),
+            float("-inf"),
+        ],
+        dtype=torch.float32,
+        device=q.device,
     )
     return table[q.to(torch.int32)]
 
@@ -65,11 +82,17 @@ def quantize_fp4_e2m1(x: torch.Tensor) -> torch.Tensor:
     """Nearest-neighbor e2m1 quantize (exact for integers 0..3)."""
     x = x.to(torch.float32)
     mag = x.abs()
-    code = torch.where(mag < 0.25, 0,
-            torch.where(mag < 0.75, 1,
-            torch.where(mag < 1.25, 2,
-            torch.where(mag < 1.75, 3,
-            torch.where(mag < 2.5, 4, 5)))))
+    code = torch.where(
+        mag < 0.25,
+        0,
+        torch.where(
+            mag < 0.75,
+            1,
+            torch.where(
+                mag < 1.25, 2, torch.where(mag < 1.75, 3, torch.where(mag < 2.5, 4, 5))
+            ),
+        ),
+    )
     code = code.to(torch.uint8)
     sign_bit = (x < 0).to(torch.uint8) * 8
     return code | sign_bit
@@ -87,7 +110,9 @@ def _bytes_per_head(fmt: int, block_size: int, head_size: int, scalar_size: int)
     return block_size * head_size
 
 
-def _pack_elements(x: torch.Tensor, fmt: int, dtype: torch.dtype, scale: float) -> torch.Tensor:
+def _pack_elements(
+    x: torch.Tensor, fmt: int, dtype: torch.dtype, scale: float
+) -> torch.Tensor:
     """Pack a [..., block_size, head_size] float tensor into a uint8 byte buffer."""
     x = x.float()
     if fmt == 0:
@@ -100,8 +125,9 @@ def _pack_elements(x: torch.Tensor, fmt: int, dtype: torch.dtype, scale: float) 
     return quantize_fp8(x / scale, fmt).reshape(-1).to(torch.uint8)
 
 
-def _dequant_elements(buf: torch.Tensor, fmt: int, dtype: torch.dtype,
-                      shape: tuple, scale: float) -> torch.Tensor:
+def _dequant_elements(
+    buf: torch.Tensor, fmt: int, dtype: torch.dtype, shape: tuple, scale: float
+) -> torch.Tensor:
     """Dequantize a byte buffer into a float tensor of `shape`."""
     if fmt == 0:
         return buf.view(dtype).reshape(shape).float()
@@ -113,9 +139,14 @@ def _dequant_elements(buf: torch.Tensor, fmt: int, dtype: torch.dtype,
     return dequantize_fp8(buf, fmt).reshape(shape) * scale
 
 
-def pack_kv_cache(k_full: torch.Tensor, v_full: torch.Tensor, format_gen: int,
-                  precision_table: torch.Tensor, dtype: torch.dtype,
-                  scale: float = 1.0):
+def pack_kv_cache(
+    k_full: torch.Tensor,
+    v_full: torch.Tensor,
+    format_gen: int,
+    precision_table: torch.Tensor,
+    dtype: torch.dtype,
+    scale: float = 1.0,
+):
     """Pack multi-block KV into a byte buffer + block_offsets.
 
     k_full/v_full: [num_blocks, num_kv_heads, block_size, head_size] (token-major).
@@ -143,30 +174,43 @@ def pack_kv_cache(k_full: torch.Tensor, v_full: torch.Tensor, format_gen: int,
     for b in range(num_blocks):
         fmt = int(precision_table[b].item())
         k_bytes = _pack_elements(k_full[b], fmt, dtype, scale)
-        if format_gen == 0:
+        if format_gen in (0, 3):
             v_bytes = _pack_elements(v_full[b], fmt, dtype, scale)
         else:
             # enhanced/btkv V is stored transposed [head_size, block_size]
             # (i.e. [num_kv_heads, head_size, block_size] = V[h, d, t]).
             v_bytes = _pack_elements(v_full[b].permute(0, 2, 1), fmt, dtype, scale)
         off = offsets[b]
-        k_buf[off:off + block_bytes[b]] = k_bytes
-        v_buf[off:off + block_bytes[b]] = v_bytes
+        k_buf[off : off + block_bytes[b]] = k_bytes
+        v_buf[off : off + block_bytes[b]] = v_bytes
 
     return k_buf, v_buf, torch.tensor(offsets, dtype=torch.int32, device=k_full.device)
 
 
-def dequantize_kv(k_cache: torch.Tensor, v_cache: torch.Tensor,
-                  block_offsets: torch.Tensor, precision_table: torch.Tensor,
-                  scale_table: torch.Tensor, num_kv_heads: int,
-                  block_size: int, head_size: int, dtype: torch.dtype):
-    """Reference for the staging path: compressed byte buffer -> uniform target-precision KV.
+def dequantize_kv(
+    k_cache: torch.Tensor,
+    v_cache: torch.Tensor,
+    block_offsets: torch.Tensor,
+    precision_table: torch.Tensor,
+    scale_table: torch.Tensor,
+    num_kv_heads: int,
+    block_size: int,
+    head_size: int,
+    dtype: torch.dtype,
+):
+    """Decode compressed bytes into a uniform target-precision KV buffer.
 
     Mirrors the kernel's launch_dequant_kv (scale applied only for fp8).
     """
     num_blocks = len(precision_table)
-    k_out = torch.zeros(num_blocks, num_kv_heads, block_size, head_size,
-                        dtype=dtype, device=k_cache.device)
+    k_out = torch.zeros(
+        num_blocks,
+        num_kv_heads,
+        block_size,
+        head_size,
+        dtype=dtype,
+        device=k_cache.device,
+    )
     v_out = torch.zeros_like(k_out)
     scalar_size = _scalar_size(dtype)
     for b in range(num_blocks):
@@ -175,20 +219,30 @@ def dequantize_kv(k_cache: torch.Tensor, v_cache: torch.Tensor,
         bb = per_head * num_kv_heads
         off = int(block_offsets[b].item())
         scale = scale_table[b].float()[:, None, None] if fmt != 0 else 1.0
-        k_out[b] = _dequant_elements(k_cache[off:off + bb], fmt, dtype,
-                                     (num_kv_heads, block_size, head_size), scale)
-        v_out[b] = _dequant_elements(v_cache[off:off + bb], fmt, dtype,
-                                     (num_kv_heads, block_size, head_size), scale)
+        k_out[b] = _dequant_elements(
+            k_cache[off : off + bb],
+            fmt,
+            dtype,
+            (num_kv_heads, block_size, head_size),
+            scale,
+        )
+        v_out[b] = _dequant_elements(
+            v_cache[off : off + bb],
+            fmt,
+            dtype,
+            (num_kv_heads, block_size, head_size),
+            scale,
+        )
     return k_out, v_out
 
 
 def reference_paged_attention(
-    query: torch.Tensor,          # [num_tokens, num_heads, head_dim] fp16/bf16/fp8
-    key_cache: torch.Tensor,      # uint8 byte buffer
-    value_cache: torch.Tensor,    # uint8 byte buffer
-    block_tables: torch.Tensor,   # int32 [num_seqs, max_blocks_per_seq]
-    context_lens: torch.Tensor,   # int32 [num_seqs]
-    format_gen: int,              # 0=basic, 1=enhanced, 2=btkv
+    query: torch.Tensor,  # [num_tokens, num_heads, head_dim] fp16/bf16/fp8
+    key_cache: torch.Tensor,  # uint8 byte buffer
+    value_cache: torch.Tensor,  # uint8 byte buffer
+    block_tables: torch.Tensor,  # int32 [num_seqs, max_blocks_per_seq]
+    context_lens: torch.Tensor,  # int32 [num_seqs]
+    format_gen: int,  # 0=basic, 1=enhanced, 2=btkv, 3=scaled basic
     precision_table: torch.Tensor,  # uint8 [num_blocks]
     scale_table: torch.Tensor | None,  # fp32 [num_blocks, num_kv_heads]
     block_offsets: torch.Tensor,  # int32 [num_blocks]
@@ -220,14 +274,29 @@ def reference_paged_attention(
             bb = per_head * num_kv_heads
             off = int(block_offsets[bid].item())
 
-            k = _dequant_elements(key_cache[off:off + bb], fmt, query.dtype,
-                                  (num_kv_heads, block_size, head_dim), 1.0)
-            if format_gen == 0:
-                v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
-                                      (num_kv_heads, block_size, head_dim), 1.0)
+            k = _dequant_elements(
+                key_cache[off : off + bb],
+                fmt,
+                query.dtype,
+                (num_kv_heads, block_size, head_dim),
+                1.0,
+            )
+            if format_gen in (0, 3):
+                v = _dequant_elements(
+                    value_cache[off : off + bb],
+                    fmt,
+                    query.dtype,
+                    (num_kv_heads, block_size, head_dim),
+                    1.0,
+                )
             else:
-                v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
-                                      (num_kv_heads, head_dim, block_size), 1.0).transpose(1, 2)
+                v = _dequant_elements(
+                    value_cache[off : off + bb],
+                    fmt,
+                    query.dtype,
+                    (num_kv_heads, head_dim, block_size),
+                    1.0,
+                ).transpose(1, 2)
             if format_gen != 0 and fmt != 0:
                 s = scale_table[bid].float()[:, None, None]
                 k = k * s

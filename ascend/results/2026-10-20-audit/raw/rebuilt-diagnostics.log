@@ -1,0 +1,186 @@
+/audit/diagnose_npu.py:32: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  torch.zeros_like(output), incoming, incoming, cache,
+{
+  "fp4_scales_cpu": {
+    "trace": [
+      {
+        "magnitude": 0.125,
+        "scale": 0.0625,
+        "output": [
+          [
+            [
+              0.125,
+              0.125,
+              0.125,
+              0.125
+            ]
+          ]
+        ]
+      },
+      {
+        "magnitude": 0.75,
+        "scale": 0.25,
+        "output": [
+          [
+            [
+              0.4375,
+              0.4375,
+              0.4375,
+              0.4375
+            ]
+          ]
+        ]
+      }
+    ],
+    "log2_quarter": -2.0,
+    "ceil_log2_quarter": -2.0,
+    "pow2_minus2": 0.25
+  },
+  "fp4_scales_npu": {
+    "trace": [
+      {
+        "magnitude": 0.125,
+        "scale": 0.0624999962747097,
+        "output": [
+          [
+            [
+              0.1249999925494194,
+              0.1249999925494194,
+              0.1249999925494194,
+              0.1249999925494194
+            ]
+          ]
+        ]
+      },
+      {
+        "magnitude": 0.75,
+        "scale": 0.4999999701976776,
+        "output": [
+          [
+            [
+              0.3749999701976776,
+              0.3749999701976776,
+              0.3749999701976776,
+              0.3749999701976776
+            ]
+          ]
+        ]
+      }
+    ],
+    "log2_quarter": -2.0,
+    "ceil_log2_quarter": -2.0,
+    "pow2_minus2": 0.2499999850988388
+  }
+}
+{
+  "fp4_scales_cpu": {
+    "trace": [
+      {
+        "magnitude": 0.125,
+        "scale": 0.0625,
+        "output": [
+          [
+            [
+              0.125,
+              0.125,
+              0.125,
+              0.125
+            ]
+          ]
+        ]
+      },
+      {
+        "magnitude": 0.75,
+        "scale": 0.25,
+        "output": [
+          [
+            [
+              0.4375,
+              0.4375,
+              0.4375,
+              0.4375
+            ]
+          ]
+        ]
+      }
+    ],
+    "log2_quarter": -2.0,
+    "ceil_log2_quarter": -2.0,
+    "pow2_minus2": 0.25
+  },
+  "fp4_scales_npu": {
+    "trace": [
+      {
+        "magnitude": 0.125,
+        "scale": 0.0624999962747097,
+        "output": [
+          [
+            [
+              0.1249999925494194,
+              0.1249999925494194,
+              0.1249999925494194,
+              0.1249999925494194
+            ]
+          ]
+        ]
+      },
+      {
+        "magnitude": 0.75,
+        "scale": 0.4999999701976776,
+        "output": [
+          [
+            [
+              0.3749999701976776,
+              0.3749999701976776,
+              0.3749999701976776,
+              0.3749999701976776
+            ]
+          ]
+        ]
+      }
+    ],
+    "log2_quarter": -2.0,
+    "ceil_log2_quarter": -2.0,
+    "pow2_minus2": 0.2499999850988388
+  },
+  "completed_block_policy_comparisons": [
+    {
+      "tensor": "precision",
+      "exact": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "tensor": "offsets",
+      "exact": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "tensor": "k_bytes",
+      "exact": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "tensor": "v_bytes",
+      "exact": true,
+      "max_abs_error": 0.0
+    },
+    {
+      "tensor": "scales",
+      "exact": false,
+      "max_abs_error": 7.450580596923828e-09
+    },
+    {
+      "tensor": "k",
+      "exact": false,
+      "max_abs_error": 1.4901161193847656e-08
+    },
+    {
+      "tensor": "v",
+      "exact": false,
+      "max_abs_error": 1.4901161193847656e-08
+    }
+  ],
+  "static_fp4_native_reference_parity": true,
+  "grouped_static_fp4_native_reference_parity": true,
+  "asymmetric_native_reference_parity": true
+}

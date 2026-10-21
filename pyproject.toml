@@ -134,7 +134,8 @@ extend-exclude = ["tests/models/fixtures/*", "tests/prompts/*", "tests/tokenizer
     "examples/pooling/token_embed/*", "tests/models/language/pooling/*",
     "vllm/third_party/*", "vllm/entrypoints/serve/instrumentator/static/*", "tests/entrypoints/openai/speech_to_text/test_transcription_validation.py",
     "docs/governance/process.md", "docs/assets/contributing/vllm_bench_serve_timeline.html", 
-    "tests/v1/engine/test_fast_incdec_prefix_err.py", ".git/*"]
+    "tests/v1/engine/test_fast_incdec_prefix_err.py", ".git/*",
+    "ascend/results/2026-10-20-audit/raw/*"]
 ignore-hidden = false
 
 [tool.typos.default]
@@ -157,6 +158,7 @@ view_seperator = "view_seperator"
 inverse_std_variences = "inverse_std_variences"
 
 [tool.typos.default.extend-words]
+CANN = "CANN"
 iy = "iy"
 indx = "indx"
 # intel cpu features

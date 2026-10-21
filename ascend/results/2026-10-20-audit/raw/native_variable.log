@@ -1,0 +1,17 @@
+/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_arena.py:229: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  self.scratch_values = torch.zeros_like(self.scratch_keys)
+  formats {3: 2}
+  vectorized kernels match scalar kernels (256 tokens)
+  native variable decode matches the reference path
+Traceback (most recent call last):
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 241, in <module>
+    main()
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 203, in main
+    fused_out = run_decode(fused_arena, 2 * BLOCK, native=True, native_fused=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 165, in run_decode
+    reference_variable_attention(
+  File "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_arena.py", line 1034, in reference_variable_attention
+    operator(
+TypeError: PSPKVAscendPackedOps.psp_attention_scaled_basic_fused() got an unexpected keyword argument 'value_precision_table'
+[ERROR] 2026-10-20-11:33:03 (PID:388, Device:0, RankID:-1) ERR99999 UNKNOWN applicaiton exception

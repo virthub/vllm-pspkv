@@ -1,0 +1,12 @@
+/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_reference.py:123: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  sign = (bits >> 31) & 1
+Traceback (most recent call last):
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 261, in <module>
+    main()
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 249, in main
+    run_uniform_fp4_small_values(torch.device("npu:0")),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 187, in run_uniform_fp4_small_values
+    assert scales.item() == 0.25
+           ^^^^^^^^^^^^^^^^^^^^^
+AssertionError

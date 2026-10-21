@@ -1,0 +1,188 @@
+[
+  {
+    "case": "warmup",
+    "seconds": 10.855613224208355,
+    "response": {
+      "id": "cmpl-ad7b27097aee04d6",
+      "object": "text_completion",
+      "created": 1792496963,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "Question，",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 1,
+        "total_tokens": 3,
+        "completion_tokens": 2,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital",
+    "seconds": 20.654367562383413,
+    "response": {
+      "id": "cmpl-a645a848047a72a2",
+      "object": "text_completion",
+      "created": 1792496973,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最重要的工业和商业中心之一。中国是世界上拥有最多城市化率的国家之一，也是全球最大的经济体之一。中国作为全球",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "arithmetic",
+    "seconds": 6.431669719517231,
+    "response": {
+      "id": "cmpl-96e82d3f5d169e44",
+      "object": "text_completion",
+      "created": 1792496994,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "2, 1+1=2, 1+1=2,",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 4,
+        "total_tokens": 20,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "english",
+    "seconds": 6.2855678871273994,
+    "response": {
+      "id": "cmpl-b1c93d114c375817",
+      "object": "text_completion",
+      "created": 1792497001,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": " Paris, and the capital of the French Republic is also Paris. Therefore, the",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 5,
+        "total_tokens": 21,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "cross_page",
+    "seconds": 12.95833434164524,
+    "response": {
+      "id": "cmpl-82efb41b5230975f",
+      "object": "text_completion",
+      "created": 1792497007,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "______。\nA. 北京\nB. 上海\n\n根据以上记录，可以确定首都是______。\n答案是：北京或上海？\n\n",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "case": "capital_replay",
+    "seconds": 12.858194056898355,
+    "response": {
+      "id": "cmpl-8a76e03546921ec2",
+      "object": "text_completion",
+      "created": 1792497020,
+      "model": "Qwen/Qwen3-0.6B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国最重要的工业和商业中心之一。中国是世界上拥有最多城市化率的国家之一，也是全球最大的经济体之一。中国作为全球",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  }
+]
