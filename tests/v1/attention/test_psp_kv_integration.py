@@ -114,6 +114,8 @@ class TestPSPKVIntegration:
         common_meta.format_generation = 1  # Enhanced format
         common_meta.num_actual_tokens = self.batch_size
         common_meta.num_reqs = self.batch_size
+        common_meta.precision_is_lossless = True
+        common_meta.precision_fp8_fmt = 0
 
         attn_metadata = PSPKVAttentionMetadata(common_metadata=common_meta)
 
@@ -222,6 +224,12 @@ class TestPSPKVIntegration:
         impl = PSPKVAttentionImpl(self.num_heads, self.head_dim, self.softmax_scale, self.num_kv_heads, None, None, "auto")
         precision_table = metadata.common_metadata.precision_table
         scale_table = metadata.common_metadata.scale_table
+        # Force the scalar path: the tensor-core paths use the precomputed
+        # uniform flags baked into the graph at capture time, so only the scalar
+        # kernel (which reads precision/scale tensors at replay) can observe the
+        # in-place mutation below.
+        metadata.common_metadata.precision_is_lossless = False
+        metadata.common_metadata.precision_fp8_fmt = 0
 
         # Warmup and capture
         graph = torch.cuda.CUDAGraph()

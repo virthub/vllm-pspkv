@@ -430,6 +430,12 @@ class CommonAttentionMetadata:
     """0=Basic, 1=Enhanced, 2=BT-KV. Determines which PSP-KV kernel to dispatch."""
     block_offsets: torch.Tensor | None = None
     """(max_num_blocks,) int32 per-block byte offsets into the KV byte buffer."""
+    precision_is_lossless: bool = False
+    """True when every block's inner precision is lossless (FMT=0), precomputed
+    CPU-side by the model runner to avoid a GPU->CPU sync per decode step."""
+    precision_fp8_fmt: int = 0
+    """1/2 when every block is uniform e4m3/e5m2 (else 0), precomputed CPU-side
+    for the fp8 tensor-core dispatch without a per-step GPU->CPU sync."""
     # ====================================================
 
     def batch_size(self) -> int:

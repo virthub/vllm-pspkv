@@ -561,7 +561,7 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "    Tensor block_tables, Tensor context_lens,"
       "    Tensor precision_table, Tensor block_offsets, Tensor scale_table,"
       "    float softmax_scale, int num_kv_heads, int head_size, int sliding_window,"
-      "    Tensor! out) -> ()");
+      "    bool is_lossless, int fp8_fmt, Tensor! out) -> ()");
   ops.impl("psp_attention_enhanced", torch::kCUDA, &psp_kv::psp_attention_enhanced);
 
   ops.def(

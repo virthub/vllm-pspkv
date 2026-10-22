@@ -316,6 +316,8 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 num_kv_heads,
                 head_size,
                 self.sliding_window[0] + self.sliding_window[1] + 1,
+                getattr(meta, "precision_is_lossless", False),
+                getattr(meta, "precision_fp8_fmt", 0),
                 output,
             )
         elif format_gen == 2:

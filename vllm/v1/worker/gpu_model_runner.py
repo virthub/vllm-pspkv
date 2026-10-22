@@ -891,6 +891,8 @@ class GPUModelRunner(
         self.block_offsets_cpu = None
         self.precision_cpu = None
         self.scale_cpu = None
+        self.precision_is_lossless = False
+        self.precision_fp8_fmt = 0
         self.h_precision_table = None
         self.h_scale_table = None
         self.h_tma_descriptors = None
@@ -2353,6 +2355,8 @@ class GPUModelRunner(
             tma_descriptors=self.tma_descriptors if self.format_generation == 2 else None,
             block_offsets=self.block_offsets,
             format_generation=self.format_generation,
+            precision_is_lossless=self.precision_is_lossless,
+            precision_fp8_fmt=self.precision_fp8_fmt,
         )
 
         if self.dcp_world_size > 1:
@@ -6544,6 +6548,16 @@ class GPUModelRunner(
         self.block_offsets_cpu = self.block_offsets.cpu()
         self.precision_cpu = self.precision_table.to(torch.uint8).cpu()
         self.scale_cpu = self.scale_table.to(torch.float32).cpu()
+        # CPU-side dispatch flags (no per-step GPU->CPU sync): the tensor-core
+        # paths require uniform lossless or uniform e4m3/e5m2 inner precision.
+        if self.precision_cpu.numel() == 0:
+            self.precision_is_lossless = True
+            self.precision_fp8_fmt = 0
+        else:
+            pmin = int(self.precision_cpu.min().item())
+            pmax = int(self.precision_cpu.max().item())
+            self.precision_is_lossless = (pmin == 0 and pmax == 0)
+            self.precision_fp8_fmt = pmax if (pmin == pmax and pmax in (1, 2)) else 0
 
     def _derive_precision_from_scratch(self, scratch, slot_map, num_tokens):
         """Derive per-block precision from the prefill's max-abs magnitude.

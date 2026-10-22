@@ -61,6 +61,8 @@ void psp_attention_enhanced(
     int64_t num_kv_heads,
     int64_t head_size,
     int64_t sliding_window,
+    bool is_lossless,
+    int64_t fp8_fmt,
     torch::Tensor& out);
 
 /**
