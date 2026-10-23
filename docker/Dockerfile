@@ -160,7 +160,7 @@ ARG PYTORCH_NIGHTLY
 # Check whether to install torch nightly instead of release for this build
 COPY requirements/common.txt requirements/common.txt
 COPY requirements/cuda.txt requirements/cuda.txt
-COPY use_existing_torch.py use_existing_torch.py
+COPY scripts/use_existing_torch.py use_existing_torch.py
 COPY pyproject.toml pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "${PYTORCH_NIGHTLY}" = "1" ]; then \
@@ -205,7 +205,7 @@ ARG PYTORCH_NIGHTLY
 
 # Install build dependencies
 COPY requirements/build/cuda.txt requirements/build/cuda.txt
-COPY use_existing_torch.py use_existing_torch.py
+COPY scripts/use_existing_torch.py use_existing_torch.py
 COPY --from=base /workspace/torch_lib_versions.txt torch_lib_versions.txt
 
 # This timeout (in seconds) is necessary when installing some dependencies via uv since it's likely to time out
@@ -356,7 +356,7 @@ ARG PYTORCH_NIGHTLY
 
 # Install build dependencies
 COPY requirements/build/cuda.txt requirements/build/cuda.txt
-COPY use_existing_torch.py use_existing_torch.py
+COPY scripts/use_existing_torch.py use_existing_torch.py
 COPY --from=base /workspace/torch_lib_versions.txt torch_lib_versions.txt
 
 # This timeout (in seconds) is necessary when installing some dependencies via uv since it's likely to time out
@@ -453,7 +453,7 @@ COPY requirements/lint.txt requirements/lint.txt
 COPY requirements/test/cuda.in requirements/test/cuda.in
 COPY requirements/test/cuda.txt requirements/test/cuda.txt
 COPY requirements/dev.txt requirements/dev.txt
-COPY use_existing_torch.py use_existing_torch.py
+COPY scripts/use_existing_torch.py use_existing_torch.py
 COPY --from=base /workspace/torch_lib_versions.txt torch_lib_versions.txt
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "${PYTORCH_NIGHTLY}" = "1" ]; then \
@@ -716,7 +716,7 @@ COPY requirements/lint.txt requirements/lint.txt
 COPY requirements/test/cuda.in requirements/test/cuda.in
 COPY requirements/test/cuda.txt requirements/test/cuda.txt
 COPY requirements/dev.txt requirements/dev.txt
-COPY use_existing_torch.py use_existing_torch.py
+COPY scripts/use_existing_torch.py use_existing_torch.py
 COPY --from=base /workspace/torch_lib_versions.txt torch_lib_versions.txt
 RUN --mount=type=cache,target=/root/.cache/uv \
     CUDA_MAJOR="${CUDA_VERSION%%.*}"; \

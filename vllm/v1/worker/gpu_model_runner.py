@@ -916,6 +916,16 @@ class GPUModelRunner(
         self.psp_kv_profile = _read_psp_kv_profile()
         # Per-prefill adaptive precision derivation (PSPKV_ADAPTIVE_PRECISION=1)
         self.psp_kv_adaptive_precision = _read_psp_kv_adaptive_precision()
+        # Cache byte budget: lossless stores 2 bytes/elem, fp8 1, fp4 0.5. Set
+        # the PSPKV_AVG_BYTES default to the configured precision's size (the
+        # worst case when adaptive) so the byte-buffer cache is never
+        # under-allocated. An explicit PSPKV_AVG_BYTES env value still wins.
+        if self.psp_kv_adaptive_precision:
+            psp_kv_avg_bytes = 2.0
+        else:
+            psp_kv_avg_bytes = {0: 2.0, 1: 1.0, 2: 1.0, 3: 0.5}.get(
+                self.precision_default, 2.0)
+        os.environ.setdefault("PSPKV_AVG_BYTES", str(psp_kv_avg_bytes))
         # ====================================================
 
         # Layer pairings for cross-layer KV sharing.
@@ -6652,12 +6662,25 @@ class GPUModelRunner(
         if not hasattr(self, 'kv_cache_config') or self.kv_cache_config is None:
             return
 
-        # Determine total number of blocks across all KV cache groups
+        # Determine the kernel-level block count. The byte-buffer cache and its
+        # metadata tables are indexed by kernel blocks (PSP-KV block size 16).
+        # Hybrid models share a larger unified memory block size across the
+        # attention and mamba groups, so the number of kernel blocks is
+        # num_blocks * (block_size // kernel_block_size); size the tables to
+        # that count so slot-derived kernel block ids stay in range.
         total_blocks = self.kv_cache_config.num_blocks
         if total_blocks == 0:
             total_blocks = self.cache_config.num_gpu_blocks or 0
         if total_blocks == 0:
             return
+
+        kernel_block_size = 16  # PSP-KV kernel block size
+        for group in self.kv_cache_config.kv_cache_groups:
+            if isinstance(group.kv_cache_spec, AttentionSpec):
+                block_size = group.kv_cache_spec.block_size
+                if block_size and block_size % kernel_block_size == 0:
+                    total_blocks *= block_size // kernel_block_size
+                break
 
         self.max_num_blocks = total_blocks
 

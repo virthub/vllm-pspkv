@@ -73,7 +73,7 @@ void launch_paged_attention_enhanced_tc(
     float* partials,
     int max_blocks_per_seq, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
-    cudaStream_t stream);
+    int sliding_window, cudaStream_t stream);
 
 void launch_paged_attention_enhanced_fp8_tc(
     __nv_bfloat16* out, const __nv_bfloat16* q,
@@ -323,11 +323,11 @@ void psp_attention_enhanced(
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
 
-    // Tensor-core path: bf16 lossless (all blocks FMT=0) + no sliding window.
+    // Tensor-core path: bf16 lossless (all blocks FMT=0). The kernel applies
+    // the sliding-window mask itself, so the window no longer forces a fallback.
     // `is_lossless`/`fp8_fmt` are precomputed CPU-side by the model runner to
     // avoid a GPU->CPU sync per decode step.
-    if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && is_lossless
-        && head_dim <= 128) {
+    if (query.scalar_type() == at::kBFloat16 && is_lossless && head_dim <= 256) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
@@ -341,7 +341,7 @@ void psp_attention_enhanced(
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
             tc_partials.data_ptr<float>(),
             max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), stream);
+            static_cast<float>(softmax_scale), static_cast<int>(sliding_window), stream);
         return;
     }
 
@@ -350,7 +350,7 @@ void psp_attention_enhanced(
     // mma); it trades ~4.6% accuracy for the faster path.
     static const bool fp8_query = (getenv("PSPKV_FP8_QUERY") != nullptr);
     if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && fp8_fmt != 0
-        && head_dim <= 128 && fp8_query) {
+        && head_dim <= 256 && fp8_query) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
@@ -369,7 +369,7 @@ void psp_attention_enhanced(
         return;
     }
     if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && fp8_fmt != 0
-        && head_dim <= 128) {
+        && head_dim <= 256) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));

@@ -37,7 +37,8 @@ _verify_stats = {"max": 0.0, "sum": 0.0, "n": 0, "calls": 0}
 
 def _verify_fp32_closeness(query, k_cache, v_cache, block_tables, context_lens,
                            precision_table, scale_table, block_offsets,
-                           num_kv_heads, softmax_scale, output, format_gen):
+                           num_kv_heads, softmax_scale, output, format_gen,
+                           sliding_window=-1):
     """Compare the PSP-KV decode output against the fp32 reference (opt-in).
 
     This is the correctness criterion: the max/mean absolute difference to a
@@ -54,7 +55,7 @@ def _verify_fp32_closeness(query, k_cache, v_cache, block_tables, context_lens,
     ref = reference_paged_attention(
         query, k_cache, v_cache, block_tables, context_lens, format_gen,
         precision_table, scale_table, block_offsets, num_kv_heads, 16,
-        softmax_scale,
+        softmax_scale, sliding_window,
     )
     diff = (output.float() - ref.float()).abs()
     _verify_stats["max"] = max(_verify_stats["max"], diff.max().item())
@@ -354,7 +355,8 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             _verify_fp32_closeness(
                 query, k_cache, v_cache, block_tables, context_lens,
                 meta.precision_table, meta.scale_table, block_offsets,
-                num_kv_heads, softmax_scale, output, format_gen)
+                num_kv_heads, softmax_scale, output, format_gen,
+                self.sliding_window[0] + self.sliding_window[1] + 1)
         if slot_mapping is not None and key is not None and value is not None:
             ops.quantize_single_token(
                 key, value, k_cache, v_cache,

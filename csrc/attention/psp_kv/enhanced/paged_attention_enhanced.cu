@@ -226,7 +226,8 @@ __global__ void paged_attention_enhanced_tc_kernel(
     int num_heads,
     int num_kv_heads,
     float scale,
-    int num_splits)
+    int num_splits,
+    int sliding_window)
 {
     constexpr int NT8 = HEAD_DIM / 16;
     constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM * 2;  // bf16 lossless
@@ -275,6 +276,11 @@ __global__ void paged_attention_enhanced_tc_kernel(
     const int split_end = min(split_start + blocks_per_split, num_blocks);
     const int chunk_blocks = split_end - split_start;
 
+    // Sliding-window mask: the decode query (position context_len) attends
+    // only to tokens >= window_start; <= 0 means no window.
+    const int window_start = (sliding_window > 0)
+        ? max(0, context_len - sliding_window + 1) : 0;
+
     const int block_bytes_per_head = BLOCK_BYTES;
 
     for (int n = 0; n < chunk_blocks; n++) {
@@ -307,7 +313,8 @@ __global__ void paged_attention_enhanced_tc_kernel(
         // per-row online softmax (2 rows per thread), masked to valid tokens
         for (int r = group; r < 16; r += 8) {
             float mx = -1e30f;
-            for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
+            for (int cc = 0; cc < tokens_in_block; cc++)
+                if (start_token + cc >= window_start) mx = fmaxf(mx, s_score[r * 16 + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;
             float& rsum = (r == group) ? rsum0 : rsum1;
             float m_new = fmaxf(rmax, mx);
@@ -316,7 +323,7 @@ __global__ void paged_attention_enhanced_tc_kernel(
             rsum *= rescale_old;
             float tsum = 0.0f;
             for (int cc = 0; cc < 16; cc++) {
-                float e = (cc < tokens_in_block)
+                float e = (cc < tokens_in_block && start_token + cc >= window_start)
                     ? exp2f((s_score[r * 16 + cc] - mx) * log2e) : 0.0f;
                 s_prob[r * 16 + cc] = __float2bfloat16(e * rescale_new);
                 tsum += e;
@@ -852,6 +859,7 @@ void launch_paged_attention_enhanced_tc(
     int num_kv_heads,
     int head_dim,
     float scale,
+    int sliding_window,
     cudaStream_t stream = 0)
 {
     const int num_splits = TC_NUM_SPLITS;
@@ -861,7 +869,7 @@ void launch_paged_attention_enhanced_tc(
         paged_attention_enhanced_tc_kernel<HEAD_DIM><<<grid, TC_THREADS, 0, stream>>>(
             partials, q, k_cache, v_cache,
             block_tables, context_lens, block_offsets,
-            max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits);
+            max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits, sliding_window);
         paged_attention_enhanced_tc_merge_kernel<HEAD_DIM>
             <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
             out, partials, num_kv_heads, num_seqs, num_heads, num_splits);

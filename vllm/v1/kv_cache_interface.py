@@ -278,12 +278,19 @@ class FullAttentionSpec(AttentionSpec):
 def _psp_kv_avg_bytes() -> float:
     """Average bytes-per-element budget for the PSP-KV byte-buffer cache.
 
-    Controls how much memory the paged allocator reserves per element: 1.0 for
-    the fp8 worst case, or a fraction (e.g. 0.75) when the per-block precision
-    is expected to mix fp4 (0.5 B/elem) with fp8 (1 B/elem). The per-block byte
-    offsets are tracked separately by the backend.
+    The default matches the configured inner precision's worst case: lossless
+    (0) = 2 B/elem, fp8 (1/2) = 1, fp4 (3) = 0.5. An explicit PSPKV_AVG_BYTES
+    env wins. The per-block byte offsets are tracked separately by the backend.
     """
-    return float(os.environ.get("PSPKV_AVG_BYTES", "1.0"))
+    env = os.environ.get("PSPKV_AVG_BYTES")
+    if env is not None and env.strip() != "":
+        return float(env)
+    p = os.environ.get("PSPKV_PRECISION", "e4m3").strip().lower()
+    if p in ("0", "lossless"):
+        return 2.0
+    if p in ("3", "fp4"):
+        return 0.5
+    return 1.0
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -191,6 +191,7 @@ def reference_paged_attention(
     num_kv_heads: int,
     block_size: int,
     softmax_scale: float,
+    sliding_window: int = -1,
 ) -> torch.Tensor:
     """Paged attention reference matching the PSP-KV reference kernels."""
     num_heads = query.shape[1]
@@ -238,6 +239,9 @@ def reference_paged_attention(
 
         q = query[seq].float()
         scores = torch.einsum("hd,htd->ht", q, k_seq) * softmax_scale
+        if sliding_window > 0:
+            window_start = max(0, ctx - sliding_window + 1)
+            scores[:, :window_start] = -torch.inf
         weights = torch.softmax(scores, dim=-1)
         out = torch.einsum("ht,htd->hd", weights, v_seq)
         outputs.append(out)
