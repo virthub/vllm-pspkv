@@ -41,12 +41,15 @@ __global__ void estimate_block_scales_kernel(
     float* __restrict__ max_abs,                   // [num_blocks, num_kv_heads]
     int num_tokens, int num_kv_heads, int block_size, int head_dim)
 {
-    // One thread per (token, head): num_kv_heads x more parallelism than the
-    // old one-thread-per-token layout, so each thread reduces only 2*head_dim
-    // elements instead of 2*num_kv_heads*head_dim (a short fmaxf chain).
+    // One thread per (token, head, chunk): 4x more parallelism than the
+    // (token, head) layout, so each thread reduces only 2*(head_dim/4)
+    // elements; the per-chunk partials are combined by the atomicMax below.
+    constexpr int CHUNKS = 4;
+    const int chunk_dim = head_dim / CHUNKS;
     const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
-    const int token = global_tid / num_kv_heads;
-    const int h = global_tid % num_kv_heads;
+    const int token = global_tid / (num_kv_heads * CHUNKS);
+    const int h = (global_tid / CHUNKS) % num_kv_heads;
+    const int chunk = global_tid % CHUNKS;
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
@@ -55,13 +58,15 @@ __global__ void estimate_block_scales_kernel(
     if (fp8_fmt == 0) return;  // lossless: scale stays 1.0
 
     const scalar_t* k_row = prefill_scratch +
-        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
+        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim
+        + chunk * chunk_dim;
     const scalar_t* v_row = prefill_scratch +
-        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
+        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim
+        + chunk * chunk_dim;
 
     float m = 0.0f;
     #pragma unroll 4
-    for (int d = 0; d < head_dim; ++d) {
+    for (int d = 0; d < chunk_dim; ++d) {
         m = fmaxf(m, fabsf(psp_to_float(k_row[d])));
         m = fmaxf(m, fabsf(psp_to_float(v_row[d])));
     }
@@ -146,11 +151,14 @@ __global__ void quantize_and_scatter_kernel(
     int num_tokens, int num_kv_heads, int block_size, int head_dim,
     int format_generation)
 {
-    // One thread per (token, head): num_kv_heads x more parallelism than the
-    // old one-thread-per-token layout, so each thread quantizes one row pair.
+    // One thread per (token, head, chunk): 4x more parallelism than the
+    // (token, head) layout, so each thread quantizes one chunk of a row pair.
+    constexpr int CHUNKS = 4;
+    const int chunk_dim = head_dim / CHUNKS;
     const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
-    const int token = global_tid / num_kv_heads;
-    const int h = global_tid % num_kv_heads;
+    const int token = global_tid / (num_kv_heads * CHUNKS);
+    const int h = (global_tid / CHUNKS) % num_kv_heads;
+    const int chunk = global_tid % CHUNKS;
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
@@ -169,10 +177,11 @@ __global__ void quantize_and_scatter_kernel(
 
     const float scale = scale_table[static_cast<int64_t>(block_id) * num_kv_heads + h];
 
+    const int elem_base = chunk * chunk_dim;
     const scalar_t* k_row = prefill_scratch +
-        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim;
+        ((static_cast<int64_t>(token) * 2 + 0) * num_kv_heads + h) * head_dim + elem_base;
     const scalar_t* v_row = prefill_scratch +
-        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim;
+        ((static_cast<int64_t>(token) * 2 + 1) * num_kv_heads + h) * head_dim + elem_base;
 
     uint8_t* k_out = key_cache + block_offsets[block_id]
                    + (size_t)h * block_bytes_per_head
@@ -184,10 +193,10 @@ __global__ void quantize_and_scatter_kernel(
     // quantize loop below is compiled once per format without a runtime
     // fmt branch inside the element loop.
     switch (fp8_fmt) {
-        case 0: psp_quantize_row<scalar_t, 0>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        case 1: psp_quantize_row<scalar_t, 1>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        case 2: psp_quantize_row<scalar_t, 2>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        default: psp_quantize_row<scalar_t, 3>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
+        case 0: psp_quantize_row<scalar_t, 0>(k_row, v_row, k_out, v_out, head_dim, chunk_dim, elem_base, scale, block_offset); break;
+        case 1: psp_quantize_row<scalar_t, 1>(k_row, v_row, k_out, v_out, head_dim, chunk_dim, elem_base, scale, block_offset); break;
+        case 2: psp_quantize_row<scalar_t, 2>(k_row, v_row, k_out, v_out, head_dim, chunk_dim, elem_base, scale, block_offset); break;
+        default: psp_quantize_row<scalar_t, 3>(k_row, v_row, k_out, v_out, head_dim, chunk_dim, elem_base, scale, block_offset); break;
     }
 }
 
@@ -208,8 +217,10 @@ void launch_quantize_and_scatter(
     int format_generation, cudaStream_t stream)
 {
     const int threads = 256;
-    // Both the estimate and the quantize now use one thread per (token, head).
-    const int pair_blocks = ((int64_t)num_tokens * num_kv_heads + threads - 1) / threads;
+    // The estimate and the quantize use one thread per (token, head, chunk).
+    constexpr int CHUNKS = 4;
+    const int pair_blocks =
+        ((int64_t)num_tokens * num_kv_heads * CHUNKS + threads - 1) / threads;
     const int scale_blocks = (num_blocks * num_kv_heads + threads - 1) / threads;
 
     estimate_block_scales_kernel<scalar_t><<<pair_blocks, threads, 0, stream>>>(
@@ -321,10 +332,10 @@ __global__ void quantize_single_token_kernel(
                    + (size_t)h * block_bytes_per_head;
 
     switch (fp8_fmt) {
-        case 0: psp_quantize_row<scalar_t, 0>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        case 1: psp_quantize_row<scalar_t, 1>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        case 2: psp_quantize_row<scalar_t, 2>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
-        default: psp_quantize_row<scalar_t, 3>(k_row, v_row, k_out, v_out, head_dim, scale, block_offset); break;
+        case 0: psp_quantize_row<scalar_t, 0>(k_row, v_row, k_out, v_out, head_dim, head_dim, 0, scale, block_offset); break;
+        case 1: psp_quantize_row<scalar_t, 1>(k_row, v_row, k_out, v_out, head_dim, head_dim, 0, scale, block_offset); break;
+        case 2: psp_quantize_row<scalar_t, 2>(k_row, v_row, k_out, v_out, head_dim, head_dim, 0, scale, block_offset); break;
+        default: psp_quantize_row<scalar_t, 3>(k_row, v_row, k_out, v_out, head_dim, head_dim, 0, scale, block_offset); break;
     }
 }
 

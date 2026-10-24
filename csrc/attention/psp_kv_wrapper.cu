@@ -65,8 +65,9 @@ void launch_paged_attention_enhanced(
     int num_heads, int num_kv_heads, int head_dim, float scale,
     int sliding_window, cudaStream_t stream);
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_tc(
-    __nv_bfloat16* out, const __nv_bfloat16* q,
+    scalar_t* out, const scalar_t* q,
     const uint8_t* k_cache, const uint8_t* v_cache,
     const int* block_tables, const int* context_lens,
     const uint32_t* block_offsets,
@@ -75,8 +76,9 @@ void launch_paged_attention_enhanced_tc(
     int num_heads, int num_kv_heads, int head_dim, float scale,
     int sliding_window, cudaStream_t stream);
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8_tc(
-    __nv_bfloat16* out, const __nv_bfloat16* q,
+    scalar_t* out, const scalar_t* q,
     const uint8_t* k_cache, const uint8_t* v_cache,
     const int* block_tables, const int* context_lens,
     const uint32_t* block_offsets, const float* scale_table,
@@ -85,8 +87,9 @@ void launch_paged_attention_enhanced_fp8_tc(
     int num_heads, int num_kv_heads, int head_dim, float scale, int fp8_fmt,
     cudaStream_t stream);
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8q_tc(
-    __nv_bfloat16* out, const __nv_bfloat16* q,
+    scalar_t* out, const scalar_t* q,
     const uint8_t* k_cache, const uint8_t* v_cache,
     const int* block_tables, const int* context_lens,
     const uint32_t* block_offsets, const float* scale_table,
@@ -174,6 +177,19 @@ namespace psp_kv {
             using scalar_t = __nv_fp8_e5m2;                         \
             scalar_body                                              \
         }                                                           \
+    } while (0)
+
+// Dispatch a tensor-core launch for the half/bf16 query dtypes (the WMMA mma
+// m16n8k16 tiles only support fp16 and bf16, not fp32/fp8).
+#define PSP_KV_DISPATCH_HALF_BF16(query, scalar_body)           \
+    do {                                                        \
+        if ((query).scalar_type() == at::kHalf) {               \
+            using scalar_t = half;                              \
+            scalar_body                                          \
+        } else {                                                \
+            using scalar_t = __nv_bfloat16;                     \
+            scalar_body                                          \
+        }                                                       \
     } while (0)
 
 // ----------------------------------------------------------------------------
@@ -327,21 +343,24 @@ void psp_attention_enhanced(
     // the sliding-window mask itself, so the window no longer forces a fallback.
     // `is_lossless`/`fp8_fmt` are precomputed CPU-side by the model runner to
     // avoid a GPU->CPU sync per decode step.
-    if (query.scalar_type() == at::kBFloat16 && is_lossless && head_dim <= 256) {
+    if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
+        && is_lossless && head_dim <= 256) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
-        launch_paged_attention_enhanced_tc(
-            reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
-            reinterpret_cast<const __nv_bfloat16*>(query.data_ptr()),
-            key_cache.data_ptr<uint8_t>(),
-            value_cache.data_ptr<uint8_t>(),
-            block_tables.data_ptr<int>(),
-            context_lens.data_ptr<int>(),
-            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
-            tc_partials.data_ptr<float>(),
-            max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), static_cast<int>(sliding_window), stream);
+        PSP_KV_DISPATCH_HALF_BF16(query, {
+            launch_paged_attention_enhanced_tc<scalar_t>(
+                reinterpret_cast<scalar_t*>(out.data_ptr()),
+                reinterpret_cast<const scalar_t*>(query.data_ptr()),
+                key_cache.data_ptr<uint8_t>(),
+                value_cache.data_ptr<uint8_t>(),
+                block_tables.data_ptr<int>(),
+                context_lens.data_ptr<int>(),
+                reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+                tc_partials.data_ptr<float>(),
+                max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
+                static_cast<float>(softmax_scale), static_cast<int>(sliding_window), stream);
+        });
         return;
     }
 
@@ -349,42 +368,46 @@ void psp_attention_enhanced(
     // PSPKV_FP8_QUERY=1 selects the fp8-query kernel (query -> e4m3 for the QK
     // mma); it trades ~4.6% accuracy for the faster path.
     static const bool fp8_query = (getenv("PSPKV_FP8_QUERY") != nullptr);
-    if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && fp8_fmt != 0
-        && head_dim <= 256 && fp8_query) {
+    if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
+        && sliding_window <= 0 && fp8_fmt != 0 && head_dim <= 256 && fp8_query) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
-        launch_paged_attention_enhanced_fp8q_tc(
-            reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
-            reinterpret_cast<const __nv_bfloat16*>(query.data_ptr()),
-            key_cache.data_ptr<uint8_t>(),
-            value_cache.data_ptr<uint8_t>(),
-            block_tables.data_ptr<int>(),
-            context_lens.data_ptr<int>(),
-            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
-            scale_table.data_ptr<float>(),
-            tc_partials.data_ptr<float>(),
-            max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), fp8_fmt, stream);
+        PSP_KV_DISPATCH_HALF_BF16(query, {
+            launch_paged_attention_enhanced_fp8q_tc<scalar_t>(
+                reinterpret_cast<scalar_t*>(out.data_ptr()),
+                reinterpret_cast<const scalar_t*>(query.data_ptr()),
+                key_cache.data_ptr<uint8_t>(),
+                value_cache.data_ptr<uint8_t>(),
+                block_tables.data_ptr<int>(),
+                context_lens.data_ptr<int>(),
+                reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+                scale_table.data_ptr<float>(),
+                tc_partials.data_ptr<float>(),
+                max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
+                static_cast<float>(softmax_scale), fp8_fmt, stream);
+        });
         return;
     }
-    if (query.scalar_type() == at::kBFloat16 && sliding_window <= 0 && fp8_fmt != 0
-        && head_dim <= 256) {
+    if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
+        && sliding_window <= 0 && fp8_fmt != 0 && head_dim <= 256) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
-        launch_paged_attention_enhanced_fp8_tc(
-            reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
-            reinterpret_cast<const __nv_bfloat16*>(query.data_ptr()),
-            key_cache.data_ptr<uint8_t>(),
-            value_cache.data_ptr<uint8_t>(),
-            block_tables.data_ptr<int>(),
-            context_lens.data_ptr<int>(),
-            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
-            scale_table.data_ptr<float>(),
-            tc_partials.data_ptr<float>(),
-            max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), fp8_fmt, stream);
+        PSP_KV_DISPATCH_HALF_BF16(query, {
+            launch_paged_attention_enhanced_fp8_tc<scalar_t>(
+                reinterpret_cast<scalar_t*>(out.data_ptr()),
+                reinterpret_cast<const scalar_t*>(query.data_ptr()),
+                key_cache.data_ptr<uint8_t>(),
+                value_cache.data_ptr<uint8_t>(),
+                block_tables.data_ptr<int>(),
+                context_lens.data_ptr<int>(),
+                reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+                scale_table.data_ptr<float>(),
+                tc_partials.data_ptr<float>(),
+                max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
+                static_cast<float>(softmax_scale), fp8_fmt, stream);
+        });
         return;
     }
 

@@ -353,6 +353,9 @@ run_clean() {
         fi
     done
 
+    # Transient benchmark result files (e.g. bench_results.txt, bench_bf16.txt).
+    find . -maxdepth 1 -name "bench_*.txt" -delete 2>/dev/null || true
+
     # Cascade to the virthub sub-project (Rust target/ + runtime files).
     if [ -f "third_party/virthub/run.sh" ]; then
         log_info "Cleaning virthub build artifacts ..."

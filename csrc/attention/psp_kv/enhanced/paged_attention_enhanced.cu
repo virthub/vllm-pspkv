@@ -213,10 +213,10 @@ __device__ __forceinline__ void cp_async_tc(uint8_t* smem, const uint8_t* gmem,
     asm volatile("cp.async.commit_group;");
 }
 
-template <int HEAD_DIM>
+template <int HEAD_DIM, typename scalar_t>
 __global__ void paged_attention_enhanced_tc_kernel(
     float* __restrict__ partials,
-    const __nv_bfloat16* __restrict__ q,
+    const scalar_t* __restrict__ q,
     const uint8_t* __restrict__ k_cache,
     const uint8_t* __restrict__ v_cache,
     const int* __restrict__ block_tables,
@@ -230,7 +230,7 @@ __global__ void paged_attention_enhanced_tc_kernel(
     int sliding_window)
 {
     constexpr int NT8 = HEAD_DIM / 16;
-    constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM * 2;  // bf16 lossless
+    constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM * 2;  // bf16/fp16 lossless
 
     const int kv_head = blockIdx.x;
     const int seq_idx = blockIdx.y;
@@ -240,21 +240,21 @@ __global__ void paged_attention_enhanced_tc_kernel(
     const int lane = tid & 31, group = lane >> 2, tig = lane & 3;
     const float log2e = 1.4426950408889634f;
 
-    __shared__ __nv_bfloat16 s_q[16 * HEAD_DIM];
-    __shared__ __nv_bfloat16 sk[2][16 * HEAD_DIM];
-    __shared__ __nv_bfloat16 sv[2][16 * HEAD_DIM];
+    __shared__ scalar_t s_q[16 * HEAD_DIM];
+    __shared__ scalar_t sk[2][16 * HEAD_DIM];
+    __shared__ scalar_t sv[2][16 * HEAD_DIM];
     __shared__ float s_score[16 * 16];
-    __shared__ __nv_bfloat16 s_prob[16 * 16];
+    __shared__ scalar_t s_prob[16 * 16];
 
-    fragment<matrix_a, 16, 16, 16, __nv_bfloat16, row_major> a[NT8];
-    fragment<matrix_b, 16, 16, 16, __nv_bfloat16, col_major> b_frag;
-    fragment<matrix_b, 16, 16, 16, __nv_bfloat16, row_major> vb;
-    fragment<matrix_a, 16, 16, 16, __nv_bfloat16, row_major> pa;
+    fragment<matrix_a, 16, 16, 16, scalar_t, row_major> a[NT8];
+    fragment<matrix_b, 16, 16, 16, scalar_t, col_major> b_frag;
+    fragment<matrix_b, 16, 16, 16, scalar_t, row_major> vb;
+    fragment<matrix_a, 16, 16, 16, scalar_t, row_major> pa;
     fragment<accumulator, 16, 16, 16, float> c;
     fragment<accumulator, 16, 16, 16, float> acc[NT8];
 
     // Padded Q: rows [0, gqa) = the query heads, rest zero.
-    for (int i = tid; i < 16 * HEAD_DIM; i += 32) s_q[i] = __float2bfloat16(0.0f);
+    for (int i = tid; i < 16 * HEAD_DIM; i += 32) s_q[i] = psp_from_float<scalar_t>(0.0f);
     __syncthreads();
     const int head_base = kv_head * gqa;
     for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
@@ -283,21 +283,41 @@ __global__ void paged_attention_enhanced_tc_kernel(
 
     const int block_bytes_per_head = BLOCK_BYTES;
 
+    // Prologue: prefetch block 0 into the first buffer.
+    {
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v0 = v_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        cp_async_tc(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, BLOCK_BYTES);
+        cp_async_tc(reinterpret_cast<uint8_t*>(sv[0]), v0, tid, BLOCK_BYTES);
+    }
+
     for (int n = 0; n < chunk_blocks; n++) {
         const int b = split_start + n;
+        const int cur = n & 1;
+        const int nxt = cur ^ 1;
+
+        // Prefetch block n+1 (2 async groups) so it overlaps the current
+        // compute.
+        if (n + 1 < chunk_blocks) {
+            const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b + 1];
+            const uint8_t* k1 = k_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head;
+            const uint8_t* v1 = v_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head;
+            cp_async_tc(reinterpret_cast<uint8_t*>(sk[nxt]), k1, tid, BLOCK_BYTES);
+            cp_async_tc(reinterpret_cast<uint8_t*>(sv[nxt]), v1, tid, BLOCK_BYTES);
+        }
+
+        // Wait for the current block's copy, keeping the 2 prefetch groups
+        // outstanding so they overlap the compute below.
+        if (n + 1 < chunk_blocks) {
+            asm volatile("cp.async.wait_group 2;");
+        } else {
+            asm volatile("cp.async.wait_group 0;");
+        }
+        __syncthreads();
+
         const int start_token = b * BLOCK_SIZE;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
-        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
-        const uint8_t* k_base = k_cache + block_offsets[physical_block]
-                              + (size_t)kv_head * block_bytes_per_head;
-        const uint8_t* v_base = v_cache + block_offsets[physical_block]
-                              + (size_t)kv_head * block_bytes_per_head;
-
-        int cur = n & 1, nxt = cur ^ 1;
-        cp_async_tc(reinterpret_cast<uint8_t*>(sk[cur]), k_base, tid, BLOCK_BYTES);
-        cp_async_tc(reinterpret_cast<uint8_t*>(sv[cur]), v_base, tid, BLOCK_BYTES);
-        asm volatile("cp.async.wait_group 0;");
-        __syncthreads();
 
         // QK -> scores [16, 16]
         fill_fragment(c, 0.0f);
@@ -325,7 +345,7 @@ __global__ void paged_attention_enhanced_tc_kernel(
             for (int cc = 0; cc < 16; cc++) {
                 float e = (cc < tokens_in_block && start_token + cc >= window_start)
                     ? exp2f((s_score[r * 16 + cc] - mx) * log2e) : 0.0f;
-                s_prob[r * 16 + cc] = __float2bfloat16(e * rescale_new);
+                s_prob[r * 16 + cc] = psp_from_float<scalar_t>(e * rescale_new);
                 tsum += e;
             }
             rsum += tsum * rescale_new;
@@ -373,9 +393,9 @@ __global__ void paged_attention_enhanced_tc_kernel(
     }
 }
 
-template <int HEAD_DIM>
+template <int HEAD_DIM, typename scalar_t>
 __global__ void paged_attention_enhanced_tc_merge_kernel(
-    __nv_bfloat16* __restrict__ out,
+    scalar_t* __restrict__ out,
     const float* __restrict__ partials,
     int num_kv_heads,
     int num_seqs,
@@ -409,7 +429,7 @@ __global__ void paged_attention_enhanced_tc_merge_kernel(
                      * __expf(base[s * gqa * (2 + HEAD_DIM) + 0] - global_max);
             }
             out[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)head * HEAD_DIM + d] =
-                __float2bfloat16(o * inv_sum);
+                psp_from_float<scalar_t>(o * inv_sum);
         }
     }
 }
@@ -424,10 +444,10 @@ __global__ void paged_attention_enhanced_tc_merge_kernel(
 // into the fp32 mma accumulator to preserve the fp32-scalar reference.
 // ============================================================================
 
-template <int HEAD_DIM>
+template <int HEAD_DIM, typename scalar_t>
 __global__ void paged_attention_enhanced_fp8_tc_kernel(
     float* __restrict__ partials,
-    const __nv_bfloat16* __restrict__ q,
+    const scalar_t* __restrict__ q,
     const uint8_t* __restrict__ k_cache,
     const uint8_t* __restrict__ v_cache,
     const int* __restrict__ block_tables,
@@ -472,7 +492,7 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
     for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
         int h = head_base + i / HEAD_DIM;
         int d = i % HEAD_DIM;
-        s_q[i] = __float2half(__bfloat162float(
+        s_q[i] = __float2half(psp_to_float<scalar_t>(
             q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d]));
     }
     #pragma unroll
@@ -491,33 +511,60 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
 
     const int block_bytes_per_head = BLOCK_BYTES;
 
+    const __nv_fp8_interpretation_t interp = (fp8_fmt == 2) ? __NV_E5M2 : __NV_E4M3;
+
+    // Prologue: prefetch block 0 into the first buffer.
+    {
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v0 = v_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        cp_async_tc(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, BLOCK_BYTES);
+        cp_async_tc(reinterpret_cast<uint8_t*>(sv[0]), v0, tid, BLOCK_BYTES);
+    }
+
     for (int n = 0; n < chunk_blocks; n++) {
         const int b = split_start + n;
+        const int cur = n & 1;
+        const int nxt = cur ^ 1;
+
+        // Prefetch block n+1 (2 async groups) so it overlaps the current
+        // compute.
+        if (n + 1 < chunk_blocks) {
+            const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b + 1];
+            const uint8_t* k1 = k_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head;
+            const uint8_t* v1 = v_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head;
+            cp_async_tc(reinterpret_cast<uint8_t*>(sk[nxt]), k1, tid, BLOCK_BYTES);
+            cp_async_tc(reinterpret_cast<uint8_t*>(sv[nxt]), v1, tid, BLOCK_BYTES);
+        }
+
+        // Wait for the current block's copy, keeping the 2 prefetch groups
+        // outstanding so they overlap the compute below.
+        if (n + 1 < chunk_blocks) {
+            asm volatile("cp.async.wait_group 2;");
+        } else {
+            asm volatile("cp.async.wait_group 0;");
+        }
+        __syncthreads();
+
         const int start_token = b * BLOCK_SIZE;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
         const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
-        const uint8_t* k_base = k_cache + block_offsets[physical_block]
-                              + (size_t)kv_head * block_bytes_per_head;
-        const uint8_t* v_base = v_cache + block_offsets[physical_block]
-                              + (size_t)kv_head * block_bytes_per_head;
-
-        int cur = n & 1;
-        // Vectorized fp8 -> fp16 conversion (1 cvt per 2 elements via
-        // __nv_cvt_fp8x2_to_halfraw2; exact: fp8's 3 mantissa bits fit in
-        // fp16's 10). The per-(block, kv_head) scale is applied later in fp32
-        // to the mma accumulator, preserving the fp32 reference precision.
         const float k_scale = scale_table[(int64_t)physical_block * num_kv_heads + kv_head];
         const float v_scale = scale_table[(int64_t)physical_block * num_kv_heads + kv_head];
-        const __nv_fp8_interpretation_t interp = (fp8_fmt == 2) ? __NV_E5M2 : __NV_E4M3;
-        for (int i = tid; i < BLOCK_SIZE * HEAD_DIM / 2; i += 32) {
-            __nv_fp8x2_storage_t kb = *reinterpret_cast<const __nv_fp8x2_storage_t*>(k_base + i * 2);
-            __nv_fp8x2_storage_t vb = *reinterpret_cast<const __nv_fp8x2_storage_t*>(v_base + i * 2);
+
+        // fp8 -> fp16 dequant in place (reverse order so the 2x fp16 write
+        // never clobbers a not-yet-read fp8).
+        uint8_t* skv = reinterpret_cast<uint8_t*>(sk[cur]);
+        uint8_t* svv = reinterpret_cast<uint8_t*>(sv[cur]);
+        for (int p = (BLOCK_SIZE * HEAD_DIM / 2) - 1 - tid; p >= 0; p -= 32) {
+            __nv_fp8x2_storage_t kb = *reinterpret_cast<const __nv_fp8x2_storage_t*>(skv + p * 2);
+            __nv_fp8x2_storage_t vb = *reinterpret_cast<const __nv_fp8x2_storage_t*>(svv + p * 2);
             __half2 kh = __half2(__nv_cvt_fp8x2_to_halfraw2(kb, interp));
             __half2 vh = __half2(__nv_cvt_fp8x2_to_halfraw2(vb, interp));
-            sk[cur][i * 2 + 0] = kh.x;
-            sk[cur][i * 2 + 1] = kh.y;
-            sv[cur][i * 2 + 0] = vh.x;
-            sv[cur][i * 2 + 1] = vh.y;
+            sk[cur][p * 2 + 0] = kh.x;
+            sk[cur][p * 2 + 1] = kh.y;
+            sv[cur][p * 2 + 0] = vh.x;
+            sv[cur][p * 2 + 1] = vh.y;
         }
         __syncthreads();
 
@@ -605,10 +652,10 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
 // only behind the flag because the query quantization exceeds the fp32-query
 // reference tolerance (~4.6%).
 // ============================================================================
-template <int HEAD_DIM>
+template <int HEAD_DIM, typename scalar_t>
 __global__ void paged_attention_enhanced_fp8q_tc_kernel(
     float* __restrict__ partials,
-    const __nv_bfloat16* __restrict__ q,
+    const scalar_t* __restrict__ q,
     const uint8_t* __restrict__ k_cache,
     const uint8_t* __restrict__ v_cache,
     const int* __restrict__ block_tables,
@@ -659,7 +706,7 @@ __global__ void paged_attention_enhanced_fp8q_tc_kernel(
     const int head_base = kv_head * gqa;
     for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
         int h = i / HEAD_DIM, d = i % HEAD_DIM;
-        float qv = __bfloat162float(q[(int64_t)seq_idx * num_heads * HEAD_DIM
+        float qv = psp_to_float<scalar_t>(q[(int64_t)seq_idx * num_heads * HEAD_DIM
                                      + (int64_t)(head_base + h) * HEAD_DIM + d]);
         atomicMax(&s_qscale_bits[h], __float_as_uint(fabsf(qv)));
     }
@@ -668,7 +715,7 @@ __global__ void paged_attention_enhanced_fp8q_tc_kernel(
     const float qs1 = fmaxf(__uint_as_float(s_qscale_bits[r1]), 1e-6f);
     for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
         int h = i / HEAD_DIM, d = i % HEAD_DIM;
-        float qv = __bfloat162float(q[(int64_t)seq_idx * num_heads * HEAD_DIM
+        float qv = psp_to_float<scalar_t>(q[(int64_t)seq_idx * num_heads * HEAD_DIM
                                      + (int64_t)(head_base + h) * HEAD_DIM + d]);
         float qs = fmaxf(__uint_as_float(s_qscale_bits[h]), 1e-6f);
         s_q_fp8[h * HEAD_DIM + d] = (uint8_t)__nv_cvt_float_to_fp8(qv / qs, __NV_SATFINITE, __NV_E4M3);
@@ -811,9 +858,10 @@ __global__ void paged_attention_enhanced_fp8q_tc_kernel(
     }
 }
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8q_tc(
-    __nv_bfloat16* out,
-    const __nv_bfloat16* q,
+    scalar_t* out,
+    const scalar_t* q,
     const uint8_t* k_cache,
     const uint8_t* v_cache,
     const int* block_tables,
@@ -834,19 +882,20 @@ void launch_paged_attention_enhanced_fp8q_tc(
     dim3 grid(num_kv_heads, num_seqs, num_splits);
     psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
         constexpr int HEAD_DIM = decltype(hd)::value;
-        paged_attention_enhanced_fp8q_tc_kernel<HEAD_DIM><<<grid, TC_THREADS, 0, stream>>>(
+        paged_attention_enhanced_fp8q_tc_kernel<HEAD_DIM, scalar_t><<<grid, TC_THREADS, 0, stream>>>(
             partials, q, k_cache, v_cache,
             block_tables, context_lens, block_offsets, scale_table,
             max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits, fp8_fmt);
-        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM>
+        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM, scalar_t>
             <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
             out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
     });
 }
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_tc(
-    __nv_bfloat16* out,
-    const __nv_bfloat16* q,
+    scalar_t* out,
+    const scalar_t* q,
     const uint8_t* k_cache,
     const uint8_t* v_cache,
     const int* block_tables,
@@ -866,11 +915,11 @@ void launch_paged_attention_enhanced_tc(
     dim3 grid(num_kv_heads, num_seqs, num_splits);
     psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
         constexpr int HEAD_DIM = decltype(hd)::value;
-        paged_attention_enhanced_tc_kernel<HEAD_DIM><<<grid, TC_THREADS, 0, stream>>>(
+        paged_attention_enhanced_tc_kernel<HEAD_DIM, scalar_t><<<grid, TC_THREADS, 0, stream>>>(
             partials, q, k_cache, v_cache,
             block_tables, context_lens, block_offsets,
             max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits, sliding_window);
-        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM>
+        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM, scalar_t>
             <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
             out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
     });
@@ -881,9 +930,10 @@ void launch_paged_attention_enhanced_tc(
     }
 }
 
+template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8_tc(
-    __nv_bfloat16* out,
-    const __nv_bfloat16* q,
+    scalar_t* out,
+    const scalar_t* q,
     const uint8_t* k_cache,
     const uint8_t* v_cache,
     const int* block_tables,
@@ -904,11 +954,11 @@ void launch_paged_attention_enhanced_fp8_tc(
     dim3 grid(num_kv_heads, num_seqs, num_splits);
     psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
         constexpr int HEAD_DIM = decltype(hd)::value;
-        paged_attention_enhanced_fp8_tc_kernel<HEAD_DIM><<<grid, TC_THREADS, 0, stream>>>(
+        paged_attention_enhanced_fp8_tc_kernel<HEAD_DIM, scalar_t><<<grid, TC_THREADS, 0, stream>>>(
             partials, q, k_cache, v_cache,
             block_tables, context_lens, block_offsets, scale_table,
             max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits, fp8_fmt);
-        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM>
+        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM, scalar_t>
             <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
             out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
     });
@@ -982,3 +1032,30 @@ template void launch_paged_attention_enhanced<__nv_fp8_e5m2>(
     __nv_fp8_e5m2*, const __nv_fp8_e5m2*, const uint8_t*, const uint8_t*,
     const float*, const float*, const int*, const int*, const uint8_t*, const uint32_t*,
     float*, int, int, int, int, int, int, float, int, cudaStream_t);
+
+template void launch_paged_attention_enhanced_tc<half>(
+    half*, const half*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);
+template void launch_paged_attention_enhanced_tc<__nv_bfloat16>(
+    __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);
+
+template void launch_paged_attention_enhanced_fp8_tc<half>(
+    half*, const half*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);
+template void launch_paged_attention_enhanced_fp8_tc<__nv_bfloat16>(
+    __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);
+
+template void launch_paged_attention_enhanced_fp8q_tc<half>(
+    half*, const half*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);
+template void launch_paged_attention_enhanced_fp8q_tc<__nv_bfloat16>(
+    __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, cudaStream_t);

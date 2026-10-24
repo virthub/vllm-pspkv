@@ -20,13 +20,13 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 from vllm import LLM, SamplingParams  # noqa: E402
 
 
-def _make_llm(model, backend, gpu_util):
+def _make_llm(model, backend, gpu_util, dtype):
     kwargs = dict(
         model=model,
         enforce_eager=True,
         max_model_len=2048,
         gpu_memory_utilization=gpu_util,
-        dtype="bfloat16",
+        dtype=dtype,
     )
     if backend == "PSP_KV":
         kwargs["attention_backend"] = "PSP_KV"
@@ -71,6 +71,7 @@ def main():
     ap.add_argument("--input-len", type=int, default=512)
     ap.add_argument("--output-len", type=int, default=64)
     ap.add_argument("--gpu-util", type=float, default=0.6)
+    ap.add_argument("--dtype", default="bfloat16")
     args = ap.parse_args()
 
     os.environ["PSPKV_PRECISION"] = args.precision
@@ -79,7 +80,7 @@ def main():
     prompt = " ".join(["The quick brown fox jumps over the lazy dog."] * 20)
     prompt = prompt[: args.input_len]
 
-    print(f"precision={args.precision} input_len={args.input_len} output_len={args.output_len}")
+    print(f"dtype={args.dtype} precision={args.precision} input_len={args.input_len} output_len={args.output_len}")
     print(f"{'model':28s} {'backend':12s} {'prefill_ms':>10s} {'decode_tok/s':>12s} {'ratio':>6s}")
 
     results = {}
@@ -87,7 +88,7 @@ def main():
         for backend in ["baseline", "PSP_KV"]:
             tag = f"{model}:{backend}"
             try:
-                llm = _make_llm(model, backend, args.gpu_util)
+                llm = _make_llm(model, backend, args.gpu_util, args.dtype)
                 prefill_ms = _time_prefill(llm, prompt)
                 full_s = _time_decode(llm, prompt, args.output_len)
                 # decode-only time = full - prefill (approximate)

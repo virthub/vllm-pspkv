@@ -415,13 +415,13 @@ template <typename scalar_t, int FMT>
 __device__ inline void psp_quantize_row(
     const scalar_t* __restrict__ k_row, const scalar_t* __restrict__ v_row,
     uint8_t* __restrict__ k_out, uint8_t* __restrict__ v_out,
-    int head_dim, float scale, int block_offset)
+    int head_dim, int chunk_dim, int elem_base, float scale, int block_offset)
 {
-    for (int d = 0; d < head_dim; ++d) {
+    for (int d = 0; d < chunk_dim; ++d) {
         const float k = psp_to_float(k_row[d]);
         const float v = psp_to_float(v_row[d]);
-        psp_quantize_ct<scalar_t, FMT>(k_out, d, k, scale);
-        psp_quantize_ct<scalar_t, FMT>(v_out, block_offset * head_dim + d, v, scale);
+        psp_quantize_ct<scalar_t, FMT>(k_out, elem_base + d, k, scale);
+        psp_quantize_ct<scalar_t, FMT>(v_out, block_offset * head_dim + elem_base + d, v, scale);
     }
 }
 
