@@ -1,0 +1,69 @@
+{
+  "container": "/pspkv-nvidia-v9main-enhanced-bf16-after",
+  "image": "sha256:27d1146419e99981c0a676a3fff102d2119fa6ecf5ae00e5c83aab611f5b7733",
+  "created": "2026-10-26T15:05:20.845592468Z",
+  "exit_code": 0,
+  "env": [
+    "PYTHONPATH=/vllm-workspace/vllm-ascend",
+    "VLLM_USE_MODELSCOPE=True",
+    "VLLM_WORKER_MULTIPROC_METHOD=spawn"
+  ],
+  "command": [
+    "-lc",
+    "source /usr/local/Ascend/ascend-toolkit/set_env.sh; exec /workspace/pspkv-native-build/.venv/bin/python /strategy/serve_initialized_npu.py \"$@\"",
+    "bash",
+    "serve",
+    "Qwen/Qwen2.5-7B",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000",
+    "--seed",
+    "123",
+    "--tensor-parallel-size",
+    "1",
+    "--block-size",
+    "128",
+    "--max-num-seqs",
+    "1",
+    "--max-model-len",
+    "8320",
+    "--max-num-batched-tokens",
+    "8320",
+    "--gpu-memory-utilization",
+    "0.35",
+    "--no-enable-prefix-caching",
+    "--no-enable-chunked-prefill",
+    "--additional-config",
+    "{\"pa_shape_list\":[1]}",
+    "--compilation-config",
+    "{\"mode\":3,\"cudagraph_mode\":\"FULL_DECODE_ONLY\",\"cudagraph_capture_sizes\":[1]}"
+  ],
+  "devices": [
+    {
+      "PathOnHost": "/dev/davinci6",
+      "PathInContainer": "/dev/davinci6",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/davinci_manager",
+      "PathInContainer": "/dev/davinci_manager",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/devmm_svm",
+      "PathInContainer": "/dev/devmm_svm",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/hisi_hdc",
+      "PathInContainer": "/dev/hisi_hdc",
+      "CgroupPermissions": "rwm"
+    }
+  ],
+  "binds": [
+    "/root/zhang/pspkv-nvidia-strategies-20261026/source-v1:/workspace/pspkv-src:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v9:/strategy:ro",
+    "/root/vllm-ascend-smoke-cache:/root/.cache"
+  ]
+}

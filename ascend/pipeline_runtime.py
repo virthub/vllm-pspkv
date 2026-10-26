@@ -99,6 +99,23 @@ def install_graph_bypass():
             if selected
             else "eager"
         )
+        initialize_pa = (
+            os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
+            and os.environ.get("PSPKV_STRATEGY_INIT_PA_GRAPH") == "1"
+            and os.environ.get("PSPKV_STRATEGY_DECODE_PATH") == "paged"
+            and self.compilation_config.mode == 0
+        )
+        if initialize_pa and action == "capture":
+            from vllm_ascend.compilation.acl_graph import (
+                get_graph_params,
+                set_graph_params,
+            )
+
+            if get_graph_params() is None:
+                set_graph_params([1])
+        # The vendor runner still updates attention tasks after graph launch
+        # in mode=0. Only its graph-parameter initialization is gated on AOT
+        # compilation. Never duplicate those updates before replay here.
         if action == "replay" and os.environ.get("PSPKV_COMPARE_FORMAT") in (
             "basic",
             "enhanced",
@@ -162,7 +179,10 @@ def install_deferred_rope():
             and query.dtype == key.dtype == torch.bfloat16
             and cos_sin_cache.dtype in (torch.bfloat16, torch.float32)
             and pipeline_level(owner) >= 2
-            and os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3") in ("e4m3", "e5m2")
+            and (
+                os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3") in ("e4m3", "e5m2")
+                or os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
+            )
             and os.environ.get("PSPKV_COMPARE_OPTIMIZED") == "1"
         ):
             from vllm.v1.attention.backends.psp_kv_ascend_native import (

@@ -2,16 +2,29 @@
 
 Current validation (2026-10-26): start with the
 [results index](results/README.md), the
+[NVIDIA strategy matrix and long-context report](results/2026-10-26-nvidia-strategies/REPORT.zh-CN.md), the
 [fixed-FP8 pipeline report](results/2026-10-26-pipeline/REPORT.zh-CN.md), and the
 [precision audit](results/2026-10-26-precision-audit/REPORT.zh-CN.md).
-The experimental fast pipeline covers fixed FP8 with BF16 model weights and
-restricted single-request shapes. Its speedups do not automatically apply to
-dynamic precision, uniform/grouped FP4, or asymmetric K/V precision.
-Those routes remain experimental, with output-quality and integration failures
-recorded in the precision audit. The NVIDIA `develop` snapshot `00b78e9` was
-downloaded separately; its newer codecs, scaling and Tensor Core paths have not
-been merged into this branch. The sections below describe the original bring-up
-interfaces and their incremental extensions.
+
+The opt-in `PSPKV_NVIDIA_STRATEGIES=1` route now covers Basic / Enhanced / BTKV
+with lossless / E4M3 / E5M2 / FP4 storage and a separate develop-style amplitude
+selector. It follows the newer `develop` snapshot `00b78e9` codecs and page
+layout, using Ascend software kernels rather than merging CUDA execution code.
+All three format names share an Ascend implementation; Enhanced / BTKV use a
+staged fallback in the main comparison. They do not represent native CUDA TMA
+or three independent hardware algorithms.
+
+The comparison applies shared metadata, direct strided writes, fused decode
+RoPE, shared active-page scratch and decode graphs to all four precisions.
+It includes 3 / 135 / 8192 input tokens on Qwen2.5-7B with BF16 weights and
+restricted single-request shapes. A direct compressed-tile Vector attention
+path is checked separately. See the report for timing and quality limits;
+storage savings must not be interpreted as guaranteed BF16 latency speedups.
+The full NVIDIA Tensor Core / TMA implementations have not been ported.
+
+The sections below describe the original bring-up interfaces and historical
+extensions. The older RMSE, grouped-FP4 and asymmetric-K/V experiments remain
+available for reproducing their reports and are excluded from the main matrix.
 
 This directory provides a bring-up route for PSP-KV FP8 and uniform FP4 reference formats
 on vLLM-Ascend `v0.20.2rc1` with the vLLM fork at `dd2cf6d`. The vLLM fork

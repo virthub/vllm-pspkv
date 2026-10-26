@@ -1,0 +1,515 @@
+{
+  "case": "basic:bf16-after",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 32,
+  "pairs_per_profile": 12,
+  "concurrency": 1,
+  "paired_same_physical_card": false,
+  "requests": [
+    {
+      "seconds": 0.48770756274461746,
+      "ttft_ms": 57.25494027137756,
+      "tpot_ms": 13.8806426717389,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 0,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0777809843420982,
+      "ttft_ms": 614.1906790435314,
+      "tpot_ms": 14.948480432071994,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 0,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4870503544807434,
+      "ttft_ms": 57.25191906094551,
+      "tpot_ms": 13.85799963628092,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 0,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5025012344121933,
+      "ttft_ms": 54.7846257686615,
+      "tpot_ms": 14.435396079094179,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 1,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4868231453001499,
+      "ttft_ms": 57.76209384202957,
+      "tpot_ms": 13.834435853265948,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 1,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0783699192106724,
+      "ttft_ms": 612.8057986497879,
+      "tpot_ms": 15.013932941421386,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 1,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4876161366701126,
+      "ttft_ms": 59.114567935466766,
+      "tpot_ms": 13.818188900909115,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 2,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0782960429787636,
+      "ttft_ms": 614.3349707126617,
+      "tpot_ms": 14.961144256014977,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 2,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.48914261907339096,
+      "ttft_ms": 56.7997582256794,
+      "tpot_ms": 13.939244131888113,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 2,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5585493706166744,
+      "ttft_ms": 57.79467895627022,
+      "tpot_ms": 16.145597422315227,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 3,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5046574957668781,
+      "ttft_ms": 62.220342457294464,
+      "tpot_ms": 14.26617032097232,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 3,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0794608071446419,
+      "ttft_ms": 614.7450469434261,
+      "tpot_ms": 14.985146421578623,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 3,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.077846433967352,
+      "ttft_ms": 613.3437417447567,
+      "tpot_ms": 14.979517027255028,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 4,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.49888212978839874,
+      "ttft_ms": 55.945273488759995,
+      "tpot_ms": 14.28394464235152,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 4,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.49037276953458786,
+      "ttft_ms": 60.447290539741516,
+      "tpot_ms": 13.863665081800953,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 4,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.48792411014437675,
+      "ttft_ms": 57.470593601465225,
+      "tpot_ms": 13.8804356177007,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 5,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.48435791581869125,
+      "ttft_ms": 53.83265018463135,
+      "tpot_ms": 13.881444330176999,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 5,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0808109529316425,
+      "ttft_ms": 616.5566705167294,
+      "tpot_ms": 14.970101896793611,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 5,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5102129131555557,
+      "ttft_ms": 60.18800660967827,
+      "tpot_ms": 14.510297607029639,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 6,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0825650244951248,
+      "ttft_ms": 617.9652251303196,
+      "tpot_ms": 14.980157056162435,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 6,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4862947091460228,
+      "ttft_ms": 56.22813105583191,
+      "tpot_ms": 13.866896711049542,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 6,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.079225156456232,
+      "ttft_ms": 615.5387721955776,
+      "tpot_ms": 14.952034839699346,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 7,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.48778415471315384,
+      "ttft_ms": 57.1422353386879,
+      "tpot_ms": 13.88696797432438,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 7,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5586648844182491,
+      "ttft_ms": 131.83672353625298,
+      "tpot_ms": 13.761097505207985,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 7,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.490756344050169,
+      "ttft_ms": 59.880103915929794,
+      "tpot_ms": 13.890298023339241,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 8,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.097762431949377,
+      "ttft_ms": 620.6606477499008,
+      "tpot_ms": 15.383695162111714,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 8,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4884100705385208,
+      "ttft_ms": 56.493233889341354,
+      "tpot_ms": 13.92508886994854,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 8,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4915163889527321,
+      "ttft_ms": 62.27540969848633,
+      "tpot_ms": 13.838614427274273,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 9,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4986209534108639,
+      "ttft_ms": 57.3776513338089,
+      "tpot_ms": 14.225912550764699,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 9,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0829493291676044,
+      "ttft_ms": 619.680967181921,
+      "tpot_ms": 14.937171051579137,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 9,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.49097076803445816,
+      "ttft_ms": 59.518031775951385,
+      "tpot_ms": 13.912279519342608,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 10,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.0809979774057865,
+      "ttft_ms": 617.2466948628426,
+      "tpot_ms": 14.953722035692584,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 10,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.5014506466686726,
+      "ttft_ms": 59.94347482919693,
+      "tpot_ms": 14.236382539233853,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 10,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.4880504943430424,
+      "ttft_ms": 58.64838883280754,
+      "tpot_ms": 13.847116260759291,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "pair": 11,
+      "profile": "short_3",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 1.1538936085999012,
+      "ttft_ms": 691.6264481842518,
+      "tpot_ms": 14.905703884939994,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的",
+      "pair": 11,
+      "profile": "long_8192",
+      "mode": "bf16"
+    },
+    {
+      "seconds": 0.48598453029990196,
+      "ttft_ms": 56.173741817474365,
+      "tpot_ms": 13.859238355390486,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 11,
+      "profile": "cross_page_135",
+      "mode": "bf16"
+    }
+  ],
+  "complete": true
+}

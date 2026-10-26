@@ -60,6 +60,17 @@ _VARIABLE_ARENAS: weakref.WeakValueDictionary[int, VariableArenaKVCache] = (
 class PSPKVAscendImpl(AscendAttentionBackendImpl):
     """Eager reference attention with FP8 or opt-in packed FP4 cache entries."""
 
+    @staticmethod
+    def update_graph_params(*args, **kwargs):
+        if (
+            os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
+            and os.environ.get("PSPKV_STRATEGY_DECODE_PATH", "fused") == "fused"
+        ):
+            from pipeline_runtime import validate_graph_inputs
+
+            return validate_graph_inputs(*args, **kwargs)
+        return AscendAttentionBackendImpl.update_graph_params(*args, **kwargs)
+
     def __init__(
         self,
         num_heads: int,
@@ -121,6 +132,29 @@ class PSPKVAscendImpl(AscendAttentionBackendImpl):
             and config.scheduler_config.max_num_seqs == 1
             and self.head_size == 128
         )
+        strategy_mode = os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
+        if strategy_mode:
+            from vllm.v1.attention.backends.psp_kv_ascend_strategy import read_strategy
+
+            read_strategy()
+            from pipeline_runtime import install_deferred_rope
+
+            install_deferred_rope()
+            if config.model_config.dtype != torch.bfloat16 or self.head_size != 128:
+                raise ValueError(
+                    "NVIDIA strategies require BF16 weights and 128-dim heads"
+                )
+            if (
+                config.scheduler_config.max_num_seqs != 1
+                or config.cache_config.enable_prefix_caching
+            ):
+                raise ValueError(
+                    "NVIDIA strategies require one request and no prefix caching"
+                )
+            comparison_graph = (
+                os.environ.get("PSPKV_ASCEND_FULL_GRAPH") == "1"
+                and config.model_config.max_model_len <= 16384
+            )
         if not config.model_config.enforce_eager and not comparison_graph:
             raise ValueError("PSP-KV Ascend reference backend requires --enforce-eager")
         if config.kv_transfer_config is not None:
@@ -431,6 +465,22 @@ class PSPKVAscendImpl(AscendAttentionBackendImpl):
             )
 
         k_cache, v_cache = kv_cache
+        if os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1":
+            from vllm.v1.attention.backends.psp_kv_ascend_strategy import (
+                strategy_attention,
+            )
+
+            return strategy_attention(
+                query,
+                key,
+                value,
+                k_cache,
+                v_cache,
+                attn_metadata,
+                output,
+                self.scale,
+                self,
+            )
         if self.variable_precision:
             if k_cache.ndim != 1 or v_cache.ndim != 1:
                 raise ValueError(
@@ -727,6 +777,19 @@ class PSPKVAscendBackend(AscendAttentionBackend):
         cache_dtype_str: str = "auto",
         **kwargs,
     ) -> tuple[int, ...]:
+        if os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1":
+            from vllm.v1.attention.backends.psp_kv_ascend_strategy import read_strategy
+
+            return (
+                2,
+                int(
+                    num_blocks
+                    * block_size
+                    * num_kv_heads
+                    * head_size
+                    * read_strategy().element_bytes
+                ),
+            )
         if os.environ.get("PSPKV_ASCEND_VARIABLE_PRECISION", "0") == "1":
             from vllm.v1.kv_cache_interface import _psp_kv_avg_bytes
 

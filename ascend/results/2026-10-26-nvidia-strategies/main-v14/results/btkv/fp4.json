@@ -1,0 +1,515 @@
+{
+  "case": "btkv:fp4",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 32,
+  "pairs_per_profile": 12,
+  "concurrency": 1,
+  "paired_same_physical_card": false,
+  "requests": [
+    {
+      "seconds": 0.5215928442776203,
+      "ttft_ms": 63.42276558279991,
+      "tpot_ms": 14.773013851334971,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 0,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4686553589999676,
+      "ttft_ms": 785.9403304755688,
+      "tpot_ms": 22.01796515334037,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 0,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5254267416894436,
+      "ttft_ms": 69.82835382223129,
+      "tpot_ms": 14.69214272595221,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 0,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.521734606474638,
+      "ttft_ms": 63.30537423491478,
+      "tpot_ms": 14.783970771297332,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 1,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5210223905742168,
+      "ttft_ms": 66.27647206187248,
+      "tpot_ms": 14.664783112464413,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 1,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4732497334480286,
+      "ttft_ms": 787.4120883643627,
+      "tpot_ms": 22.118228818139723,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 1,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5303072407841682,
+      "ttft_ms": 73.14693182706833,
+      "tpot_ms": 14.74261440096363,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 2,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.479733519256115,
+      "ttft_ms": 792.0402400195599,
+      "tpot_ms": 22.180124756789976,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 2,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.52225062251091,
+      "ttft_ms": 65.61024487018585,
+      "tpot_ms": 14.726976353314615,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 2,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5212147980928421,
+      "ttft_ms": 63.54643031954765,
+      "tpot_ms": 14.759364387681407,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 3,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5271256975829601,
+      "ttft_ms": 71.81819155812263,
+      "tpot_ms": 14.68279176662045,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 3,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.465369924902916,
+      "ttft_ms": 787.4353192746639,
+      "tpot_ms": 21.86528845660148,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 3,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.472322005778551,
+      "ttft_ms": 786.8147939443588,
+      "tpot_ms": 22.10968324253636,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 4,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5273431055247784,
+      "ttft_ms": 66.93081930279732,
+      "tpot_ms": 14.844936589079518,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 4,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5323346219956875,
+      "ttft_ms": 76.86777785420418,
+      "tpot_ms": 14.688864831001528,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 4,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5361159704625607,
+      "ttft_ms": 72.91359454393387,
+      "tpot_ms": 14.934697458820958,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 5,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5278830528259277,
+      "ttft_ms": 69.4306306540966,
+      "tpot_ms": 14.785337111642283,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 5,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4699537716805935,
+      "ttft_ms": 788.0254611372948,
+      "tpot_ms": 21.99431412643002,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 5,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5275045521557331,
+      "ttft_ms": 74.88451898097992,
+      "tpot_ms": 14.597067789685342,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 6,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4694983810186386,
+      "ttft_ms": 787.6106314361095,
+      "tpot_ms": 21.991589256832675,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 6,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5323955044150352,
+      "ttft_ms": 73.22926446795464,
+      "tpot_ms": 14.808073760040346,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 6,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.478989865630865,
+      "ttft_ms": 787.952795624733,
+      "tpot_ms": 22.287021240880414,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 7,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5240540541708469,
+      "ttft_ms": 66.6964054107666,
+      "tpot_ms": 14.737644503193517,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 7,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5248869061470032,
+      "ttft_ms": 69.97716799378395,
+      "tpot_ms": 14.666783473184031,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 7,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5279487334191799,
+      "ttft_ms": 71.18656486272812,
+      "tpot_ms": 14.729562666146986,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 8,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.468441691249609,
+      "ttft_ms": 787.3989790678024,
+      "tpot_ms": 21.964681725348196,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 8,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5238333158195019,
+      "ttft_ms": 65.38078561425209,
+      "tpot_ms": 14.783984230410669,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 8,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5521017983555794,
+      "ttft_ms": 75.3052830696106,
+      "tpot_ms": 15.375200178354017,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 9,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5312037505209446,
+      "ttft_ms": 75.335793197155,
+      "tpot_ms": 14.70213407470334,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 9,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4659059569239616,
+      "ttft_ms": 785.5095006525517,
+      "tpot_ms": 21.9436994483394,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 9,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5223934464156628,
+      "ttft_ms": 65.02349302172661,
+      "tpot_ms": 14.745843987311087,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 10,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.465213842689991,
+      "ttft_ms": 784.8742082715034,
+      "tpot_ms": 21.94292458795732,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 10,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5232333987951279,
+      "ttft_ms": 68.9040757715702,
+      "tpot_ms": 14.65172789269878,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 10,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5254588313400745,
+      "ttft_ms": 71.75154983997345,
+      "tpot_ms": 14.632074102278679,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 11,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.4670392759144306,
+      "ttft_ms": 787.749171257019,
+      "tpot_ms": 21.90783331471105,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，",
+      "pair": 11,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.518170315772295,
+      "ttft_ms": 62.22516670823097,
+      "tpot_ms": 14.704784438494713,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价",
+      "pair": 11,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    }
+  ],
+  "complete": true
+}

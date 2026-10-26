@@ -1,0 +1,858 @@
+{
+  "encoders": [
+    {
+      "code": 0,
+      "bf16_inputs": 65536,
+      "passed": true
+    },
+    {
+      "code": 1,
+      "bf16_inputs": 65536,
+      "passed": true
+    },
+    {
+      "code": 2,
+      "bf16_inputs": 65536,
+      "passed": true
+    },
+    {
+      "code": 3,
+      "bf16_inputs": 65536,
+      "passed": true
+    }
+  ],
+  "rope_cases": 32,
+  "adaptive": {
+    "mixed_page_codes": [
+      1,
+      3,
+      1
+    ],
+    "passed": true
+  },
+  "cases": [
+    {
+      "length": 135,
+      "bf16": {
+        "wall_ms": 0.07815845310688019,
+        "event_ms": 0.061826002597808835
+      },
+      "bf16_graph": {
+        "wall_ms": 0.020680995658040047,
+        "event_ms": 0.019544124603271484
+      },
+      "precisions": [
+        {
+          "precision": "lossless",
+          "kv_bytes": 524288,
+          "relative_l2_vs_unquantized": 0.0024970616213977337,
+          "splits": [
+            {
+              "wall_ms": 0.05797445774078369,
+              "event_ms": 0.04290400147438049,
+              "graph": {
+                "wall_ms": 0.02145583275705576,
+                "event_ms": 0.020465250313282012
+              },
+              "splits": 1,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 0.06524771451950073,
+              "event_ms": 0.0521340012550354,
+              "graph": {
+                "wall_ms": 0.029872613959014416,
+                "event_ms": 0.02883237600326538
+              },
+              "splits": 4,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 0.06794743239879608,
+              "event_ms": 0.054864001274108884,
+              "graph": {
+                "wall_ms": 0.032217102125287056,
+                "event_ms": 0.031154125928878784
+              },
+              "splits": 8,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 0.06875172257423401,
+              "event_ms": 0.053241997957229614,
+              "graph": {
+                "wall_ms": 0.035947258584201336,
+                "event_ms": 0.03508650064468384
+              },
+              "splits": 16,
+              "max_abs_error": 6.103515625e-05
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.04167817533016205,
+            "event_ms": 0.02678399980068207
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.007295259274542332,
+              "event_ms": 0.006543874740600586
+            },
+            "total_graph": {
+              "wall_ms": 0.030581094324588776,
+              "event_ms": 0.029662126302719118
+            },
+            "max_abs_error": 0.0009765625
+          }
+        },
+        {
+          "precision": "e4m3",
+          "kv_bytes": 262144,
+          "relative_l2_vs_unquantized": 0.030371185392141342,
+          "splits": [
+            {
+              "wall_ms": 0.054947659373283386,
+              "event_ms": 0.03972600102424621,
+              "graph": {
+                "wall_ms": 0.03051727544516325,
+                "event_ms": 0.029018500447273256
+              },
+              "splits": 1,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.06490647792816162,
+              "event_ms": 0.0485260009765625,
+              "graph": {
+                "wall_ms": 0.04133894108235836,
+                "event_ms": 0.040447750687599184
+              },
+              "splits": 4,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.06426386535167694,
+              "event_ms": 0.053446000814437865,
+              "graph": {
+                "wall_ms": 0.04336710553616285,
+                "event_ms": 0.04236575067043304
+              },
+              "splits": 8,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.06579682230949402,
+              "event_ms": 0.04887599945068359,
+              "graph": {
+                "wall_ms": 0.04679271951317787,
+                "event_ms": 0.04569849967956543
+              },
+              "splits": 16,
+              "max_abs_error": 0.0009765625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.13361535966396332,
+            "event_ms": 0.12075999975204468
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.053032487630844116,
+            "event_ms": 0.03732199966907501
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.008454965427517891,
+              "event_ms": 0.0075606249272823335
+            },
+            "total_graph": {
+              "wall_ms": 0.03123090136796236,
+              "event_ms": 0.03014324903488159
+            },
+            "max_abs_error": 0.0009765625
+          }
+        },
+        {
+          "precision": "e5m2",
+          "kv_bytes": 262144,
+          "relative_l2_vs_unquantized": 0.05770654231309891,
+          "splits": [
+            {
+              "wall_ms": 0.058102235198020935,
+              "event_ms": 0.03946999907493591,
+              "graph": {
+                "wall_ms": 0.029982742853462696,
+                "event_ms": 0.028957998752593993
+              },
+              "splits": 1,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.06502047181129456,
+              "event_ms": 0.04797399938106537,
+              "graph": {
+                "wall_ms": 0.04160271491855383,
+                "event_ms": 0.040720623731613156
+              },
+              "splits": 4,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.060519203543663025,
+              "event_ms": 0.04661599993705749,
+              "graph": {
+                "wall_ms": 0.043066893704235554,
+                "event_ms": 0.04217875003814697
+              },
+              "splits": 8,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.06069764494895935,
+              "event_ms": 0.04875999987125397,
+              "graph": {
+                "wall_ms": 0.04650903865695,
+                "event_ms": 0.04567674994468689
+              },
+              "splits": 16,
+              "max_abs_error": 0.0009765625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.13684183359146118,
+            "event_ms": 0.12137600183486938
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.05060173571109772,
+            "event_ms": 0.0338919997215271
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.008301157504320145,
+              "event_ms": 0.007451125234365463
+            },
+            "total_graph": {
+              "wall_ms": 0.030750641599297523,
+              "event_ms": 0.02988012433052063
+            },
+            "max_abs_error": 0.0009765625
+          }
+        },
+        {
+          "precision": "fp4",
+          "kv_bytes": 131072,
+          "relative_l2_vs_unquantized": 0.32451340556144714,
+          "splits": [
+            {
+              "wall_ms": 0.07050707936286926,
+              "event_ms": 0.05816799998283386,
+              "graph": {
+                "wall_ms": 0.05627975333482027,
+                "event_ms": 0.05532199740409851
+              },
+              "splits": 1,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.09006410837173462,
+              "event_ms": 0.0758679986000061,
+              "graph": {
+                "wall_ms": 0.07455521263182163,
+                "event_ms": 0.07285724878311158
+              },
+              "splits": 4,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.09071081876754761,
+              "event_ms": 0.07780200242996216,
+              "graph": {
+                "wall_ms": 0.07583254482597113,
+                "event_ms": 0.0742416262626648
+              },
+              "splits": 8,
+              "max_abs_error": 0.0009765625
+            },
+            {
+              "wall_ms": 0.09219273924827576,
+              "event_ms": 0.08084200024604797,
+              "graph": {
+                "wall_ms": 0.07836695294827223,
+                "event_ms": 0.07731825113296509
+              },
+              "splits": 16,
+              "max_abs_error": 0.0009765625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.13501308858394623,
+            "event_ms": 0.11998800039291382
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.046261027455329895,
+            "event_ms": 0.032387998700141904
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.013883993960916996,
+              "event_ms": 0.012928125262260438
+            },
+            "total_graph": {
+              "wall_ms": 0.03479181323200464,
+              "event_ms": 0.03388037383556366
+            },
+            "max_abs_error": 0.0009765625
+          }
+        }
+      ]
+    },
+    {
+      "length": 1536,
+      "bf16": {
+        "wall_ms": 0.0751342624425888,
+        "event_ms": 0.05938599705696106
+      },
+      "bf16_graph": {
+        "wall_ms": 0.028472626581788063,
+        "event_ms": 0.027546000480651856
+      },
+      "precisions": [
+        {
+          "precision": "lossless",
+          "kv_bytes": 3145728,
+          "relative_l2_vs_unquantized": 0.00242739194072783,
+          "splits": [
+            {
+              "wall_ms": 0.15398450195789337,
+              "event_ms": 0.14444199800491334,
+              "graph": {
+                "wall_ms": 0.14141870196908712,
+                "event_ms": 0.14063374996185302
+              },
+              "splits": 1,
+              "max_abs_error": 0.0
+            },
+            {
+              "wall_ms": 0.1268204301595688,
+              "event_ms": 0.1162559986114502,
+              "graph": {
+                "wall_ms": 0.1144002191722393,
+                "event_ms": 0.11361750364303588
+              },
+              "splits": 4,
+              "max_abs_error": 1.862645149230957e-09
+            },
+            {
+              "wall_ms": 0.1298271119594574,
+              "event_ms": 0.11845200061798096,
+              "graph": {
+                "wall_ms": 0.11570481583476067,
+                "event_ms": 0.11491937637329101
+              },
+              "splits": 8,
+              "max_abs_error": 9.5367431640625e-07
+            },
+            {
+              "wall_ms": 0.13456344604492188,
+              "event_ms": 0.12344000339508057,
+              "graph": {
+                "wall_ms": 0.12026424519717693,
+                "event_ms": 0.11941736936569214
+              },
+              "splits": 16,
+              "max_abs_error": 1.862645149230957e-09
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.15458092093467712,
+            "event_ms": 0.14475799798965455
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.011629192158579826,
+              "event_ms": 0.010942249745130538
+            },
+            "total_graph": {
+              "wall_ms": 0.04378603771328926,
+              "event_ms": 0.04312475025653839
+            },
+            "max_abs_error": 0.000244140625
+          }
+        },
+        {
+          "precision": "e4m3",
+          "kv_bytes": 1572864,
+          "relative_l2_vs_unquantized": 0.03049887903034687,
+          "splits": [
+            {
+              "wall_ms": 0.23050084710121155,
+              "event_ms": 0.21868200302124025,
+              "graph": {
+                "wall_ms": 0.21699636708945036,
+                "event_ms": 0.21601574420928954
+              },
+              "splits": 1,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.19060149788856506,
+              "event_ms": 0.17768800258636475,
+              "graph": {
+                "wall_ms": 0.17505213618278503,
+                "event_ms": 0.17386674880981445
+              },
+              "splits": 4,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.19693076610565186,
+              "event_ms": 0.18569999933242798,
+              "graph": {
+                "wall_ms": 0.17704556230455637,
+                "event_ms": 0.17598987817764283
+              },
+              "splits": 8,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.1977328211069107,
+              "event_ms": 0.18560999631881714,
+              "graph": {
+                "wall_ms": 0.1810477115213871,
+                "event_ms": 0.1799607515335083
+              },
+              "splits": 16,
+              "max_abs_error": 0.000244140625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 1.3375237584114075,
+            "event_ms": 1.3204039573669433
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.04864335060119629,
+            "event_ms": 0.03454999923706055
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.017963163554668427,
+              "event_ms": 0.017179499566555022
+            },
+            "total_graph": {
+              "wall_ms": 0.05084783770143986,
+              "event_ms": 0.05003424882888794
+            },
+            "max_abs_error": 0.000244140625
+          }
+        },
+        {
+          "precision": "e5m2",
+          "kv_bytes": 1572864,
+          "relative_l2_vs_unquantized": 0.061889950186014175,
+          "splits": [
+            {
+              "wall_ms": 0.22874213755130768,
+              "event_ms": 0.2180959939956665,
+              "graph": {
+                "wall_ms": 0.21694530732929707,
+                "event_ms": 0.21594200134277344
+              },
+              "splits": 1,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.18870458006858826,
+              "event_ms": 0.17718199491500855,
+              "graph": {
+                "wall_ms": 0.1755950739607215,
+                "event_ms": 0.1739678740501404
+              },
+              "splits": 4,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.19170865416526794,
+              "event_ms": 0.18027199506759645,
+              "graph": {
+                "wall_ms": 0.177703145891428,
+                "event_ms": 0.17635612487792968
+              },
+              "splits": 8,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.19610561430454254,
+              "event_ms": 0.18512200117111205,
+              "graph": {
+                "wall_ms": 0.18066256307065487,
+                "event_ms": 0.17986350059509276
+              },
+              "splits": 16,
+              "max_abs_error": 0.000244140625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 1.3323605060577393,
+            "event_ms": 1.3199740409851075
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.0425972044467926,
+            "event_ms": 0.030643999576568604
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.01802179031074047,
+              "event_ms": 0.017355875670909883
+            },
+            "total_graph": {
+              "wall_ms": 0.050647580064833164,
+              "event_ms": 0.049926000833511355
+            },
+            "max_abs_error": 0.000244140625
+          }
+        },
+        {
+          "precision": "fp4",
+          "kv_bytes": 786432,
+          "relative_l2_vs_unquantized": 0.3413158357143402,
+          "splits": [
+            {
+              "wall_ms": 0.49076415598392487,
+              "event_ms": 0.4767620086669922,
+              "graph": {
+                "wall_ms": 0.47572848852723837,
+                "event_ms": 0.473677396774292
+              },
+              "splits": 1,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.3838043659925461,
+              "event_ms": 0.36916799545288087,
+              "graph": {
+                "wall_ms": 0.36868108436465263,
+                "event_ms": 0.36647748947143555
+              },
+              "splits": 4,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.3878515213727951,
+              "event_ms": 0.37110400199890137,
+              "graph": {
+                "wall_ms": 0.37048093508929014,
+                "event_ms": 0.3684314966201782
+              },
+              "splits": 8,
+              "max_abs_error": 0.000244140625
+            },
+            {
+              "wall_ms": 0.39465948939323425,
+              "event_ms": 0.3771939992904663,
+              "graph": {
+                "wall_ms": 0.3726535942405462,
+                "event_ms": 0.3708120107650757
+              },
+              "splits": 16,
+              "max_abs_error": 0.000244140625
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 1.3172034174203873,
+            "event_ms": 1.3037799835205077
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.04911348223686218,
+            "event_ms": 0.03614200055599213
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.045041972771286964,
+              "event_ms": 0.04419550001621246
+            },
+            "total_graph": {
+              "wall_ms": 0.07575806230306625,
+              "event_ms": 0.07493462562561035
+            },
+            "max_abs_error": 0.000244140625
+          }
+        }
+      ]
+    },
+    {
+      "length": 8192,
+      "bf16": {
+        "wall_ms": 0.07002688944339752,
+        "event_ms": 0.05802400112152099
+      },
+      "bf16_graph": {
+        "wall_ms": 0.047709234058856964,
+        "event_ms": 0.04680350124835968
+      },
+      "precisions": [
+        {
+          "precision": "lossless",
+          "kv_bytes": 16777216,
+          "relative_l2_vs_unquantized": 0.002459296490997076,
+          "splits": [
+            {
+              "wall_ms": 0.7399763911962509,
+              "event_ms": 0.7256800174713135,
+              "graph": {
+                "wall_ms": 0.7240367820486426,
+                "event_ms": 0.7227634906768798
+              },
+              "splits": 1,
+              "max_abs_error": 1.52587890625e-05
+            },
+            {
+              "wall_ms": 0.5669977515935898,
+              "event_ms": 0.5528339862823486,
+              "graph": {
+                "wall_ms": 0.5524812266230583,
+                "event_ms": 0.5506952285766602
+              },
+              "splits": 4,
+              "max_abs_error": 1.52587890625e-05
+            },
+            {
+              "wall_ms": 0.568733736872673,
+              "event_ms": 0.5549399852752686,
+              "graph": {
+                "wall_ms": 0.5533966235816479,
+                "event_ms": 0.5515250205993653
+              },
+              "splits": 8,
+              "max_abs_error": 1.52587890625e-05
+            },
+            {
+              "wall_ms": 0.5770701915025711,
+              "event_ms": 0.561269998550415,
+              "graph": {
+                "wall_ms": 0.5575003568083048,
+                "event_ms": 0.555565881729126
+              },
+              "splits": 16,
+              "max_abs_error": 1.52587890625e-05
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 0.6134785711765289,
+            "event_ms": 0.5949220180511474
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.035150209441781044,
+              "event_ms": 0.03416012525558472
+            },
+            "total_graph": {
+              "wall_ms": 0.09106111247092485,
+              "event_ms": 0.08999325037002563
+            },
+            "max_abs_error": 0.0001220703125
+          },
+          "dynamic_graph_replays_checked": 6
+        },
+        {
+          "precision": "e4m3",
+          "kv_bytes": 8388608,
+          "relative_l2_vs_unquantized": 0.0295425895601511,
+          "splits": [
+            {
+              "wall_ms": 1.138855516910553,
+              "event_ms": 1.1221199989318849,
+              "graph": {
+                "wall_ms": 1.1228168150410056,
+                "event_ms": 1.1213163375854491
+              },
+              "splits": 1,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.8676480501890182,
+              "event_ms": 0.855348014831543,
+              "graph": {
+                "wall_ms": 0.8548882557079196,
+                "event_ms": 0.8527260780334472
+              },
+              "splits": 4,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.8866880089044571,
+              "event_ms": 0.867572021484375,
+              "graph": {
+                "wall_ms": 0.8562218165025115,
+                "event_ms": 0.8547989845275878
+              },
+              "splits": 8,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.876176729798317,
+              "event_ms": 0.862876033782959,
+              "graph": {
+                "wall_ms": 0.8602139307186007,
+                "event_ms": 0.858547592163086
+              },
+              "splits": 16,
+              "max_abs_error": 0.0001220703125
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 7.029339671134949,
+            "event_ms": 7.000856018066406
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.047632306814193726,
+            "event_ms": 0.0340939998626709
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.0684729777276516,
+              "event_ms": 0.06753337383270264
+            },
+            "total_graph": {
+              "wall_ms": 0.12584589421749115,
+              "event_ms": 0.12473399639129638
+            },
+            "max_abs_error": 0.0001220703125
+          },
+          "dynamic_graph_replays_checked": 6
+        },
+        {
+          "precision": "e5m2",
+          "kv_bytes": 8388608,
+          "relative_l2_vs_unquantized": 0.05843029171228409,
+          "splits": [
+            {
+              "wall_ms": 1.1376120150089264,
+              "event_ms": 1.123933982849121,
+              "graph": {
+                "wall_ms": 1.1242417385801673,
+                "event_ms": 1.1224499702453614
+              },
+              "splits": 1,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.870388001203537,
+              "event_ms": 0.8559080123901367,
+              "graph": {
+                "wall_ms": 0.8542875526472926,
+                "event_ms": 0.8529030799865722
+              },
+              "splits": 4,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.8698184043169022,
+              "event_ms": 0.8569560050964355,
+              "graph": {
+                "wall_ms": 0.8553672581911087,
+                "event_ms": 0.8544480323791503
+              },
+              "splits": 8,
+              "max_abs_error": 0.0001220703125
+            },
+            {
+              "wall_ms": 0.8736982941627502,
+              "event_ms": 0.8622119903564454,
+              "graph": {
+                "wall_ms": 0.8590994635596871,
+                "event_ms": 0.857977294921875
+              },
+              "splits": 16,
+              "max_abs_error": 0.0001220703125
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 7.021389901638031,
+            "event_ms": 6.998988342285156
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.04686824977397919,
+            "event_ms": 0.03435600101947785
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.06768209859728813,
+              "event_ms": 0.06693787574768066
+            },
+            "total_graph": {
+              "wall_ms": 0.1275480492040515,
+              "event_ms": 0.12673637866973878
+            },
+            "max_abs_error": 0.0001220703125
+          },
+          "dynamic_graph_replays_checked": 6
+        },
+        {
+          "precision": "fp4",
+          "kv_bytes": 4194304,
+          "relative_l2_vs_unquantized": 0.33499282598495483,
+          "splits": [
+            {
+              "wall_ms": 2.512175217270851,
+              "event_ms": 2.4982980728149413,
+              "graph": {
+                "wall_ms": 2.4984150426462293,
+                "event_ms": 2.496639442443848
+              },
+              "splits": 1,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 1.9010033458471298,
+              "event_ms": 1.8860639572143554,
+              "graph": {
+                "wall_ms": 1.8864333629608154,
+                "event_ms": 1.883568572998047
+              },
+              "splits": 4,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 1.9096579402685165,
+              "event_ms": 1.8892759323120116,
+              "graph": {
+                "wall_ms": 1.887343148700893,
+                "event_ms": 1.8853673934936523
+              },
+              "splits": 8,
+              "max_abs_error": 6.103515625e-05
+            },
+            {
+              "wall_ms": 1.9114241003990173,
+              "event_ms": 1.8929380416870116,
+              "graph": {
+                "wall_ms": 1.8900607246905565,
+                "event_ms": 1.8879339218139648
+              },
+              "splits": 16,
+              "max_abs_error": 6.103515625e-05
+            }
+          ],
+          "prefill_writer": {
+            "wall_ms": 6.943835690617561,
+            "event_ms": 6.924485778808593
+          },
+          "prefill_scale_estimation": {
+            "wall_ms": 0.04461556673049927,
+            "event_ms": 0.03343999981880188
+          },
+          "staged_paged": {
+            "decode_graph": {
+              "wall_ms": 0.2053968608379364,
+              "event_ms": 0.20446374416351318
+            },
+            "total_graph": {
+              "wall_ms": 0.2624427666887641,
+              "event_ms": 0.2611388683319092
+            },
+            "max_abs_error": 0.0001220703125
+          },
+          "dynamic_graph_replays_checked": 6
+        }
+      ]
+    }
+  ]
+}

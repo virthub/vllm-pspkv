@@ -1,0 +1,515 @@
+{
+  "case": "btkv:e4m3",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 32,
+  "pairs_per_profile": 12,
+  "concurrency": 1,
+  "paired_same_physical_card": false,
+  "requests": [
+    {
+      "seconds": 0.5247440114617348,
+      "ttft_ms": 70.28882578015327,
+      "tpot_ms": 14.654151133952602,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 0,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3654457032680511,
+      "ttft_ms": 802.1097667515278,
+      "tpot_ms": 18.168730120505057,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 0,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5298615880310535,
+      "ttft_ms": 78.63182201981544,
+      "tpot_ms": 14.548683599118263,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 0,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5247474759817123,
+      "ttft_ms": 68.38028877973557,
+      "tpot_ms": 14.715191697882068,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 1,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5222032181918621,
+      "ttft_ms": 69.41035389900208,
+      "tpot_ms": 14.602617270523503,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 1,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3632555231451988,
+      "ttft_ms": 793.5543060302734,
+      "tpot_ms": 18.37258449485225,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 1,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5161186680197716,
+      "ttft_ms": 66.10138714313507,
+      "tpot_ms": 14.512026982922707,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 2,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3550305254757404,
+      "ttft_ms": 794.0924353897572,
+      "tpot_ms": 18.090057637422316,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 2,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5221222825348377,
+      "ttft_ms": 68.5829408466816,
+      "tpot_ms": 14.62515611802378,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 2,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5177485011518002,
+      "ttft_ms": 66.07017293572426,
+      "tpot_ms": 14.564070850610733,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 3,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.518713653087616,
+      "ttft_ms": 71.57545909285545,
+      "tpot_ms": 14.419464935218134,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 3,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3528178445994854,
+      "ttft_ms": 795.3853197395802,
+      "tpot_ms": 17.978466206019924,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 3,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3699874095618725,
+      "ttft_ms": 792.9842248558998,
+      "tpot_ms": 18.608446683614485,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 4,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5386219434440136,
+      "ttft_ms": 77.41360738873482,
+      "tpot_ms": 14.871821408310245,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 4,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5449269115924835,
+      "ttft_ms": 91.16499871015549,
+      "tpot_ms": 14.63214944927923,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 4,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5201077982783318,
+      "ttft_ms": 71.4123472571373,
+      "tpot_ms": 14.467892026708972,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 5,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5240775756537914,
+      "ttft_ms": 70.81583142280579,
+      "tpot_ms": 14.61665752914644,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 5,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.359307549893856,
+      "ttft_ms": 795.9883809089661,
+      "tpot_ms": 18.166669313946077,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 5,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5205168128013611,
+      "ttft_ms": 73.95520061254501,
+      "tpot_ms": 14.401700107320663,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 6,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.359220515936613,
+      "ttft_ms": 793.8660345971584,
+      "tpot_ms": 18.233883645265333,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 6,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5192559249699116,
+      "ttft_ms": 64.07782062888145,
+      "tpot_ms": 14.67752757091676,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 6,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3615489155054092,
+      "ttft_ms": 797.8798486292362,
+      "tpot_ms": 18.17634533489904,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 7,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5826815031468868,
+      "ttft_ms": 66.21343269944191,
+      "tpot_ms": 16.65651317565672,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 7,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5227199904620647,
+      "ttft_ms": 67.80795380473137,
+      "tpot_ms": 14.67084163619626,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 7,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5244994796812534,
+      "ttft_ms": 72.2411759197712,
+      "tpot_ms": 14.585885309403942,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 8,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.36291379109025,
+      "ttft_ms": 794.1663600504398,
+      "tpot_ms": 18.34096687455331,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 8,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5239183641970158,
+      "ttft_ms": 68.8764862716198,
+      "tpot_ms": 14.667555088958432,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 8,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5485436655580997,
+      "ttft_ms": 88.86062353849411,
+      "tpot_ms": 14.823609302120824,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 9,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5237057618796825,
+      "ttft_ms": 70.11241465806961,
+      "tpot_ms": 14.628098015823673,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 9,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.362002994865179,
+      "ttft_ms": 798.0741523206234,
+      "tpot_ms": 18.187221620352037,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 9,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5287720263004303,
+      "ttft_ms": 72.70697131752968,
+      "tpot_ms": 14.70503078833703,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 10,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3559995330870152,
+      "ttft_ms": 797.3641753196716,
+      "tpot_ms": 18.01690014619981,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 10,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5180578716099262,
+      "ttft_ms": 68.86903196573257,
+      "tpot_ms": 14.482386049724393,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 10,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5188988409936428,
+      "ttft_ms": 68.50230321288109,
+      "tpot_ms": 14.523494748338576,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城",
+      "pair": 11,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3607573136687279,
+      "ttft_ms": 797.8635802865028,
+      "tpot_ms": 18.153967876588144,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？",
+      "pair": 11,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5228107869625092,
+      "ttft_ms": 67.70030409097672,
+      "tpot_ms": 14.672162912545666,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "pair": 11,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    }
+  ],
+  "complete": true
+}

@@ -1,0 +1,21 @@
+can not use command: npu-smi info
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+...............................................                          [100%]
+=============================== warnings summary ===============================
+tests/v1/attention/test_psp_kv_correctness.py::test_basic_attention[8-8-0-dtype0]
+  /workspace/pspkv-src/tests/v1/attention/test_psp_kv_correctness.py:113: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+    output = torch.empty_like(query)
+
+../../usr/local/python3.11.15/lib/python3.11/site-packages/_pytest/cacheprovider.py:477
+  /usr/local/python3.11.15/lib/python3.11/site-packages/_pytest/cacheprovider.py:477: PytestCacheWarning: could not create cache path /workspace/pspkv-src/.pytest_cache/v/cache/nodeids: [Errno 30] Read-only file system: '/workspace/pspkv-src/pytest-cache-files-vu8qmxuf'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+../../usr/local/python3.11.15/lib/python3.11/site-packages/_pytest/stepwise.py:51
+  /usr/local/python3.11.15/lib/python3.11/site-packages/_pytest/stepwise.py:51: PytestCacheWarning: could not create cache path /workspace/pspkv-src/.pytest_cache/v/cache/stepwise: [Errno 30] Read-only file system: '/workspace/pspkv-src/pytest-cache-files-kwxx87ah'
+    session.config.cache.set(STEPWISE_CACHE_DIR, [])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+263 passed, 3 warnings in 24.42s
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

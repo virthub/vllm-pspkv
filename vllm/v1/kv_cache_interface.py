@@ -341,8 +341,12 @@ def _psp_kv_avg_bytes(stream: str = "both") -> float:
 
     def read(name: str, fallback: float) -> float:
         value = os.environ.get(name)
-        return float(value) if value not in (None, "") else fallback
+        return fallback if value is None or value == "" else float(value)
 
+    if os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1":
+        from vllm.v1.attention.backends.psp_kv_ascend_strategy import read_strategy
+
+        return read_strategy().element_bytes
     default = read("PSPKV_AVG_BYTES", 1.0)
     if stream == "k":
         return read("PSPKV_AVG_K_BYTES", default)

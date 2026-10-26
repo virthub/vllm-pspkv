@@ -1,0 +1,515 @@
+{
+  "case": "btkv:e5m2",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 32,
+  "pairs_per_profile": 12,
+  "concurrency": 1,
+  "paired_same_physical_card": false,
+  "requests": [
+    {
+      "seconds": 0.5140843614935875,
+      "ttft_ms": 65.84472954273224,
+      "tpot_ms": 14.45546061281235,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 0,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3549382537603378,
+      "ttft_ms": 795.2340766787529,
+      "tpot_ms": 18.051233743467638,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 0,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5222758129239082,
+      "ttft_ms": 73.3817033469677,
+      "tpot_ms": 14.474211080420401,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 0,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5177327245473862,
+      "ttft_ms": 67.96884909272194,
+      "tpot_ms": 14.504552127853517,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 1,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5192862562835217,
+      "ttft_ms": 71.89982384443283,
+      "tpot_ms": 14.42688066632517,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 1,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.354929368942976,
+      "ttft_ms": 795.1957210898399,
+      "tpot_ms": 18.05215316914743,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 1,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5145155526697636,
+      "ttft_ms": 68.71494650840759,
+      "tpot_ms": 14.376602826579925,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 2,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3611850328743458,
+      "ttft_ms": 792.3496551811695,
+      "tpot_ms": 18.34415788612058,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 2,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5156185515224934,
+      "ttft_ms": 65.2804858982563,
+      "tpot_ms": 14.522412130909581,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 2,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5135965645313263,
+      "ttft_ms": 65.93846529722214,
+      "tpot_ms": 14.436773715480681,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 3,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5303267762064934,
+      "ttft_ms": 70.96758112311363,
+      "tpot_ms": 14.814096232575755,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 3,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.354478880763054,
+      "ttft_ms": 793.9266562461853,
+      "tpot_ms": 18.077095549914144,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 3,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3509791493415833,
+      "ttft_ms": 791.4710380136967,
+      "tpot_ms": 18.045157194137573,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 4,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5111899636685848,
+      "ttft_ms": 64.11764398217201,
+      "tpot_ms": 14.417514084808287,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 4,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5149828754365444,
+      "ttft_ms": 66.34338945150375,
+      "tpot_ms": 14.467954755790773,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 4,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5132519342005253,
+      "ttft_ms": 68.55787336826324,
+      "tpot_ms": 14.341294765472412,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 5,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5138729363679886,
+      "ttft_ms": 66.27025455236435,
+      "tpot_ms": 14.435080510954704,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 5,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3576607219874859,
+      "ttft_ms": 794.2860014736652,
+      "tpot_ms": 18.169726815915876,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 5,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5196549594402313,
+      "ttft_ms": 74.48586449027061,
+      "tpot_ms": 14.3564804907768,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 6,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3539617098867893,
+      "ttft_ms": 794.8558665812016,
+      "tpot_ms": 18.031714904692866,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 6,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5142827816307545,
+      "ttft_ms": 67.22786277532578,
+      "tpot_ms": 14.41741121872779,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 6,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3694328851997852,
+      "ttft_ms": 793.0110581219196,
+      "tpot_ms": 18.590056367458835,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 7,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5137732550501823,
+      "ttft_ms": 66.06897711753845,
+      "tpot_ms": 14.438359847953242,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 7,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5154110938310623,
+      "ttft_ms": 70.02457603812218,
+      "tpot_ms": 14.363438251518435,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 7,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5154329128563404,
+      "ttft_ms": 69.2225694656372,
+      "tpot_ms": 14.390044875683323,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 8,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3583055883646011,
+      "ttft_ms": 793.0332534015179,
+      "tpot_ms": 18.228776272266142,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 8,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5204136557877064,
+      "ttft_ms": 70.34261524677277,
+      "tpot_ms": 14.514625432991213,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 8,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5236595906317234,
+      "ttft_ms": 71.5700276196003,
+      "tpot_ms": 14.57953104569066,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 9,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5174378789961338,
+      "ttft_ms": 69.01148334145546,
+      "tpot_ms": 14.458970677468084,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 9,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3577439449727535,
+      "ttft_ms": 793.952539563179,
+      "tpot_ms": 18.181896137614405,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 9,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5135135650634766,
+      "ttft_ms": 66.03742018342018,
+      "tpot_ms": 14.431018502481523,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 10,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3539514057338238,
+      "ttft_ms": 793.3861017227173,
+      "tpot_ms": 18.078876839530082,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 10,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5150444097816944,
+      "ttft_ms": 70.83285227417946,
+      "tpot_ms": 14.325283347598967,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 10,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5307852290570736,
+      "ttft_ms": 70.23530080914497,
+      "tpot_ms": 14.852412886196568,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤",
+      "pair": 11,
+      "profile": "short_3",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 1.3551104366779327,
+      "ttft_ms": 794.310700148344,
+      "tpot_ms": 18.086493495971926,
+      "usage": {
+        "prompt_tokens": 8192,
+        "total_tokens": 8224,
+        "completion_tokens": 32
+      },
+      "text": "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国",
+      "pair": 11,
+      "profile": "long_8192",
+      "mode": "candidate"
+    },
+    {
+      "seconds": 0.5144407041370869,
+      "ttft_ms": 65.2245432138443,
+      "tpot_ms": 14.485479242378666,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，",
+      "pair": 11,
+      "profile": "cross_page_135",
+      "mode": "candidate"
+    }
+  ],
+  "complete": true
+}

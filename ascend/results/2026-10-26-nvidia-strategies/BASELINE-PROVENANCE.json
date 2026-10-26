@@ -1,0 +1,14 @@
+{
+  "design": "same-card sequential; reuse immediately preceding completed BF16 phase",
+  "before": {
+    "basic": "serving-v9/results/basic/bf16-after.json",
+    "enhanced": "serving-v9/results/enhanced/bf16-after.json",
+    "btkv": "serving-v9/results/btkv/bf16-after.json"
+  },
+  "after": {
+    "basic": "serving-v14/results/basic/bf16-after.json",
+    "enhanced": "serving-v14/results/enhanced/bf16-after.json",
+    "btkv": "serving-v14/results/btkv/bf16-after.json"
+  },
+  "shared_between_compiled_diagnostic_and_final": true
+}

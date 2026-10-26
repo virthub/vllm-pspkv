@@ -1,0 +1,945 @@
+{
+  "design": "same_card_sequential_bf16_before_candidates_bf16_after",
+  "ci": "independent bootstrap of medians; baseline stratified by phase",
+  "confidence": 0.95,
+  "baseline": [
+    {
+      "layout": "basic",
+      "profile": "cross_page_135",
+      "before_seconds": 0.48951080068945885,
+      "after_seconds": 0.4887763448059559,
+      "drift_percent": -0.1500387493939881,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "basic",
+      "profile": "long_8192",
+      "before_seconds": 1.0829072277992964,
+      "after_seconds": 1.0801358800381422,
+      "drift_percent": -0.2559173759312805,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "basic",
+      "profile": "short_3",
+      "before_seconds": 0.4911147579550743,
+      "after_seconds": 0.4905645567923784,
+      "drift_percent": -0.11203107904694809,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "enhanced",
+      "profile": "cross_page_135",
+      "before_seconds": 0.49100750125944614,
+      "after_seconds": 0.4917413853108883,
+      "drift_percent": 0.14946493680030315,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "enhanced",
+      "profile": "long_8192",
+      "before_seconds": 1.0882092416286469,
+      "after_seconds": 1.0881748795509338,
+      "drift_percent": -0.0031576719254466923,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "enhanced",
+      "profile": "short_3",
+      "before_seconds": 0.49771932512521744,
+      "after_seconds": 0.49459608271718025,
+      "drift_percent": -0.6275107777363176,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "btkv",
+      "profile": "cross_page_135",
+      "before_seconds": 0.49072833731770515,
+      "after_seconds": 0.4920529928058386,
+      "drift_percent": 0.2699366202029374,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "btkv",
+      "profile": "long_8192",
+      "before_seconds": 1.0822946578264236,
+      "after_seconds": 1.0805174987763166,
+      "drift_percent": -0.16420288479258582,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    },
+    {
+      "layout": "btkv",
+      "profile": "short_3",
+      "before_seconds": 0.4929242990911007,
+      "after_seconds": 0.49507230520248413,
+      "drift_percent": 0.4357679496312272,
+      "kv_tokens_before": 113664,
+      "kv_tokens_after": 113664
+    }
+  ],
+  "rows": [
+    {
+      "layout": "basic",
+      "precision": "lossless",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.4983693081885576,
+      "bf16_seconds": 0.48925756104290485,
+      "speedup": 0.9817168774321766,
+      "speedup_ci95": [
+        0.9693121868786547,
+        0.9883483640586446
+      ],
+      "ttft_ms": 53.86439710855484,
+      "stream_tpot_estimate_ms": 14.327939780008407,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "lossless",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.1556718852370977,
+      "bf16_seconds": 1.0822115037590265,
+      "speedup": 0.9364349151203933,
+      "speedup_ci95": [
+        0.93448780152575,
+        0.9384730961604749
+      ],
+      "ttft_ms": 625.9367149323225,
+      "stream_tpot_estimate_ms": 17.082796161693913,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "lossless",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.49973442405462265,
+      "bf16_seconds": 0.49074861593544483,
+      "speedup": 0.9820188330308107,
+      "speedup_ci95": [
+        0.9783568337788837,
+        0.9881611291346093
+      ],
+      "ttft_ms": 57.104963809251785,
+      "stream_tpot_estimate_ms": 14.261610505561674,
+      "kv_tokens": 113664,
+      "outputs": [
+        "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e4m3",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5137443523854017,
+      "bf16_seconds": 0.48925756104290485,
+      "speedup": 0.9523366218454752,
+      "speedup_ci95": [
+        0.944297607325544,
+        0.9585754658725972
+      ],
+      "ttft_ms": 63.95755521953106,
+      "stream_tpot_estimate_ms": 14.520072888943456,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e4m3",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3591983132064342,
+      "bf16_seconds": 1.0822115037590265,
+      "speedup": 0.7962131009462641,
+      "speedup_ci95": [
+        0.7943122179346708,
+        0.7991151546377924
+      ],
+      "ttft_ms": 794.5629190653563,
+      "stream_tpot_estimate_ms": 18.15616802102135,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e4m3",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5130950137972832,
+      "bf16_seconds": 0.49074861593544483,
+      "speedup": 0.9564478366366135,
+      "speedup_ci95": [
+        0.9530679285415886,
+        0.9633369956764734
+      ],
+      "ttft_ms": 64.82420861721039,
+      "stream_tpot_estimate_ms": 14.412984372146667,
+      "kv_tokens": 227200,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e5m2",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5115012284368277,
+      "bf16_seconds": 0.48925756104290485,
+      "speedup": 0.9565129736601015,
+      "speedup_ci95": [
+        0.9498467457771711,
+        0.9623357899057459
+      ],
+      "ttft_ms": 62.57480010390282,
+      "stream_tpot_estimate_ms": 14.456454964895402,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e5m2",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3526999317109585,
+      "bf16_seconds": 1.0822115037590265,
+      "speedup": 0.8000381151717769,
+      "speedup_ci95": [
+        0.7975868877618891,
+        0.8012055185281234
+      ],
+      "ttft_ms": 793.6405800282955,
+      "stream_tpot_estimate_ms": 18.01921415232843,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "e5m2",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5137633662670851,
+      "bf16_seconds": 0.49074861593544483,
+      "speedup": 0.9552035979153956,
+      "speedup_ci95": [
+        0.9421869855297821,
+        0.9620890946691075
+      ],
+      "ttft_ms": 65.71142002940178,
+      "stream_tpot_estimate_ms": 14.385267190875545,
+      "kv_tokens": 227328,
+      "outputs": [
+        "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "fp4",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5183479599654675,
+      "bf16_seconds": 0.48925756104290485,
+      "speedup": 0.9438786275449013,
+      "speedup_ci95": [
+        0.9372215073359124,
+        0.9502966254040282
+      ],
+      "ttft_ms": 62.55888193845749,
+      "stream_tpot_estimate_ms": 14.707244091456936,
+      "kv_tokens": 454656,
+      "outputs": [
+        "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "fp4",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.4670581799000502,
+      "bf16_seconds": 1.0822115037590265,
+      "speedup": 0.7376745643671453,
+      "speedup_ci95": [
+        0.735095044378328,
+        0.7386957886810305
+      ],
+      "ttft_ms": 790.2333755046129,
+      "stream_tpot_estimate_ms": 21.83774281894007,
+      "kv_tokens": 454656,
+      "outputs": [
+        "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "fp4",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5213887542486191,
+      "bf16_seconds": 0.49074861593544483,
+      "speedup": 0.941233603403414,
+      "speedup_ci95": [
+        0.9343774065011028,
+        0.9465399659824536
+      ],
+      "ttft_ms": 66.52059219777584,
+      "stream_tpot_estimate_ms": 14.643913134932518,
+      "kv_tokens": 454656,
+      "outputs": [
+        "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "adaptive",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5332325045019388,
+      "bf16_seconds": 0.48925756104290485,
+      "speedup": 0.9175313899888597,
+      "speedup_ci95": [
+        0.9104269303746737,
+        0.9247319933096682
+      ],
+      "ttft_ms": 79.15802672505379,
+      "stream_tpot_estimate_ms": 14.618090924716764,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "adaptive",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.366768067702651,
+      "bf16_seconds": 1.0822115037590265,
+      "speedup": 0.7918033273765863,
+      "speedup_ci95": [
+        0.7900610327552371,
+        0.7932236009777117
+      ],
+      "ttft_ms": 798.7684160470963,
+      "stream_tpot_estimate_ms": 18.301995350949227,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "basic",
+      "precision": "adaptive",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5358633510768414,
+      "bf16_seconds": 0.49074861593544483,
+      "speedup": 0.9158092542609296,
+      "speedup_ci95": [
+        0.902474103984795,
+        0.9282920735781636
+      ],
+      "ttft_ms": 84.05479788780212,
+      "stream_tpot_estimate_ms": 14.564319483695492,
+      "kv_tokens": 227328,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "lossless",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5013452731072903,
+      "bf16_seconds": 0.4913024306297302,
+      "speedup": 0.9799682114976063,
+      "speedup_ci95": [
+        0.9755477967496758,
+        0.983559155942796
+      ],
+      "ttft_ms": 55.03982491791248,
+      "stream_tpot_estimate_ms": 14.390933537675489,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "lossless",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.1643883064389229,
+      "bf16_seconds": 1.0881748795509338,
+      "speedup": 0.934546382451165,
+      "speedup_ci95": [
+        0.9332240847358881,
+        0.9362367642968074
+      ],
+      "ttft_ms": 630.2720680832863,
+      "stream_tpot_estimate_ms": 17.22355036725921,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "lossless",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5017784424126148,
+      "bf16_seconds": 0.4960580673068762,
+      "speedup": 0.988599798990498,
+      "speedup_ci95": [
+        0.9817060055291961,
+        0.9911674636069454
+      ],
+      "ttft_ms": 58.11676196753979,
+      "stream_tpot_estimate_ms": 14.312527533019743,
+      "kv_tokens": 113664,
+      "outputs": [
+        "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e4m3",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5178385321050882,
+      "bf16_seconds": 0.4913024306297302,
+      "speedup": 0.9487560314071551,
+      "speedup_ci95": [
+        0.9415597327773167,
+        0.9570360018390343
+      ],
+      "ttft_ms": 63.64128366112709,
+      "stream_tpot_estimate_ms": 14.594111711748184,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e4m3",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3580301254987717,
+      "bf16_seconds": 1.0881748795509338,
+      "speedup": 0.8012892049440166,
+      "speedup_ci95": [
+        0.799978232756966,
+        0.8030707982706994
+      ],
+      "ttft_ms": 796.3245753198862,
+      "stream_tpot_estimate_ms": 18.11384415674594,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e4m3",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5150898098945618,
+      "bf16_seconds": 0.4960580673068762,
+      "speedup": 0.9630516033862495,
+      "speedup_ci95": [
+        0.9527715461599612,
+        0.9664065231617956
+      ],
+      "ttft_ms": 65.68755581974983,
+      "stream_tpot_estimate_ms": 14.485316651482735,
+      "kv_tokens": 227200,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e5m2",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5121322516351938,
+      "bf16_seconds": 0.4913024306297302,
+      "speedup": 0.9593272617786601,
+      "speedup_ci95": [
+        0.9576478977138202,
+        0.9632754675112611
+      ],
+      "ttft_ms": 62.88827583193779,
+      "stream_tpot_estimate_ms": 14.508552128268825,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e5m2",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.357112666592002,
+      "bf16_seconds": 1.0881748795509338,
+      "speedup": 0.8018309064077723,
+      "speedup_ci95": [
+        0.8005305659329874,
+        0.8032713780206241
+      ],
+      "ttft_ms": 794.0421737730503,
+      "stream_tpot_estimate_ms": 18.153919748240902,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "e5m2",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5154761299490929,
+      "bf16_seconds": 0.4960580673068762,
+      "speedup": 0.9623298509590844,
+      "speedup_ci95": [
+        0.954693511437278,
+        0.9670988130841873
+      ],
+      "ttft_ms": 65.5924640595913,
+      "stream_tpot_estimate_ms": 14.456927235568724,
+      "kv_tokens": 227328,
+      "outputs": [
+        "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "fp4",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5174848716706038,
+      "bf16_seconds": 0.4913024306297302,
+      "speedup": 0.9494044319472599,
+      "speedup_ci95": [
+        0.945478168745972,
+        0.9524560690048319
+      ],
+      "ttft_ms": 62.15350516140461,
+      "stream_tpot_estimate_ms": 14.676699354763954,
+      "kv_tokens": 454528,
+      "outputs": [
+        "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "fp4",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.4657252039760351,
+      "bf16_seconds": 1.0881748795509338,
+      "speedup": 0.7424139781447913,
+      "speedup_ci95": [
+        0.7416832024955704,
+        0.7437451920167713
+      ],
+      "ttft_ms": 790.4410231858492,
+      "stream_tpot_estimate_ms": 21.764558770002857,
+      "kv_tokens": 454528,
+      "outputs": [
+        "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "fp4",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5203089527785778,
+      "bf16_seconds": 0.4960580673068762,
+      "speedup": 0.9533913738324202,
+      "speedup_ci95": [
+        0.9440518960643692,
+        0.9587192683021712
+      ],
+      "ttft_ms": 65.39313495159149,
+      "stream_tpot_estimate_ms": 14.613985474551878,
+      "kv_tokens": 454528,
+      "outputs": [
+        "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "adaptive",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5269707068800926,
+      "bf16_seconds": 0.4913024306297302,
+      "speedup": 0.9323144991084327,
+      "speedup_ci95": [
+        0.9273050847237685,
+        0.9352187579319738
+      ],
+      "ttft_ms": 77.58142799139023,
+      "stream_tpot_estimate_ms": 14.508936313852187,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "adaptive",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3620243314653635,
+      "bf16_seconds": 1.0881748795509338,
+      "speedup": 0.798939383395741,
+      "speedup_ci95": [
+        0.7968162324298191,
+        0.8009023691041359
+      ],
+      "ttft_ms": 797.9031596332788,
+      "stream_tpot_estimate_ms": 18.184738594197455,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "enhanced",
+      "precision": "adaptive",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5323293767869473,
+      "bf16_seconds": 0.4960580673068762,
+      "speedup": 0.9318630324349207,
+      "speedup_ci95": [
+        0.9239524903000622,
+        0.9415524466550274
+      ],
+      "ttft_ms": 80.21071553230286,
+      "stream_tpot_estimate_ms": 14.52578399931231,
+      "kv_tokens": 227328,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "lossless",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.49849607795476913,
+      "bf16_seconds": 0.4910194631665945,
+      "speedup": 0.985001657748543,
+      "speedup_ci95": [
+        0.9819486121841486,
+        0.9885977400881341
+      ],
+      "ttft_ms": 55.23389391601086,
+      "stream_tpot_estimate_ms": 14.280099481824905,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "lossless",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.1522126477211714,
+      "bf16_seconds": 1.0806733686476946,
+      "speedup": 0.9379113922981438,
+      "speedup_ci95": [
+        0.9346218792056541,
+        0.9401963141837125
+      ],
+      "ttft_ms": 622.3032716661692,
+      "stream_tpot_estimate_ms": 17.077682900332633,
+      "kv_tokens": 113664,
+      "outputs": [
+        "北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：北京是中国的"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "lossless",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.4995868615806103,
+      "bf16_seconds": 0.49356685392558575,
+      "speedup": 0.9879500280772432,
+      "speedup_ci95": [
+        0.9821795989768124,
+        0.9918352631897273
+      ],
+      "ttft_ms": 58.56308154761791,
+      "stream_tpot_estimate_ms": 14.221641385266857,
+      "kv_tokens": 113664,
+      "outputs": [
+        "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e4m3",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5239979699254036,
+      "bf16_seconds": 0.4910194631665945,
+      "speedup": 0.9370636745720524,
+      "speedup_ci95": [
+        0.9321537509948071,
+        0.9413584991234423
+      ],
+      "ttft_ms": 68.7297135591507,
+      "stream_tpot_estimate_ms": 14.669859000752048,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e4m3",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3611531145870686,
+      "bf16_seconds": 1.0806733686476946,
+      "speedup": 0.7939396068424949,
+      "speedup_ci95": [
+        0.7928577390154828,
+        0.796366376464702
+      ],
+      "ttft_ms": 795.6868503242731,
+      "stream_tpot_estimate_ms": 18.17253772770205,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e4m3",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5213600154966116,
+      "bf16_seconds": 0.49356685392558575,
+      "speedup": 0.9466910373927467,
+      "speedup_ci95": [
+        0.9364572809245348,
+        0.9520734734597397
+      ],
+      "ttft_ms": 71.49390317499638,
+      "stream_tpot_estimate_ms": 14.53608917372842,
+      "kv_tokens": 227200,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e5m2",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5103395506739616,
+      "bf16_seconds": 0.4910194631665945,
+      "speedup": 0.9621426803353713,
+      "speedup_ci95": [
+        0.9582633357069702,
+        0.9653688955944335
+      ],
+      "ttft_ms": 61.30176782608032,
+      "stream_tpot_estimate_ms": 14.495067839180269,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。Human: 中国首都北京。请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e5m2",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3508831821382046,
+      "bf16_seconds": 1.0806733686476946,
+      "speedup": 0.7999754404649434,
+      "speedup_ci95": [
+        0.7992055061787062,
+        0.8015326527528924
+      ],
+      "ttft_ms": 793.5124523937702,
+      "stream_tpot_estimate_ms": 17.971344652675814,
+      "kv_tokens": 227200,
+      "outputs": [
+        "北京。记录：北京是中国的的是中国的是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国是中国"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "e5m2",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5122901238501072,
+      "bf16_seconds": 0.49356685392558575,
+      "speedup": 0.9634518233851415,
+      "speedup_ci95": [
+        0.9601752549018213,
+        0.9677926895120379
+      ],
+      "ttft_ms": 65.24044834077358,
+      "stream_tpot_estimate_ms": 14.415366515036553,
+      "kv_tokens": 227200,
+      "outputs": [
+        "首都，也是中国最大的城市之一。北京拥有许多著名的景点，如故宫、长城、天坛等等。此外，北京还有许多美食，如烤"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "fp4",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.518027825281024,
+      "bf16_seconds": 0.4910194631665945,
+      "speedup": 0.9478631054233858,
+      "speedup_ci95": [
+        0.9422583854664897,
+        0.953373407851602
+      ],
+      "ttft_ms": 64.49849158525467,
+      "stream_tpot_estimate_ms": 14.608664558299125,
+      "kv_tokens": 454656,
+      "outputs": [
+        "北京，n = the strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "fp4",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.4617596454918385,
+      "bf16_seconds": 1.0806733686476946,
+      "speedup": 0.7392962119186703,
+      "speedup_ci95": [
+        0.7385537339178663,
+        0.7417356404419646
+      ],
+      "ttft_ms": 788.7843176722527,
+      "stream_tpot_estimate_ms": 21.678496813101155,
+      "kv_tokens": 454656,
+      "outputs": [
+        "北京1010 strugg，，，，，，，，，，，，，，，，，，，，，，，，，，"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "fp4",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5199737902730703,
+      "bf16_seconds": 0.49356685392558575,
+      "speedup": 0.9492148703617991,
+      "speedup_ci95": [
+        0.9431160052204941,
+        0.9532980082186645
+      ],
+      "ttft_ms": 69.13860142230988,
+      "stream_tpot_estimate_ms": 14.53420369615478,
+      "kv_tokens": 454656,
+      "outputs": [
+        "首都#1#10 strugg tô#10 strugg性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价性价"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "adaptive",
+      "profile": "cross_page_135",
+      "samples": 12,
+      "seconds": 0.5238512475043535,
+      "bf16_seconds": 0.4910194631665945,
+      "speedup": 0.937326131236356,
+      "speedup_ci95": [
+        0.9174260469160873,
+        0.9432157620927624
+      ],
+      "ttft_ms": 71.7904195189476,
+      "stream_tpot_estimate_ms": 14.541525033212476,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录："
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "adaptive",
+      "profile": "long_8192",
+      "samples": 12,
+      "seconds": 1.3599084224551916,
+      "bf16_seconds": 1.0806733686476946,
+      "speedup": 0.7946662810548938,
+      "speedup_ci95": [
+        0.7923766233379047,
+        0.7967293315894127
+      ],
+      "ttft_ms": 795.8500161767006,
+      "stream_tpot_estimate_ms": 18.156075729958474,
+      "kv_tokens": 227328,
+      "outputs": [
+        "北京。请给我讲一个关于北京的故事。\n。\n北京是中国的故事：请给我讲一个关于北京的故事？北京是中国的故事？"
+      ]
+    },
+    {
+      "layout": "btkv",
+      "precision": "adaptive",
+      "profile": "short_3",
+      "samples": 12,
+      "seconds": 0.5262552108615637,
+      "bf16_seconds": 0.49356685392558575,
+      "speedup": 0.9378849724215331,
+      "speedup_ci95": [
+        0.9342998452907608,
+        0.9435667581462539
+      ],
+      "ttft_ms": 75.50767064094543,
+      "stream_tpot_estimate_ms": 14.503134354468315,
+      "kv_tokens": 227328,
+      "outputs": [
+        "首都，也是世界上最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的城市之一。北京的标志性建筑包括故宫、天坛、长城"
+      ]
+    }
+  ]
+}

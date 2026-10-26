@@ -1,0 +1,96 @@
+{
+  "container": "/pspkv-nvidia-v14main-btkv-lossless",
+  "image": "sha256:27d1146419e99981c0a676a3fff102d2119fa6ecf5ae00e5c83aab611f5b7733",
+  "created": "2026-10-26T15:18:53.522268101Z",
+  "exit_code": 0,
+  "env": [
+    "PSPKV_COMPARE_FORMAT=btkv",
+    "PSPKV_COMPARE_OPTIMIZED=1",
+    "PSPKV_ASCEND_SPLITS=8",
+    "PSPKV_FORMAT=2",
+    "PSPKV_ASCEND_SHARE_METADATA=1",
+    "PSPKV_ASCEND_NATIVE_LIB=/strategy-native/libpspkv_strategy.so",
+    "PYTHONPATH=/strategy:/workspace/pspkv-src:/vllm-workspace/vllm-ascend",
+    "VLLM_USE_MODELSCOPE=True",
+    "PSPKV_NVIDIA_STRATEGIES=1",
+    "PSPKV_COMPARE_PRECISION=lossless",
+    "PSPKV_ASCEND_PIPELINE_LEVEL=3",
+    "PSPKV_STRATEGY_DECODE_PATH=paged",
+    "VLLM_WORKER_MULTIPROC_METHOD=spawn",
+    "PSPKV_PRECISION=lossless",
+    "PSPKV_AVG_BYTES=2",
+    "PSPKV_ADAPTIVE_PRECISION=0",
+    "PSPKV_ASCEND_FULL_GRAPH=1",
+    "PSPKV_STRATEGY_INIT_PA_GRAPH=1"
+  ],
+  "command": [
+    "-lc",
+    "source /usr/local/Ascend/ascend-toolkit/set_env.sh; exec /workspace/pspkv-native-build/.venv/bin/python /strategy/serve_initialized_npu.py \"$@\"",
+    "bash",
+    "serve",
+    "Qwen/Qwen2.5-7B",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000",
+    "--seed",
+    "123",
+    "--tensor-parallel-size",
+    "1",
+    "--block-size",
+    "128",
+    "--max-num-seqs",
+    "1",
+    "--max-model-len",
+    "8320",
+    "--max-num-batched-tokens",
+    "8320",
+    "--gpu-memory-utilization",
+    "0.35",
+    "--no-enable-prefix-caching",
+    "--no-enable-chunked-prefill",
+    "--additional-config",
+    "{\"pa_shape_list\":[1]}",
+    "--compilation-config",
+    "{\"mode\":0,\"cudagraph_mode\":\"FULL_DECODE_ONLY\",\"cudagraph_capture_sizes\":[1]}",
+    "--attention-backend",
+    "PSP_KV",
+    "--kv-cache-dtype",
+    "fp8"
+  ],
+  "devices": [
+    {
+      "PathOnHost": "/dev/davinci7",
+      "PathInContainer": "/dev/davinci7",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/davinci_manager",
+      "PathInContainer": "/dev/davinci_manager",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/devmm_svm",
+      "PathInContainer": "/dev/devmm_svm",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/hisi_hdc",
+      "PathInContainer": "/dev/hisi_hdc",
+      "CgroupPermissions": "rwm"
+    }
+  ],
+  "binds": [
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/attention.py:/workspace/pspkv-src/vllm/model_executor/layers/attention/attention.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14:/strategy:ro",
+    "/root/vllm-ascend-smoke-cache:/root/.cache",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/../libpspkv_strategy_v8.so:/strategy-native/libpspkv_strategy.so:ro",
+    "/root/zhang/pspkv-ascend-overlay/v0.20.2rc1/vllm_ascend/platform.py:/vllm-workspace/vllm-ascend/vllm_ascend/platform.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/backend.py:/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/ops.py:/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_ops.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/source-v1:/workspace/pspkv-src:ro",
+    "/root/zhang/pspkv-ascend-overlay/v0.20.2rc1/vllm_ascend/worker/model_runner_v1.py:/vllm-workspace/vllm-ascend/vllm_ascend/worker/model_runner_v1.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/strategy.py:/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_strategy.py:ro",
+    "/root/zhang/pspkv-nvidia-strategies-20261026/serving-v14/kv_cache_interface.py:/workspace/pspkv-src/vllm/v1/kv_cache_interface.py:ro"
+  ]
+}

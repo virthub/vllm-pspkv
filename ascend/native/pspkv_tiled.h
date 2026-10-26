@@ -11,16 +11,21 @@ constexpr uint32_t PSPKV_TILE = 32;
 class PspkvTileDecoder {
  public:
   __aicore__ inline void Init(AscendC::TPipe& pipe, uint32_t dim, GM_ADDR e4,
-                              GM_ADDR e5, GM_ADDR permutation) {
+                              GM_ADDR e5, GM_ADDR permutation,
+                              bool pair_lut = false) {
     dimension = dim;
     count = PSPKV_TILE * dim;
+    fp4_from_gm = pair_lut;
+    if (pair_lut)
+      fp4_global.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(permutation) +
+                                 count);
     pipe.InitBuffer(inputBuffer, count);
     pipe.InitBuffer(halfBuffer, count * 2);
     pipe.InitBuffer(indexBuffer, count * 4);
     pipe.InitBuffer(decodedBuffer, count * 4);
     pipe.InitBuffer(transposedBuffer, count * 4);
     pipe.InitBuffer(permutationBuffer, count * 4);
-    pipe.InitBuffer(tableBuffer, 512 * 4);
+    pipe.InitBuffer(tableBuffer, 1024 * 4);
     pipe.InitBuffer(outputBuffer, count * 2);
     bytes = inputBuffer.Get<uint8_t>();
     halves = halfBuffer.Get<half>();
@@ -46,6 +51,72 @@ class PspkvTileDecoder {
       AscendC::GlobalTensor<uint8_t>& source, uint32_t base, uint8_t code,
       float scale, uint32_t token, uint32_t block_size, bool transpose,
       bool token_major = true) {
+    if (code == 0 && !transpose) {
+      AscendC::DataCopy(halves.ReinterpretCast<uint8_t>(),
+                        source[base + token * dimension * 2], count * 2);
+      pipe_barrier(PIPE_ALL);
+      AscendC::Cast(decoded, halves.ReinterpretCast<bfloat16_t>(),
+                    AscendC::RoundMode::CAST_NONE, count);
+      pipe_barrier(PIPE_V);
+      return decoded;
+    }
+    if (code == 3 && !transpose) {
+      if (!fp4_initialized) {
+        if (fp4_from_gm) {
+          AscendC::DataCopy(table[512], fp4_global, 512);
+        } else {
+          for (uint32_t byte = 0; byte < 256; ++byte) {
+            table.SetValue(512 + byte * 2, DecodeFP4(byte & 15));
+            table.SetValue(513 + byte * 2, DecodeFP4(byte >> 4));
+          }
+        }
+        pipe_barrier(PIPE_ALL);
+        fp4_initialized = true;
+      }
+      AscendC::DataCopy(bytes, source[base + token * dimension / 2], count / 2);
+      pipe_barrier(PIPE_ALL);
+      AscendC::Cast(halves, bytes, AscendC::RoundMode::CAST_NONE, count / 2);
+      pipe_barrier(PIPE_V);
+      AscendC::Cast(indices, halves, AscendC::RoundMode::CAST_RINT, count / 2);
+      pipe_barrier(PIPE_V);
+      auto offsets = transposed.ReinterpretCast<uint32_t>();
+      AscendC::CreateVecIndex(offsets.ReinterpretCast<int32_t>(),
+                              static_cast<int32_t>(0), count);
+      pipe_barrier(PIPE_V);
+      AscendC::ShiftRight(offsets, offsets, static_cast<uint32_t>(1), count);
+      pipe_barrier(PIPE_V);
+      AscendC::ShiftLeft(offsets, offsets, static_cast<uint32_t>(2), count);
+      pipe_barrier(PIPE_V);
+      AscendC::Gather(decoded.ReinterpretCast<uint32_t>(),
+                      indices.ReinterpretCast<uint32_t>(), offsets, 0, count);
+      pipe_barrier(PIPE_V);
+      AscendC::CreateVecIndex(indices, static_cast<int32_t>(0), count);
+      pipe_barrier(PIPE_V);
+      AscendC::ShiftRight(offsets, indices.ReinterpretCast<uint32_t>(),
+                          static_cast<uint32_t>(1), count);
+      pipe_barrier(PIPE_V);
+      AscendC::ShiftLeft(offsets, offsets, static_cast<uint32_t>(1), count);
+      pipe_barrier(PIPE_V);
+      AscendC::Sub(indices, indices, offsets.ReinterpretCast<int32_t>(), count);
+      AscendC::ShiftLeft(decoded.ReinterpretCast<uint32_t>(),
+                         decoded.ReinterpretCast<uint32_t>(),
+                         static_cast<uint32_t>(1), count);
+      pipe_barrier(PIPE_V);
+      AscendC::Add(indices, indices, decoded.ReinterpretCast<int32_t>(), count);
+      pipe_barrier(PIPE_V);
+      AscendC::ShiftLeft(indices.ReinterpretCast<uint32_t>(),
+                         indices.ReinterpretCast<uint32_t>(),
+                         static_cast<uint32_t>(2), count);
+      pipe_barrier(PIPE_V);
+      AscendC::Gather(decoded, table, indices.ReinterpretCast<uint32_t>(),
+                      512 * 4, count);
+      pipe_barrier(PIPE_V);
+      if (scale != 1.0f) {
+        AscendC::Muls(decoded, decoded, scale, count);
+        pipe_barrier(PIPE_V);
+      }
+      return decoded;
+    }
     if (code != 1 && code != 2) {
       // Preserve mixed BF16/FP4 contracts; the FP8 hot path below contains
       // no per-element scalar loads, conversions or stores.
@@ -179,6 +250,9 @@ class PspkvTileDecoder {
   AscendC::LocalTensor<bfloat16_t> bf16;
 
  private:
+  bool fp4_initialized = false;
+  bool fp4_from_gm = false;
+  AscendC::GlobalTensor<float> fp4_global;
   AscendC::TBuf<AscendC::TPosition::VECCALC> inputBuffer, halfBuffer,
       indexBuffer, decodedBuffer, transposedBuffer, permutationBuffer,
       tableBuffer, outputBuffer;
@@ -194,7 +268,8 @@ __global__ __vector__ void PspkvGatherPagedBF16Vec(
     GM_ADDR context_lens, GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales,
     GM_ADDR e4, GM_ADDR e5, GM_ADDR permutation, GM_ADDR key_output,
     GM_ADDR value_output, uint32_t seqs, uint32_t max_blocks, uint32_t heads,
-    uint32_t dimension, uint32_t block_size, uint32_t generation) {
+    uint32_t dimension, uint32_t block_size, uint32_t generation,
+    uint32_t pair_lut) {
   AscendC::GlobalTensor<uint8_t> keys, values, codes;
   AscendC::GlobalTensor<int32_t> tables, lengths, byte_offsets;
   AscendC::GlobalTensor<float> per_head_scales;
@@ -210,7 +285,7 @@ __global__ __vector__ void PspkvGatherPagedBF16Vec(
   value_out.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(value_output));
   AscendC::TPipe pipe;
   PspkvTileDecoder decoder;
-  decoder.Init(pipe, dimension, e4, e5, permutation);
+  decoder.Init(pipe, dimension, e4, e5, permutation, pair_lut);
   const uint32_t chunks = block_size / PSPKV_TILE;
   const uint32_t tasks = seqs * max_blocks * heads * chunks;
   for (uint32_t task = AscendC::GetBlockIdx(); task < 2 * tasks;
@@ -224,6 +299,10 @@ __global__ __vector__ void PspkvGatherPagedBF16Vec(
     const uint32_t logical_block = index % max_blocks;
     const uint32_t seq = index / max_blocks;
     const uint32_t length = lengths.GetValue(seq);
+    // The vendor consumer masks by length. Do not clear wholly inactive
+    // scratch pages on the opt-in strategy route, especially for short input
+    // captured in a graph with a long maximum context.
+    if (generation == 3 && logical_block * block_size >= length) continue;
     const uint32_t start = logical_block * block_size + token;
     auto local = decoder.bf16;
     if (start >= length) {
@@ -240,9 +319,9 @@ __global__ __vector__ void PspkvGatherPagedBF16Vec(
           code == 0 || generation == 0
               ? 1.0f
               : per_head_scales.GetValue(physical * heads + head);
-      local = decoder.Round(decoder.Load(is_key ? keys : values, base, code,
-                                         scale, token, block_size,
-                                         !is_key && generation != 0));
+      local = decoder.Round(decoder.Load(
+          is_key ? keys : values, base, code, scale, token, block_size,
+          !is_key && (generation == 1 || generation == 2)));
       if (start + PSPKV_TILE > length) {
         AscendC::Duplicate(
             local[(length - start) * dimension].ReinterpretCast<uint16_t>(),
@@ -270,11 +349,13 @@ __global__ __vector__ void PspkvTileFusedAttention(
     GM_ADDR e4, GM_ADDR e5, GM_ADDR permutation, GM_ADDR output,
     GM_ADDR statistics, uint32_t seqs, uint32_t heads, uint32_t kv_heads,
     uint32_t dimension, uint32_t block_size, uint32_t max_blocks,
-    uint32_t generation, float softmax_scale) {
+    uint32_t generation, float softmax_scale, GM_ADDR split_partials,
+    uint32_t splits, uint32_t pair_lut) {
   AscendC::GlobalTensor<uint8_t> keys, values, codes;
   AscendC::GlobalTensor<int32_t> tables, lengths, byte_offsets;
   AscendC::GlobalTensor<float> per_head_scales;
   AscendC::GlobalTensor<bfloat16_t> q, out;
+  AscendC::GlobalTensor<float> split_output;
   AscendC::GlobalTensor<int64_t> stats;
   keys.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(key_cache));
   values.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_cache));
@@ -284,12 +365,13 @@ __global__ __vector__ void PspkvTileFusedAttention(
   byte_offsets.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(offsets));
   per_head_scales.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(scales));
   q.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(query));
+  split_output.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(split_partials));
   out.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(output));
   if constexpr (Profile)
     stats.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t*>(statistics));
   AscendC::TPipe pipe;
   PspkvTileDecoder decoder;
-  decoder.Init(pipe, dimension, e4, e5, permutation);
+  decoder.Init(pipe, dimension, e4, e5, permutation, pair_lut);
   AscendC::TBuf<AscendC::TPosition::VECCALC> queryBuffer, queryFloatBuffer,
       accumulatorBuffer, partialBuffer, scoreBuffer, temporaryBuffer,
       reductionBuffer, offsetBuffer;
@@ -313,8 +395,9 @@ __global__ __vector__ void PspkvTileFusedAttention(
     partialOffsets.SetValue(i, i * (dimension / 64) * 4);
   }
   pipe_barrier(PIPE_ALL);
-  for (uint32_t row = AscendC::GetBlockIdx(); row < seqs * heads;
-       row += AscendC::GetBlockNum()) {
+  for (uint32_t job = AscendC::GetBlockIdx(); job < seqs * heads * splits;
+       job += AscendC::GetBlockNum()) {
+    const uint32_t row = job / splits, split = job % splits;
     const uint32_t seq = row / heads;
     const uint32_t kv_head = (row % heads) / (heads / kv_heads);
     const uint32_t length = lengths.GetValue(seq);
@@ -327,7 +410,12 @@ __global__ __vector__ void PspkvTileFusedAttention(
     AscendC::Duplicate(accumulator, 0.0f, dimension);
     pipe_barrier(PIPE_V);
     float maximum = -3.402823466e38f, denominator = 0.0f;
-    for (uint32_t start = 0; start < length; start += PSPKV_TILE) {
+    const uint32_t tile_count = (length + PSPKV_TILE - 1) / PSPKV_TILE;
+    const uint32_t span = (tile_count + splits - 1) / splits * PSPKV_TILE;
+    const uint32_t split_end =
+        (split + 1) * span < length ? (split + 1) * span : length;
+    for (uint32_t start = split * span; start < split_end;
+         start += PSPKV_TILE) {
       if constexpr (Profile) {
         pipe_barrier(PIPE_ALL);
         stamp = AscendC::GetSystemCycle();
@@ -397,9 +485,10 @@ __global__ __vector__ void PspkvTileFusedAttention(
         softmax_cycles += now - stamp;
         stamp = now;
       }
-      const bool direct_v = generation != 0 && valid == PSPKV_TILE;
+      const bool transposed_v = generation == 1 || generation == 2;
+      const bool direct_v = transposed_v && valid == PSPKV_TILE;
       auto value = decoder.Load(values, base, code, scale, start % block_size,
-                                block_size, generation != 0, !direct_v);
+                                block_size, transposed_v, !direct_v);
       if (scale != 1.0f) decoder.RoundInPlace(value);
       if constexpr (Profile) {
         pipe_barrier(PIPE_ALL);
@@ -417,30 +506,43 @@ __global__ __vector__ void PspkvTileFusedAttention(
       if (direct_v)
         decoder.WeightedSumTransposed(value, scores, accumulator, alpha);
       else
-        decoder.WeightedSum(value, scores, accumulator, alpha, generation != 0);
+        decoder.WeightedSum(value, scores, accumulator, alpha, transposed_v);
       if constexpr (Profile) {
         pipe_barrier(PIPE_ALL);
         pv_cycles += AscendC::GetSystemCycle() - stamp;
       }
     }
-    AscendC::Muls(accumulator, accumulator,
-                  denominator == 0.0f ? 0.0f : 1.0f / denominator, dimension);
-    pipe_barrier(PIPE_V);
-    AscendC::Cast(qLocal, accumulator, AscendC::RoundMode::CAST_RINT,
-                  dimension);
-    pipe_barrier(PIPE_ALL);
-    AscendC::DataCopy(out[row * dimension], qLocal, dimension);
-    pipe_barrier(PIPE_ALL);
+    if (splits > 1) {
+      const uint32_t base = job * (dimension + 16);
+      // The last PV accumulation is a Vector write. MTE3 must not read it
+      // until that pipeline completes; profiling used to hide this hazard.
+      pipe_barrier(PIPE_ALL);
+      AscendC::DataCopy(split_output[base + 16], accumulator, dimension);
+      reductions.SetValue(0, maximum);
+      reductions.SetValue(1, denominator);
+      pipe_barrier(PIPE_ALL);
+      AscendC::DataCopy(split_output[base], reductions, 16);
+      pipe_barrier(PIPE_ALL);
+    } else {
+      AscendC::Muls(accumulator, accumulator,
+                    denominator == 0.0f ? 0.0f : 1.0f / denominator, dimension);
+      pipe_barrier(PIPE_V);
+      AscendC::Cast(qLocal, accumulator, AscendC::RoundMode::CAST_RINT,
+                    dimension);
+      pipe_barrier(PIPE_ALL);
+      AscendC::DataCopy(out[row * dimension], qLocal, dimension);
+      pipe_barrier(PIPE_ALL);
+    }
     if constexpr (Profile) {
       // One full cache line per head prevents scalar GM write races.
-      stats.SetValue(row * 8, decode_cycles);
-      stats.SetValue(row * 8 + 1, qk_cycles);
-      stats.SetValue(row * 8 + 2, softmax_cycles);
-      stats.SetValue(row * 8 + 3, pv_cycles);
-      stats.SetValue(row * 8 + 4, AscendC::GetSystemCycle() - begin);
-      stats.SetValue(row * 8 + 5, 0);
-      stats.SetValue(row * 8 + 6, 0);
-      stats.SetValue(row * 8 + 7, 0);
+      stats.SetValue(job * 8, decode_cycles);
+      stats.SetValue(job * 8 + 1, qk_cycles);
+      stats.SetValue(job * 8 + 2, softmax_cycles);
+      stats.SetValue(job * 8 + 3, pv_cycles);
+      stats.SetValue(job * 8 + 4, AscendC::GetSystemCycle() - begin);
+      stats.SetValue(job * 8 + 5, 0);
+      stats.SetValue(job * 8 + 6, 0);
+      stats.SetValue(job * 8 + 7, 0);
     }
   }
 }

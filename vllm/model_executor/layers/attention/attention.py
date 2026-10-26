@@ -627,7 +627,10 @@ class Attention(nn.Module, AttentionLayerBase):
                 self.attn_backend.__module__
                 == "vllm.v1.attention.backends.psp_kv_ascend"
             ):
-                if os.environ.get("PSPKV_ASCEND_VARIABLE_PRECISION") == "1":
+                if (
+                    os.environ.get("PSPKV_ASCEND_VARIABLE_PRECISION") == "1"
+                    or os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
+                ):
                     from vllm.v1.kv_cache_interface import PSPKVAttentionSpec
 
                     # The variable-width path owns flat uint8 byte arenas;
