@@ -1,0 +1,3 @@
+[2026-10-25-16:52:32.672] [INFO] [AscendProfiler_IntegrateParser:97] Profiler logger initialized at: /model-profiler/rank0_236_20261025165228684_ascend_pt/logs/profiler_20261025165232_1601_IntegrateParser.log
+[2026-10-25-16:52:32.673] [INFO] [AscendProfiler_IntegrateParser:33] IntegrateParser start.
+[2026-10-25-16:52:32.677] [INFO] [AscendProfiler_IntegrateParser:40] IntegrateParser finish.

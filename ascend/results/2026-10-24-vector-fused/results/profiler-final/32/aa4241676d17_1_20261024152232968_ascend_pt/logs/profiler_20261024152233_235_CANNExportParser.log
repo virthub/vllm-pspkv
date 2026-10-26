@@ -1,0 +1,3 @@
+[2026-10-24-15:22:33.703] [INFO] [AscendProfiler_CANNExportParser:97] Profiler logger initialized at: /vector/results/profiler-final/32/aa4241676d17_1_20261024152232968_ascend_pt/logs/profiler_20261024152233_235_CANNExportParser.log
+[2026-10-24-15:22:33.703] [INFO] [AscendProfiler_CANNExportParser:51] CANNExportParser start.
+[2026-10-24-15:22:35.732] [INFO] [AscendProfiler_CANNExportParser:79] CANNExportParser finish.

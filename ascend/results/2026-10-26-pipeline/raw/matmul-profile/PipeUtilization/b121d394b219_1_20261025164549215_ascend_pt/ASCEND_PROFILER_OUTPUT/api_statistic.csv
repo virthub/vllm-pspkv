@@ -1,0 +1,12 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,runtime,DeviceSynchronize,59.98,2,29.99,6.96,53.02,530.381
+host,runtime,LaunchKernelV2,94.78,12,7.898,3.92,28.17,42.129
+host,acl,MatMulV2_Tiling,273.86,24,11.411,0.22,53.44,166.301
+host,runtime,StreamSyncTaskFinish,0,1,0,0,0,0
+host,acl,aclnnMatmul,502.56,12,41.88,26.59,144.96,1010.348
+host,acl,aclnnMatmulGetWorkspaceSize,1299.82,12,108.318,82.89,291.06,3178.615
+host,acl,aclrtGetResInCurrentThread,18.73,24,0.78,0.19,3.65,0.553
+host,acl,aclrtGetStreamAttribute,9.09,12,0.757,0.47,2.14,0.191
+host,acl,aclrtLaunchKernelWithHostArgs,129.48,12,10.79,5.8,37.43,71.369
+host,acl,aclrtSynchronizeDeviceWithTimeout,67.24,2,33.62,9.86,57.38,564.538
+host,node,launch,303.17,12,25.264,15.54,90.29,404.158

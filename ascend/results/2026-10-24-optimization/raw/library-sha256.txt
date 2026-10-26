@@ -1,0 +1,3 @@
+6431a9e4782eb78edf21487d0ff455e04bfab0d68414989fea531b08f5250779  /root/zhang/pspkv-opt-20261024/build/libpspkv_ascend_native.so
+01b85e3dc86b06194536ceb5cc2d4ab86075ab8977c33b5e76d0350ec6e9a515  /root/zhang/pspkv-opt-20261024/build/libpspkv_ascend_native_v1.so
+6431a9e4782eb78edf21487d0ff455e04bfab0d68414989fea531b08f5250779  /root/zhang/pspkv-opt-20261024/build/libpspkv_ascend_native_v2.so

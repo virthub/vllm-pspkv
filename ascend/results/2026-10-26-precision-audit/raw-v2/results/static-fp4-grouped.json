@@ -1,0 +1,85 @@
+{
+  "case": "static-fp4-grouped",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 16,
+  "scope": "single-request eager smoke audit; no performance significance claim",
+  "requests": [
+    {
+      "seconds": 1.5979390852153301,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都 pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida plus",
+      "profile": "short",
+      "repeat": 0
+    },
+    {
+      "seconds": 2.1040681935846806,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京 pérdida pérdida是，，，，，，，，，，，，",
+      "profile": "cross_page",
+      "repeat": 0
+    },
+    {
+      "seconds": 1.7414019964635372,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都 pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida pérdida plus",
+      "profile": "short",
+      "repeat": 1
+    },
+    {
+      "seconds": 2.0969365760684013,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京 pérdida pérdida是，，，，，，，，，，，，",
+      "profile": "cross_page",
+      "repeat": 1
+    }
+  ],
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "response": {
+        "seconds": 1.7584246397018433,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 20,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": "2000\n000000000 strugg0"
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "response": {
+        "seconds": 1.7802818678319454,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 21,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": " Paris. pérdida tô pérdida pérdida pérdidass\n\n pérdida pérdida pérdida pérdida pérdida pérdida pérdida"
+      }
+    }
+  ],
+  "complete": true
+}

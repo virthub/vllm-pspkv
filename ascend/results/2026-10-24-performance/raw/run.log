@@ -1,0 +1,38 @@
+/analysis/analyze_attention_performance.py:83: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  out = torch.empty_like(query)
+mki_log mkdir /root/ascend/log/atb
+[E1024 08:07:24.566876189 OpParamMaker.cpp:454] PagedAttentionOperation setup failed!
+Exception raised from OperationSetup at ../../../../third_party/op-plugin/op_plugin/utils/custom_functions/atb/AtbCommon.cpp:203 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0xc8 (0xfffe852f5978 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) + 0xc4 (0xfffe85299adc in /usr/local/python3.11.15/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #2: atb::OperationSetup(atb::VariantPack, atb::Operation*, atb::Context*) + 0x278 (0xfffe3aa9aaa8 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libop_plugin_atb.so)
+frame #3: <unknown function> + 0xac104 (0xfffe3aa9c104 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libop_plugin_atb.so)
+frame #4: <unknown function> + 0x3a263b4 (0xfffe787a63b4 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #5: <unknown function> + 0xca80f0 (0xfffe75a280f0 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #6: <unknown function> + 0xca8ccc (0xfffe75a28ccc in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #7: <unknown function> + 0xca6be8 (0xfffe75a26be8 in /usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/lib/libtorch_npu.so)
+frame #8: <unknown function> + 0x289da4 (0xfffe74cb9da4 in /usr/local/Ascend/cann-9.0.0/lib64/libhccl.so)
+frame #9: <unknown function> + 0x80398 (0xfffe91b70398 in /lib/aarch64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0xe9e9c (0xfffe91bd9e9c in /lib/aarch64-linux-gnu/libc.so.6)
+
+Traceback (most recent call last):
+  File "/analysis/analyze_attention_performance.py", line 324, in <module>
+    main()
+  File "/analysis/analyze_attention_performance.py", line 100, in main
+    stock()
+  File "/analysis/analyze_attention_performance.py", line 88, in stock
+    torch_npu._npu_paged_attention(
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/op_plugin/atb/_atb_ops.py", line 97, in wrapper
+    return api_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/op_plugin/atb/_atb_ops.py", line 105, in generated_function
+    return getattr(torch.ops.atb, api_name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch/_ops.py", line 1209, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: The Inner error is reported as above. The process exits for this inner error, and the current working operator name is PagedAttentionOperation.
+Since the operator is called asynchronously, the stacktrace may be inaccurate. If you want to get the accurate stacktrace, please set the environment variable ASCEND_LAUNCH_BLOCKING=1.
+Note: ASCEND_LAUNCH_BLOCKING=1 will force ops to run in synchronous mode, resulting in performance degradation. Please unset ASCEND_LAUNCH_BLOCKING in time after debugging.
+[ERROR] 2026-10-24-08:07:24 (PID:1, Device:0, RankID:-1) ERR00100 PTA call acl api failed.
+

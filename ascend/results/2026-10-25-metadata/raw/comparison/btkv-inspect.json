@@ -1,0 +1,464 @@
+[
+    {
+        "Id": "f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494",
+        "Created": "2026-10-25T08:43:48.489905277Z",
+        "Path": "bash",
+        "Args": [
+            "-lc",
+            "source /usr/local/Ascend/ascend-toolkit/set_env.sh; exec /workspace/pspkv-native-build/.venv/bin/python /comparison/serve_initialized_npu.py \"$@\"",
+            "bash",
+            "serve",
+            "Qwen/Qwen2.5-7B",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8000",
+            "--seed",
+            "123",
+            "--tensor-parallel-size",
+            "1",
+            "--block-size",
+            "128",
+            "--max-num-seqs",
+            "1",
+            "--max-model-len",
+            "256",
+            "--gpu-memory-utilization",
+            "0.35",
+            "--attention-backend",
+            "PSP_KV",
+            "--kv-cache-dtype",
+            "fp8",
+            "--no-enable-prefix-caching",
+            "--enforce-eager"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1798446,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-25T08:43:49.148993188Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:27d1146419e99981c0a676a3fff102d2119fa6ecf5ae00e5c83aab611f5b7733",
+        "ResolvConfPath": "/var/lib/docker/containers/f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494/hostname",
+        "HostsPath": "/var/lib/docker/containers/f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494/hosts",
+        "LogPath": "/var/lib/docker/containers/f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494/f21d4655392c7fba979c924fa073f4154c61723cf08ee74fc14324fe06955494-json.log",
+        "Name": "/pspkv-format-metadata-paired-20261025-btkv",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/root/vllm-ascend-smoke-cache:/root/.cache",
+                "/root/zhang/vllm-pspkv:/workspace/pspkv-src:ro",
+                "/root/zhang/pspkv-metadata-20261025/comparison:/comparison:ro",
+                "/root/zhang/pspkv-metadata-20261025/comparison/backend_overlay.py:/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend.py:ro",
+                "/usr/local/sbin/npu-smi:/usr/local/bin/npu-smi:ro",
+                "/root/zhang/pspkv-native-build:/workspace/pspkv-native-build:ro",
+                "/root/zhang/pspkv-ascend-overlay/v0.20.2rc1/vllm_ascend/platform.py:/vllm-workspace/vllm-ascend/vllm_ascend/platform.py:ro",
+                "/root/zhang/pspkv-vector-fused-20261024/ops-final.py:/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_ops.py:ro",
+                "/root/zhang/pspkv-vector-fused-20261024/build/libpspkv_final.so:/comparison-native/libpspkv_ascend_native.so:ro"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {
+                    "max-file": "5",
+                    "max-size": "20m"
+                }
+            },
+            "NetworkMode": "default",
+            "PortBindings": {
+                "8000/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18134"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": [
+                "pspkv-vector-fused-dev-20261024"
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "Capabilities": null,
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 1073741824,
+            "Runtime": "ascend",
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [
+                {
+                    "PathOnHost": "/dev/davinci4",
+                    "PathInContainer": "/dev/davinci4",
+                    "CgroupPermissions": "rwm"
+                },
+                {
+                    "PathOnHost": "/dev/davinci_manager",
+                    "PathInContainer": "/dev/davinci_manager",
+                    "CgroupPermissions": "rwm"
+                },
+                {
+                    "PathOnHost": "/dev/devmm_svm",
+                    "PathInContainer": "/dev/devmm_svm",
+                    "CgroupPermissions": "rwm"
+                },
+                {
+                    "PathOnHost": "/dev/hisi_hdc",
+                    "PathInContainer": "/dev/hisi_hdc",
+                    "CgroupPermissions": "rwm"
+                }
+            ],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "KernelMemory": 0,
+            "KernelMemoryTCP": 0,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": false,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/9177355634eac72261130d2c7696f5051353e0a6221142e82755711fae44de01-init/diff:/var/lib/docker/overlay2/cf2da45baa905c4c85a10760e72ac05c40113d8d3c739ab1ce5c8555fd05bf41/diff:/var/lib/docker/overlay2/d8516e7bc70b3c6e24ace66760d9aab034d9bbcdba81de3b3c388d19629096d2/diff:/var/lib/docker/overlay2/c91cbd0dfe3be2cfc775bd0af94859100b8d5cdcd0c0c66487d0fb195573cc24/diff:/var/lib/docker/overlay2/40dc86e8fac943ee0e3886e975d5a76a0499928664e62f8e5a70287d59f223c6/diff:/var/lib/docker/overlay2/e043e745f3f88ae8326436197274b2fa3a9a68aea33ab23a22820ab4b54396a2/diff:/var/lib/docker/overlay2/837c0673a0d6c8c30726f43493e4f328a242c1589f41ef2a8a5e7bbca774f6eb/diff:/var/lib/docker/overlay2/c1d214f03dec14f2c0834b0a3e252c9370e766f25334d94458f72924f8bf6d28/diff:/var/lib/docker/overlay2/eca219993e8eb13ca1ddba5aa82273e403dadc0a93c636778a8b9b8de872da41/diff:/var/lib/docker/overlay2/bcec554b4355dd383b24340264d690531ef1d52cd55f5e94c938fc50161b2b3e/diff:/var/lib/docker/overlay2/17c24cbda99c82b663c21c692032f862a77afaefeb4c98f714b44bf785d05985/diff:/var/lib/docker/overlay2/6e276bfc514f3f6bfd0ee16693f783e571261bc6e344537259ff16eb06b4e396/diff:/var/lib/docker/overlay2/87bab0f533145da458a8b4dc47eb840980113664d3efc68d5514b450bf6137d2/diff:/var/lib/docker/overlay2/27d48b18727b9afeb0721515835af0df0149785991c721fb89aa22893a831ddd/diff:/var/lib/docker/overlay2/61c7db1cc78fe1eea25f1a08da0ac48ec173580fafbf575ef4807fa6d9de3a72/diff:/var/lib/docker/overlay2/f73e7786ca0f63803c69f54090a90a917558465292f90b478bdc66f6797e39dc/diff:/var/lib/docker/overlay2/db0576619eaa52bd9bfcabb8244e0244d1e6d480ca5f4c9a7504a821897d3d20/diff",
+                "MergedDir": "/var/lib/docker/overlay2/9177355634eac72261130d2c7696f5051353e0a6221142e82755711fae44de01/merged",
+                "UpperDir": "/var/lib/docker/overlay2/9177355634eac72261130d2c7696f5051353e0a6221142e82755711fae44de01/diff",
+                "WorkDir": "/var/lib/docker/overlay2/9177355634eac72261130d2c7696f5051353e0a6221142e82755711fae44de01/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/usr/local/sbin/npu-smi",
+                "Destination": "/usr/local/bin/npu-smi",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-vector-fused-20261024/build/libpspkv_final.so",
+                "Destination": "/comparison-native/libpspkv_ascend_native.so",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-opt-20261024",
+                "Destination": "/optimization",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-vector-fused-20261024/ops-final.py",
+                "Destination": "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_ops.py",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/usr/local/Ascend/driver/version.info",
+                "Destination": "/usr/local/Ascend/driver/version.info",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/usr/local/Ascend/driver/lib64",
+                "Destination": "/usr/local/Ascend/driver/lib64",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/etc/ascend_install.info",
+                "Destination": "/etc/ascend_install.info",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-metadata-20261025/comparison",
+                "Destination": "/comparison",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-metadata-20261025/comparison/backend_overlay.py",
+                "Destination": "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend.py",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-native-build",
+                "Destination": "/workspace/pspkv-native-build",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/vllm-pspkv",
+                "Destination": "/workspace/pspkv-src",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-vector-fused-20261024",
+                "Destination": "/vector",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/vllm-ascend-smoke-cache",
+                "Destination": "/root/.cache",
+                "Mode": "",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/root/zhang/pspkv-ascend-overlay/v0.20.2rc1/vllm_ascend/platform.py",
+                "Destination": "/vllm-workspace/vllm-ascend/vllm_ascend/platform.py",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/usr/local/dcmi",
+                "Destination": "/usr/local/dcmi",
+                "Mode": "",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "f21d4655392c",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PSPKV_COMPARE_FORMAT=btkv",
+                "PSPKV_COMPARE_DIAGNOSTICS=0",
+                "PSPKV_COMPARE_OPTIMIZED=1",
+                "PSPKV_COMPARE_PAGED_MIN_LENGTH=64",
+                "PSPKV_ASCEND_SHARE_METADATA=1",
+                "VLLM_WORKER_MULTIPROC_METHOD=spawn",
+                "PSPKV_ASCEND_NATIVE_LIB=/comparison-native/libpspkv_ascend_native.so",
+                "VLLM_USE_MODELSCOPE=True",
+                "PSPKV_COMPARE_PRECISION=e4m3",
+                "PSPKV_ASCEND_ATTENTION_IMPL=auto",
+                "PSPKV_METADATA_CONTROL_FILE=/comparison/metadata-mode-btkv.txt",
+                "PYTHONPATH=/comparison:/workspace/pspkv-src:/vllm-workspace/vllm-ascend",
+                "PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/bin:/usr/local/Ascend/ascend-toolkit/latest/bin:/usr/local/Ascend/ascend-toolkit/latest/compiler/ccec_compiler/bin:/usr/local/Ascend/ascend-toolkit/latest/tools/ccec_compiler/bin:/usr/local/Ascend/cann-9.0.0/tools/show_kernel_debug_data:/usr/local/Ascend/cann-9.0.0/tools/msobjdump:/usr/local/Ascend/cann-9.0.0/bin:/usr/local/Ascend/cann-9.0.0/tools/ccec_compiler/bin:/usr/local/Ascend/cann-9.0.0/tools/profiler/bin:/usr/local/Ascend/cann-9.0.0/tools/ascend_system_advisor/asys:/usr/local/python3.11.15/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LD_LIBRARY_PATH=/usr/local/Ascend/cann-9.0.0/lib64:/usr/local/Ascend/cann-9.0.0/lib64/plugin/opskernel:/usr/local/Ascend/cann-9.0.0/lib64/plugin/nnengine:/usr/local/Ascend/cann-9.0.0/opp/built-in/op_impl/ai_core/tbe/op_tiling:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/examples:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/tests/atbopstest:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling:/usr/local/python3.11.15/lib:",
+                "ASCEND_TOOLKIT_HOME=/usr/local/Ascend/cann-9.0.0",
+                "ASCEND_TOOLKIT_LATEST_HOME=/usr/local/Ascend/ascend-toolkit/latest",
+                "ASCEND_AICPU_PATH=/usr/local/Ascend/cann-9.0.0",
+                "ASCEND_OPP_PATH=/usr/local/Ascend/cann-9.0.0/opp",
+                "TOOLCHAIN_HOME=/usr/local/Ascend/cann-9.0.0/toolkit",
+                "ASCEND_HOME_PATH=/usr/local/Ascend/cann-9.0.0",
+                "CMAKE_PREFIX_PATH=/usr/local/Ascend/cann-9.0.0/toolkit/tools/tikicpulib/lib/cmake:/usr/local/Ascend/cann-9.0.0/lib64/cmake",
+                "ATB_HOME_PATH=/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1",
+                "ATB_STREAM_SYNC_EVERY_KERNEL_ENABLE=0",
+                "ATB_STREAM_SYNC_EVERY_RUNNER_ENABLE=0",
+                "ATB_STREAM_SYNC_EVERY_OPERATION_ENABLE=0",
+                "ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1",
+                "ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=5",
+                "ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=1",
+                "ATB_COMPARE_TILING_EVERY_KERNEL=0",
+                "ATB_SHARE_MEMORY_NAME_SUFFIX=",
+                "ATB_MATMUL_SHUFFLE_K_ENABLE=1",
+                "LCCL_DETERMINISTIC=0",
+                "LCCL_PARALLEL=0",
+                "DEBIAN_FRONTEND=noninteractive",
+                "SOC_VERSION=ascend910b1",
+                "TASK_QUEUE_ENABLE=1",
+                "OMP_NUM_THREADS=1"
+            ],
+            "Cmd": [
+                "-lc",
+                "source /usr/local/Ascend/ascend-toolkit/set_env.sh; exec /workspace/pspkv-native-build/.venv/bin/python /comparison/serve_initialized_npu.py \"$@\"",
+                "bash",
+                "serve",
+                "Qwen/Qwen2.5-7B",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--seed",
+                "123",
+                "--tensor-parallel-size",
+                "1",
+                "--block-size",
+                "128",
+                "--max-num-seqs",
+                "1",
+                "--max-model-len",
+                "256",
+                "--gpu-memory-utilization",
+                "0.35",
+                "--attention-backend",
+                "PSP_KV",
+                "--kv-cache-dtype",
+                "fp8",
+                "--no-enable-prefix-caching",
+                "--enforce-eager"
+            ],
+            "Image": "quay.io/ascend/vllm-ascend:v0.20.2rc1",
+            "Volumes": null,
+            "WorkingDir": "/workspace",
+            "Entrypoint": [
+                "bash"
+            ],
+            "OnBuild": null,
+            "Labels": {
+                "org.opencontainers.image.version": "22.04"
+            }
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "ad49ff85698400b88fa4d6dec39ac38c3b45c0843b6101cbc58bdd191b7b8651",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {
+                "8000/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18134"
+                    }
+                ]
+            },
+            "SandboxKey": "/var/run/docker/netns/ad49ff856984",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "e67d039e5d29464f8193cf3def3fa7311aa3cb5ae2848c2d51e1c0a56a9a0362",
+            "Gateway": "100.102.0.1",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "100.102.0.11",
+            "IPPrefixLen": 16,
+            "IPv6Gateway": "",
+            "MacAddress": "02:42:64:66:00:0b",
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "NetworkID": "9ebe2bdd700ad55e176f8702fcab6d9e3c90920d8d558bdb894267733eff1a84",
+                    "EndpointID": "e67d039e5d29464f8193cf3def3fa7311aa3cb5ae2848c2d51e1c0a56a9a0362",
+                    "Gateway": "100.102.0.1",
+                    "IPAddress": "100.102.0.11",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:64:66:00:0b",
+                    "DriverOpts": null
+                }
+            }
+        }
+    }
+]

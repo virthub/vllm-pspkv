@@ -1,0 +1,2268 @@
+--- a/ascend/native/pspkv_fp8.asc
++++ b/ascend/native/pspkv_fp8.asc
+@@ -698,15 +698,21 @@
+ // contain >=64 bytes even for FP4; transposed V jobs own a whole dimension
+ // row (>=64 bytes). Slots must be unique within a call. Unit scales are
+ // initialized by the caller instead of rewritten once per element.
++#include "pspkv_rope.h"
++
++template <bool SeparateKV = false>
+ __global__ __vector__ void PspkvPackedScatterParallel(
+-    GM_ADDR prefill, GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR slot_mapping,
++    GM_ADDR prefill, GM_ADDR value_source, GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR slot_mapping,
+     GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales, uint32_t tokens,
+-    uint32_t heads, uint32_t dimension, uint32_t block_size, uint32_t generation) {
+-    AscendC::GlobalTensor<uint8_t> source, keys, values, codes;
++    uint32_t heads, uint32_t dimension, uint32_t block_size, uint32_t generation,
++    uint32_t key_token_stride, uint32_t key_head_stride,
++    uint32_t value_token_stride, uint32_t value_head_stride) {
++    AscendC::GlobalTensor<uint8_t> source, value_input, keys, values, codes;
+     AscendC::GlobalTensor<int64_t> slots;
+     AscendC::GlobalTensor<int32_t> byte_offsets;
+     AscendC::GlobalTensor<float> per_head_scales;
+     source.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(prefill));
++    value_input.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_source));
+     keys.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(key_cache));
+     values.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_cache));
+     codes.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(formats));
+@@ -735,11 +741,14 @@
+                                   + head * per_head;
+             const uint32_t element = token_major ? within * dimension + dim
+                                                 : dim * block_size + within;
+-            const uint32_t src = ((token * 2 + (key_job ? 0 : 1)) * heads + head)
+-                                 * dimension + dim;
++            const uint32_t src = SeparateKV
++                ? token * (key_job ? key_token_stride : value_token_stride)
++                  + head * (key_job ? key_head_stride : value_head_stride) + dim
++                : ((token * 2 + (key_job ? 0 : 1)) * heads + head) * dimension + dim;
+             const float scale = code == 3
+                 ? per_head_scales.GetValue(physical * heads + head) : 1.0f;
+             if (key_job) WritePacked(source, keys, src, base, element, code, 0, scale);
++            else if (SeparateKV) WritePacked(value_input, values, src, base, element, code, 0, scale);
+             else WritePacked(source, values, src, base, element, code, 0, scale);
+         }
+     }
+@@ -1979,13 +1988,109 @@
+     auto stream = c10_npu::getCurrentNPUStream().stream(true);
+     const int64_t jobs = tokens * heads + (generation == 0 ? tokens * heads : heads * dim);
+     const uint32_t cores = static_cast<uint32_t>(jobs < 40 ? jobs : 40);
+-    PspkvPackedScatterParallel<<<cores, nullptr, stream>>>(
+-        (GM_ADDR)prefill.const_data_ptr(), (GM_ADDR)key_cache.mutable_data_ptr(),
++    PspkvPackedScatterParallel<false><<<cores, nullptr, stream>>>(
++        (GM_ADDR)prefill.const_data_ptr(), (GM_ADDR)prefill.const_data_ptr(), (GM_ADDR)key_cache.mutable_data_ptr(),
+         (GM_ADDR)value_cache.mutable_data_ptr(), (GM_ADDR)slots.const_data_ptr(),
+         (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
+         (GM_ADDR)scales.const_data_ptr(), static_cast<uint32_t>(tokens),
+         static_cast<uint32_t>(heads), static_cast<uint32_t>(dim),
+-        static_cast<uint32_t>(block_size), static_cast<uint32_t>(generation));
++        static_cast<uint32_t>(block_size), static_cast<uint32_t>(generation), 0, 0, 0, 0);
++}
++
++// K/V may be views into a packed QKV projection. Read their original strides
++// directly: no stack, contiguous copy, or temporary source allocation.
++void packed_scatter_kv(const at::Tensor& key, const at::Tensor& value,
++    at::Tensor& key_cache, at::Tensor& value_cache, const at::Tensor& slots,
++    const at::Tensor& formats, const at::Tensor& offsets, const at::Tensor& scales,
++    int64_t block_size, int64_t generation) {
++    TORCH_CHECK(key.device().type() == c10::DeviceType::PrivateUse1
++        && key.dim() == 3 && value.sizes() == key.sizes()
++        && key.scalar_type() == at::kBFloat16 && value.scalar_type() == at::kBFloat16
++        && key.stride(2) == 1 && value.stride(2) == 1,
++        "direct scatter requires BF16 [tokens,heads,dim] with contiguous dimensions");
++    const int64_t tokens = key.size(0), heads = key.size(1), dim = key.size(2);
++    TORCH_CHECK(heads > 0 && dim > 0 && dim % 128 == 0
++        && block_size > 0 && block_size % 128 == 0 && generation >= 0 && generation <= 2,
++        "direct scatter requires aligned Basic/Enhanced/BTKV geometry");
++    TORCH_CHECK(value.device() == key.device() && key_cache.device() == key.device()
++        && value_cache.device() == key.device() && slots.device() == key.device()
++        && formats.device() == key.device() && offsets.device() == key.device()
++        && scales.device() == key.device()
++        && key_cache.scalar_type() == at::kByte && value_cache.scalar_type() == at::kByte
++        && key_cache.dim() == 1 && value_cache.dim() == 1
++        && key_cache.is_contiguous() && value_cache.is_contiguous()
++        && slots.scalar_type() == at::kLong && slots.dim() == 1 && slots.numel() == tokens
++        && slots.is_contiguous() && formats.scalar_type() == at::kByte && formats.dim() == 1
++        && formats.is_contiguous() && offsets.scalar_type() == at::kInt
++        && offsets.dim() == 1 && offsets.numel() == formats.numel() && offsets.is_contiguous()
++        && scales.scalar_type() == at::kFloat && scales.is_contiguous()
++        && scales.dim() == 2 && scales.size(0) == formats.numel() && scales.size(1) == heads,
++        "direct scatter tensors must share one NPU and compatible metadata");
++    for (const auto& tensor : {key, value}) {
++        TORCH_CHECK(tensor.stride(0) >= 0 && tensor.stride(1) >= 0
++            && tokens * tensor.stride(0) + heads * tensor.stride(1) + dim
++               <= std::numeric_limits<uint32_t>::max(), "direct scatter source exceeds indexing limits");
++    }
++    TORCH_CHECK(key_cache.numel() <= std::numeric_limits<uint32_t>::max()
++        && value_cache.numel() <= std::numeric_limits<uint32_t>::max(),
++        "direct scatter cache exceeds indexing limits");
++    if (!tokens) return;
++    const c10::DeviceGuard guard(key.device());
++    auto stream = c10_npu::getCurrentNPUStream().stream(true);
++    const int64_t jobs = tokens * heads + (generation == 0 ? tokens * heads : heads * dim);
++    const uint32_t cores = static_cast<uint32_t>(std::min<int64_t>(jobs, 40));
++    PspkvPackedScatterParallel<true><<<cores, nullptr, stream>>>(
++        (GM_ADDR)key.const_data_ptr(), (GM_ADDR)value.const_data_ptr(),
++        (GM_ADDR)key_cache.mutable_data_ptr(), (GM_ADDR)value_cache.mutable_data_ptr(),
++        (GM_ADDR)slots.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(),
++        (GM_ADDR)offsets.const_data_ptr(), (GM_ADDR)scales.const_data_ptr(),
++        static_cast<uint32_t>(tokens), static_cast<uint32_t>(heads), static_cast<uint32_t>(dim),
++        static_cast<uint32_t>(block_size), static_cast<uint32_t>(generation),
++        static_cast<uint32_t>(key.stride(0)), static_cast<uint32_t>(key.stride(1)),
++        static_cast<uint32_t>(value.stride(0)), static_cast<uint32_t>(value.stride(1)));
++}
++
++void rope_scatter_kv(at::Tensor& query, const at::Tensor& key, const at::Tensor& value,
++    const at::Tensor& positions, const at::Tensor& cos_sin,
++    at::Tensor& key_cache, at::Tensor& value_cache, const at::Tensor& slots,
++    const at::Tensor& formats, const at::Tensor& offsets, int64_t block_size,
++    int64_t generation) {
++    const auto device = query.device();
++    TORCH_CHECK(device.type() == c10::DeviceType::PrivateUse1
++        && query.dim() == 3 && key.dim() == 3 && value.sizes() == key.sizes()
++        && query.size(0) == 1 && key.size(0) == 1 && query.size(2) == 128
++        && key.size(2) == 128 && query.size(1) > 0 && key.size(1) > 0
++        && query.is_contiguous() && key.is_contiguous() && value.is_contiguous()
++        && block_size == 128 && generation >= 0 && generation <= 2,
++        "RoPE scatter supports one-token NeoX BF16 heads of size 128 and 128-token pages");
++    for (const auto& tensor : {query, key, value}) {
++        TORCH_CHECK(tensor.device() == device && tensor.scalar_type() == at::kBFloat16,
++                    "RoPE scatter requires BF16 Q/K/V on one NPU");
++    }
++    TORCH_CHECK(positions.device() == device && positions.scalar_type() == at::kLong
++        && positions.numel() == 1 && positions.is_contiguous()
++        && cos_sin.device() == device && cos_sin.dim() == 2 && cos_sin.size(1) == 128
++        && cos_sin.is_contiguous() && (cos_sin.scalar_type() == at::kBFloat16 || cos_sin.scalar_type() == at::kFloat),
++        "RoPE scatter requires device positions and BF16/FP32 cos-sin cache");
++    TORCH_CHECK(slots.device() == device && slots.scalar_type() == at::kLong
++        && slots.numel() == 1 && slots.is_contiguous()
++        && formats.device() == device && formats.scalar_type() == at::kByte
++        && formats.dim() == 1 && formats.is_contiguous()
++        && offsets.device() == device && offsets.scalar_type() == at::kInt
++        && offsets.sizes() == formats.sizes() && offsets.is_contiguous(), "invalid RoPE scatter metadata");
++    for (const auto& tensor : {key_cache, value_cache}) {
++        TORCH_CHECK(tensor.device() == device && tensor.scalar_type() == at::kByte
++            && tensor.dim() == 1 && tensor.is_contiguous()
++            && tensor.numel() <= std::numeric_limits<uint32_t>::max(), "invalid RoPE scatter arena");
++    }
++    const c10::DeviceGuard guard(device);
++    auto stream = c10_npu::getCurrentNPUStream().stream(true);
++    PspkvRopeScatter<<<40, nullptr, stream>>>(
++        (GM_ADDR)query.mutable_data_ptr(), (GM_ADDR)key.const_data_ptr(), (GM_ADDR)value.const_data_ptr(),
++        (GM_ADDR)positions.const_data_ptr(), (GM_ADDR)cos_sin.const_data_ptr(),
++        (GM_ADDR)key_cache.mutable_data_ptr(), (GM_ADDR)value_cache.mutable_data_ptr(),
++        (GM_ADDR)slots.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
++        query.size(1), key.size(1), 128, block_size, generation, cos_sin.scalar_type() == at::kFloat);
+ }
+ 
+ std::tuple<at::Tensor, at::Tensor> gather_paged_bf16(
+@@ -2065,6 +2170,43 @@
+         (GM_ADDR)key.mutable_data_ptr(), (GM_ADDR)value.mutable_data_ptr(),
+         tables.size(0), tables.size(1), heads, dim, block_size, generation);
+     return {key, value};
++}
++
++void gather_paged_bf16_vec_out(
++    const at::Tensor& key_cache, const at::Tensor& value_cache,
++    const at::Tensor& tables, const at::Tensor& lengths, const at::Tensor& formats,
++    const at::Tensor& offsets, const at::Tensor& scales, const at::Tensor& e4,
++    const at::Tensor& e5, const at::Tensor& permutation, int64_t generation,
++    int64_t heads, int64_t dim, int64_t block_size, at::Tensor& key, at::Tensor& value) {
++    check_packed_inputs(key_cache, tables, lengths, formats, offsets, scales,
++                        generation, heads, dim, block_size);
++    check_tile_tables(key_cache, e4, e5, permutation, dim);
++    TORCH_CHECK(value_cache.device() == key_cache.device() && value_cache.dim() == 1
++        && value_cache.scalar_type() == at::kByte && value_cache.is_contiguous()
++        && value_cache.numel() <= std::numeric_limits<uint32_t>::max(),
++        "vector gather needs a contiguous NPU V arena");
++    TORCH_CHECK(generation >= 0 && generation <= 2 && heads > 0
++        && (dim == 128 || dim == 256) && block_size % 128 == 0
++        && (generation == 0 || scales.dim() == 2), "unsupported vector gather geometry");
++    const int64_t pages = tables.size(0) * tables.size(1);
++    TORCH_CHECK(pages * block_size * heads * dim <= std::numeric_limits<uint32_t>::max(),
++        "vector gather scratch exceeds indexing limits");
++    for (const auto& tensor : {key, value}) {
++        TORCH_CHECK(tensor.device() == key_cache.device() && tensor.scalar_type() == at::kBFloat16
++            && tensor.is_contiguous() && tensor.dim() == 4 && tensor.size(0) == pages
++            && tensor.size(1) == block_size && tensor.size(2) == heads && tensor.size(3) == dim,
++            "vector gather outputs must be BF16 [active_pages,block,heads,dim]");
++    }
++    const c10::DeviceGuard guard(key_cache.device());
++    auto stream = c10_npu::getCurrentNPUStream().stream(true);
++    PspkvGatherPagedBF16Vec<<<40, nullptr, stream>>>(
++        (GM_ADDR)key_cache.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
++        (GM_ADDR)tables.const_data_ptr(), (GM_ADDR)lengths.const_data_ptr(),
++        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
++        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)e4.const_data_ptr(),
++        (GM_ADDR)e5.const_data_ptr(), (GM_ADDR)permutation.const_data_ptr(),
++        (GM_ADDR)key.mutable_data_ptr(), (GM_ADDR)value.mutable_data_ptr(),
++        tables.size(0), tables.size(1), heads, dim, block_size, generation);
+ }
+ 
+ at::Tensor tile_fused_attention(
+@@ -2116,6 +2258,15 @@
+ }  // namespace psp_kv_ascend_native
+ 
+ TORCH_LIBRARY(psp_kv_ascend_native, m) {
++    m.def("gather_paged_bf16_vec_out(Tensor key_cache, Tensor value_cache, Tensor block_tables, "
++          "Tensor context_lens, Tensor formats, Tensor offsets, Tensor scales, Tensor e4, Tensor e5, "
++          "Tensor permutation, int generation, int heads, int head_dim, int block_size, "
++          "Tensor(a!) key_output, Tensor(b!) value_output) -> ()");
++    m.def("rope_scatter_kv(Tensor(a!) query, Tensor key, Tensor value, Tensor positions, Tensor cos_sin, "
++          "Tensor(b!) key_cache, Tensor(c!) value_cache, Tensor slots, Tensor formats, Tensor offsets, "
++          "int block_size, int generation) -> ()");
++    m.def("packed_scatter_kv(Tensor key, Tensor value, Tensor(a!) key_cache, Tensor(b!) value_cache, "
++          "Tensor slots, Tensor formats, Tensor offsets, Tensor scales, int block_size, int generation) -> ()");
+     m.def("tile_fused_attention(Tensor query, Tensor key_cache, Tensor value_cache, "
+           "Tensor tables, Tensor lengths, Tensor formats, Tensor offsets, Tensor scales, "
+           "Tensor e4, Tensor e5, Tensor permutation, int generation, int kv_heads, "
+@@ -2168,6 +2319,9 @@
+           "Tensor block_tables, Tensor context_lens, int target_dtype) -> Tensor");
+ }
+ TORCH_LIBRARY_IMPL(psp_kv_ascend_native, PrivateUse1, m) {
++    m.impl("gather_paged_bf16_vec_out", TORCH_FN(psp_kv_ascend_native::gather_paged_bf16_vec_out));
++    m.impl("rope_scatter_kv", TORCH_FN(psp_kv_ascend_native::rope_scatter_kv));
++    m.impl("packed_scatter_kv", TORCH_FN(psp_kv_ascend_native::packed_scatter_kv));
+     m.impl("tile_fused_attention", TORCH_FN(psp_kv_ascend_native::tile_fused_attention));
+     m.impl("gather_paged_bf16_vec", TORCH_FN(psp_kv_ascend_native::gather_paged_bf16_vec));
+     m.impl("packed_scatter_parallel", TORCH_FN(psp_kv_ascend_native::packed_scatter_parallel));
+--- /dev/null
++++ b/ascend/native/pspkv_rope.h
+@@ -0,0 +1,113 @@
++// SPDX-License-Identifier: Apache-2.0
++// SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++#pragma once
++
++// Single-token NeoX RoPE + FP8 write. Q is rotated in place, K is rounded
++// to BF16 in UB and encoded directly into its page without a GM K round trip.
++// Each Q/K head and each transposed V dimension row has a unique owner.
++__global__ __vector__ void PspkvRopeScatter(
++    GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR positions,
++    GM_ADDR cos_sin, GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR slots,
++    GM_ADDR formats, GM_ADDR offsets, uint32_t q_heads, uint32_t kv_heads,
++    uint32_t dimension, uint32_t block_size, uint32_t generation,
++    uint32_t cos_float) {
++  AscendC::GlobalTensor<bfloat16_t> q, k;
++  AscendC::GlobalTensor<uint8_t> v, keys, values, codes;
++  AscendC::GlobalTensor<int64_t> position, slot;
++  AscendC::GlobalTensor<int32_t> byte_offsets;
++  q.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(query));
++  k.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(key));
++  v.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value));
++  keys.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(key_cache));
++  values.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_cache));
++  codes.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(formats));
++  position.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t*>(positions));
++  slot.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t*>(slots));
++  byte_offsets.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(offsets));
++  AscendC::TPipe pipe;
++  AscendC::TBuf<AscendC::TPosition::VECCALC> raw_buffer, cos_raw_buffer,
++      input_buffer, cos_buffer, temp_buffer, result_buffer;
++  pipe.InitBuffer(raw_buffer, dimension * 2);
++  pipe.InitBuffer(cos_raw_buffer, dimension * 2);
++  pipe.InitBuffer(input_buffer, dimension * 4);
++  pipe.InitBuffer(cos_buffer, dimension * 4);
++  pipe.InitBuffer(temp_buffer, dimension * 4);
++  pipe.InitBuffer(result_buffer, dimension * 4);
++  auto raw = raw_buffer.Get<bfloat16_t>();
++  auto cos_raw = cos_raw_buffer.Get<bfloat16_t>();
++  auto input = input_buffer.Get<float>();
++  auto cs = cos_buffer.Get<float>();
++  auto temp = temp_buffer.Get<float>();
++  auto result = result_buffer.Get<float>();
++  const uint32_t half_dim = dimension / 2;
++  const uint32_t value_jobs = generation == 0 ? kv_heads : kv_heads * dimension;
++  const int64_t current_slot = slot.GetValue(0);
++  const uint32_t physical = current_slot < 0 ? 0 : current_slot / block_size;
++  const uint32_t within = current_slot < 0 ? 0 : current_slot % block_size;
++  const uint32_t cache_base = byte_offsets.GetValue(physical);
++  const uint8_t code = codes.GetValue(physical);
++  bool loaded_cos = false;
++  for (uint32_t job = AscendC::GetBlockIdx();
++       job < q_heads + kv_heads + value_jobs; job += AscendC::GetBlockNum()) {
++    if (job < q_heads + kv_heads) {
++      const bool is_query = job < q_heads;
++      if (!is_query && current_slot < 0) continue;
++      const uint32_t head = is_query ? job : job - q_heads;
++      if (!loaded_cos) {
++        const uint32_t pos = position.GetValue(0);
++        if (cos_float) {
++          AscendC::GlobalTensor<float> cache;
++          cache.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(cos_sin));
++          AscendC::DataCopy(cs, cache[pos * dimension], dimension);
++        } else {
++          AscendC::GlobalTensor<bfloat16_t> cache;
++          cache.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(cos_sin));
++          AscendC::DataCopy(cos_raw, cache[pos * dimension], dimension);
++          pipe_barrier(PIPE_ALL);
++          AscendC::Cast(cs, cos_raw, AscendC::RoundMode::CAST_NONE, dimension);
++        }
++        loaded_cos = true;
++      }
++      AscendC::DataCopy(raw, (is_query ? q : k)[head * dimension], dimension);
++      pipe_barrier(PIPE_ALL);
++      AscendC::Cast(input, raw, AscendC::RoundMode::CAST_NONE, dimension);
++      pipe_barrier(PIPE_V);
++      AscendC::Mul(temp, input, cs, half_dim);
++      AscendC::Mul(temp[half_dim], input[half_dim], cs[half_dim], half_dim);
++      pipe_barrier(PIPE_V);
++      AscendC::Sub(result, temp, temp[half_dim], half_dim);
++      pipe_barrier(PIPE_V);
++      AscendC::Mul(temp, input[half_dim], cs, half_dim);
++      AscendC::Mul(temp[half_dim], input, cs[half_dim], half_dim);
++      pipe_barrier(PIPE_V);
++      AscendC::Add(result[half_dim], temp, temp[half_dim], half_dim);
++      pipe_barrier(PIPE_V);
++      AscendC::Cast(raw, result, AscendC::RoundMode::CAST_RINT, dimension);
++      pipe_barrier(PIPE_ALL);
++      if (is_query) {
++        AscendC::DataCopy(q[head * dimension], raw, dimension);
++      } else {
++        const uint32_t base = cache_base + head * block_size * dimension;
++        auto bits = raw.ReinterpretCast<uint16_t>();
++        for (uint32_t d = 0; d < dimension; ++d) {
++          const uint32_t fp32 = static_cast<uint32_t>(bits.GetValue(d)) << 16;
++          keys.SetValue(base + within * dimension + d,
++                        code == 2 ? EncodeE5M2(fp32) : EncodeE4M3(fp32));
++        }
++      }
++      pipe_barrier(PIPE_ALL);
++    } else if (current_slot >= 0) {
++      const uint32_t local = job - q_heads - kv_heads;
++      const uint32_t head = generation == 0 ? local : local / dimension;
++      const uint32_t base = cache_base + head * block_size * dimension;
++      const uint32_t count = generation == 0 ? dimension : 1;
++      for (uint32_t i = 0; i < count; ++i) {
++        const uint32_t d = generation == 0 ? i : local % dimension;
++        const uint32_t element =
++            generation == 0 ? within * dimension + d : d * block_size + within;
++        WritePacked(v, values, head * dimension + d, base, element, code, 0,
++                    1.0f);
++      }
++    }
++  }
++}
+--- a/vllm/v1/attention/backends/psp_kv_ascend.py
++++ b/vllm/v1/attention/backends/psp_kv_ascend.py
+@@ -108,7 +108,20 @@
+                 "PSP-KV Ascend does not support cross-layer KV sharing"
+             )
+         config = self.vllm_config
+-        if not config.model_config.enforce_eager:
++        # The isolated fixed-format adapter supplies graph-safe kernels and
++        # verifies runner-owned metadata addresses before replay. Other
++        # reference/dynamic paths still require eager execution.
++        comparison_graph = (
++            os.environ.get("PSPKV_ASCEND_FULL_GRAPH") == "1"
++            and os.environ.get("PSPKV_COMPARE_FORMAT") in ("basic", "enhanced", "btkv")
++            and os.environ.get("PSPKV_COMPARE_OPTIMIZED") == "1"
++            and os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3") in ("e4m3", "e5m2")
++            and config.model_config.dtype == torch.bfloat16
++            and config.model_config.max_model_len <= 256
++            and config.scheduler_config.max_num_seqs == 1
++            and self.head_size == 128
++        )
++        if not config.model_config.enforce_eager and not comparison_graph:
+             raise ValueError("PSP-KV Ascend reference backend requires --enforce-eager")
+         if config.kv_transfer_config is not None:
+             raise NotImplementedError("PSP-KV Ascend does not support KV transfer")
+--- a/vllm/v1/attention/backends/psp_kv_ascend_ops.py
++++ b/vllm/v1/attention/backends/psp_kv_ascend_ops.py
+@@ -42,6 +42,35 @@
+     return torch.arange(sequences * blocks, dtype=torch.int32, device=device).view(
+         sequences, blocks
+     )
++
++
++def _forward_workspace(query, tables, heads, dimension, block_size):
++    """Reuse active-page scratch only within one forward and one NPU stream.
++
++    Layers execute sequentially on that stream: each attention consumes the
++    scratch before the next layer overwrites it. No BF16 shadow of the full
++    compressed cache is retained, and no cross-request workspace is cached.
++    """
++    from vllm.forward_context import (
++        get_forward_context,
++        is_forward_context_available,
++    )
++
++    if not is_forward_context_available():
++        return None
++    owner = get_forward_context()
++    if getattr(owner, "_pspkv_pipeline_level", 0) < 1:
++        return None
++    if not hasattr(owner, "_pspkv_paged_workspaces"):
++        owner._pspkv_paged_workspaces = {}
++    shape = (tables.numel(), block_size, heads, dimension)
++    stream = torch.npu.current_stream(query.device).npu_stream
++    cache_key = (query.device, stream, shape)
++    workspaces = owner._pspkv_paged_workspaces
++    if cache_key not in workspaces:
++        key = torch.empty(shape, dtype=torch.bfloat16, device=query.device)
++        workspaces[cache_key] = (key, torch.empty_like(key))
++    return workspaces[cache_key]
+ 
+ 
+ @lru_cache(maxsize=2)
+@@ -270,7 +299,7 @@
+                 gather = ops.gather_paged_bf16_vec
+                 e4, e5, _ = packed_lookup_tables(query.device)
+                 table_args = [e4, e5, _tile_permutation(query.device, head_size)]
+-            key, value = gather(
++            gather_args = (
+                 key_cache,
+                 value_cache,
+                 block_tables,
+@@ -284,6 +313,18 @@
+                 head_size,
+                 block_size,
+             )
++            workspace = (
++                _forward_workspace(
++                    query, block_tables, num_kv_heads, head_size, block_size
++                )
++                if table_args and hasattr(ops, "gather_paged_bf16_vec_out")
++                else None
++            )
++            if workspace is not None:
++                key, value = workspace
++                ops.gather_paged_bf16_vec_out(*gather_args, key, value)
++            else:
++                key, value = gather(*gather_args)
+             torch_npu._npu_paged_attention(
+                 query=query,
+                 key_cache=key,
+--- a/ascend/format_compare_runtime.py
++++ b/ascend/format_compare_runtime.py
+@@ -20,6 +20,13 @@
+ from functools import lru_cache
+ 
+ import torch
++from pipeline_runtime import (
++    GRAPH_INPUTS,
++    consume_deferred_rope,
++    graph_signature,
++    install_deferred_rope,
++    pipeline_level,
++)
+ from shared_metadata import current_owner, prepare_metadata, reuse_enabled
+ 
+ from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
+@@ -29,6 +36,8 @@
+ STATES = {}
+ SHADOW_CACHES = {}
+ METADATA_LOGGED = False
++ROPE_LOGGED = False
++install_deferred_rope()
+ 
+ 
+ @lru_cache(maxsize=2)
+@@ -59,7 +68,7 @@
+     scale,
+     **kwargs,
+ ):
+-    global METADATA_LOGGED
++    global METADATA_LOGGED, ROPE_LOGGED
+     name = os.environ["PSPKV_COMPARE_FORMAT"]
+     generation = NAMES.index(name)
+     precision = os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3")
+@@ -73,13 +82,19 @@
+     block_size, kv_heads, dimension = k_cache.shape[1:]
+     actual = len(slot_mapping)
+     result = output.view(-1, query.shape[1], dimension)
+-    result.zero_()
++    owner = current_owner()
++    level = pipeline_level(owner)
++    # Valid rows are fully overwritten by attention below. Padding is not
++    # consumed, but preserve its historical zero contract when present.
++    if level == 0 or not actual:
++        result.zero_()
++    elif result.shape[0] > actual:
++        result[actual:].zero_()
+     if not actual:
+         return output
+     assert query_ends[-1] == actual
+     num_queries = query_ends[0]
+     prefix_length = seq_lens[0] - num_queries
+-    owner = current_owner()
+     share_metadata = code in (1, 2) and reuse_enabled(owner)
+     prepared = (
+         prepare_metadata(
+@@ -88,6 +103,14 @@
+         if share_metadata
+         else None
+     )
++    full_graph = os.environ.get("PSPKV_ASCEND_FULL_GRAPH", "0") == "1"
++    if full_graph and num_queries == 1:
++        if prepared is None or not prepared.borrowed_lengths:
++            raise RuntimeError("full graph requires builder-owned device lengths")
++        if getattr(owner, "capturing", False):
++            GRAPH_INPUTS.add(graph_signature(prepared.source))
++    native = load_native_fp8_ops()
++    direct_writer = level >= 1 and hasattr(native, "packed_scatter_kv")
+     if prepared is not None and not METADATA_LOGGED:
+         print(
+             "PSPKV_SHARED_METADATA "
+@@ -134,6 +157,7 @@
+             + json.dumps(
+                 {
+                     "format": name,
++                    "pipeline_level": level,
+                     "metadata_reuse": (
+                         "paired"
+                         if os.environ.get("PSPKV_METADATA_CONTROL_FILE")
+@@ -155,7 +179,11 @@
+                     "unit_scales": True,
+                     "bf16_shadow_control": code == 0,
+                     "native_writer": (
+-                        "packed_scatter_parallel"
++                        "rope_scatter_kv_for_supported_decode"
++                        if level >= 2 and hasattr(native, "rope_scatter_kv")
++                        else "packed_scatter_kv"
++                        if direct_writer and optimized and code in (1, 2)
++                        else "packed_scatter_parallel"
+                         if optimized and code in (1, 2)
+                         else "packed_scatter"
+                     ),
+@@ -204,16 +232,40 @@
+         slot_mapping = torch.arange(
+             prefix_length, prefix_length + actual, device=query.device
+         )
+-    native = load_native_fp8_ops()
+-    source = torch.stack((key[:actual], value[:actual]), dim=1).contiguous()
+     slots = (
+         prepared.slots
+         if prepared is not None
+         else slot_mapping.to(torch.int64).contiguous()
+     )
+-    if optimized and code in (1, 2):
+-        native.packed_scatter_parallel(
+-            source,
++    rope = consume_deferred_rope(owner, query, key)
++    if rope is not None:
++        if not (level >= 2 and optimized and code in (1, 2) and actual == 1):
++            raise RuntimeError("deferred RoPE requires supported FP8 decode writer")
++        native.rope_scatter_kv(
++            query[:1],
++            key[:1],
++            value[:1],
++            rope[1],
++            rope[2],
++            k_cache.view(-1),
++            v_cache.view(-1),
++            slots,
++            codes,
++            offsets,
++            block_size,
++            generation,
++        )
++        if not ROPE_LOGGED:
++            print(
++                "PSPKV_FUSED_ROPE_WRITE "
++                + json.dumps({"format": name, "tokens": actual}),
++                flush=True,
++            )
++            ROPE_LOGGED = True
++    elif direct_writer and optimized and code in (1, 2):
++        native.packed_scatter_kv(
++            key[:actual],
++            value[:actual],
+             k_cache.view(-1),
+             v_cache.view(-1),
+             slots,
+@@ -223,7 +275,21 @@
+             block_size,
+             generation,
+         )
++    elif optimized and code in (1, 2):
++        source = torch.stack((key[:actual], value[:actual]), dim=1).contiguous()
++        native.packed_scatter_parallel(
++            source,
++            k_cache.view(-1),
++            v_cache.view(-1),
++            slots,
++            codes,
++            offsets,
++            scales,
++            block_size,
++            generation,
++        )
+     else:
++        source = torch.stack((key[:actual], value[:actual]), dim=1).contiguous()
+         native.packed_scatter(
+             source,
+             k_cache.view(-1),
+@@ -239,7 +305,9 @@
+         )
+     if num_queries == 1:
+         tables = (
+-            prepared.tables
++            block_tables[:1].to(torch.int32).contiguous()
++            if full_graph
++            else prepared.tables
+             if prepared is not None
+             else (
+                 block_tables[:1, : math.ceil(seq_lens[0] / block_size)]
+@@ -280,7 +348,10 @@
+                     else torch.tensor(seq_lens, dtype=torch.int32, device="cpu")
+                 )
+             }
+-            if optimized and code in (1, 2) and seq_lens[0] >= paged_min_length
++            if not full_graph
++            and optimized
++            and code in (1, 2)
++            and seq_lens[0] >= paged_min_length
+             else {}
+         )
+         getattr(ServingOps(), "psp_attention_" + name)(*args, **extra)
+--- a/ascend/run_format_comparison.sh
++++ b/ascend/run_format_comparison.sh
+@@ -3,6 +3,11 @@
+ set -u
+ : "${NPU_ID:?Choose an idle 910B3}"
+ : "${COMPARISON_DIR:?Set the directory containing the comparison tools}"
++if [[ "${GRAPH_MODE:-eager}" != eager && "${PIPELINE_STAGES:-0}" != 1 &&
++      ( "${PAIRED_METADATA:-0}" == 1 || "${PAIRED_PIPELINE:-0}" == 1 ) ]]; then
++  echo "Graph ablations require PIPELINE_STAGES=1; eager paired controls cannot change a captured graph." >&2
++  exit 2
++fi
+ SOURCE_ROOT="${SOURCE_ROOT:-/root/zhang/vllm-pspkv}"
+ IMAGE="${IMAGE:-quay.io/ascend/vllm-ascend:v0.20.2rc1}"
+ BUILD_DIR="${BUILD_DIR:-/root/zhang/pspkv-native-build}"
+@@ -31,7 +36,9 @@
+     ACTIVE_CONTAINER=""
+   fi
+ }
+-trap cleanup EXIT INT TERM
++trap cleanup EXIT
++trap 'exit 130' INT
++trap 'exit 143' TERM
+ 
+ cp "${BACKEND_SOURCE:-$SOURCE_ROOT/vllm/v1/attention/backends/psp_kv_ascend.py}" \
+   "$COMPARISON_DIR/backend_overlay.py"
+@@ -42,6 +49,10 @@
+     from format_compare_runtime import comparison_attention
+ 
+     reference_attention = comparison_attention
++    if os.environ.get("PSPKV_ASCEND_FULL_GRAPH") == "1":
++        from pipeline_runtime import validate_graph_inputs
++
++        PSPKVAscendImpl.update_graph_params = staticmethod(validate_graph_inputs)
+ PY
+ 
+ read -r -a FORMATS <<< "${COMPARE_FORMATS:-basic enhanced btkv}"
+@@ -60,12 +71,60 @@
+   CLIENT_EXTRA=()
+   PROFILE_CLIENT_EXTRA=()
+   CONTROL_FILE=""
++  PIPELINE_CONTROL=""
++  GRAPH_AB=0
++  GRAPH_ARGS=(--enforce-eager)
++  ADDITIONAL_ARGS=()
++  if [[ -n "${ADDITIONAL_CONFIG:-}" ]]; then
++    ADDITIONAL_ARGS=(--additional-config "$ADDITIONAL_CONFIG")
++  fi
++  if [[ "${GRAPH_MODE:-eager}" != eager ]]; then
++    GRAPH_CONFIG_VALUE='{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[1]}'
++    if [[ "$format" == stock-bf16 ]]; then
++      # Native attention needs the vendor compilation/task-update path.
++      GRAPH_CONFIG_VALUE='{"mode":3,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[1]}'
++    fi
++    GRAPH_ARGS=(--compilation-config "${GRAPH_CONFIG:-$GRAPH_CONFIG_VALUE}")
++  fi
+   if [[ "${PAIRED_METADATA:-0}" == 1 && "$format" != stock-bf16 ]]; then
+     CLIENT_SCRIPT=compare_metadata_client.py
+     CONTROL_FILE="/comparison/metadata-mode-$format.txt"
+     CLIENT_EXTRA=(--control-file "$CONTROL_FILE")
+     PROFILE_CLIENT_EXTRA=(--control-file "$CONTROL_FILE" --trace-root "/comparison/model-profiler-$format")
+     printf '0\n' > "$COMPARISON_DIR/metadata-mode-$format.txt"
++  fi
++  if [[ "${PAIRED_PIPELINE:-0}" == 1 && "$format" != stock-bf16 ]]; then
++    CLIENT_SCRIPT=compare_pipeline_client.py
++    PIPELINE_CONTROL="/comparison/pipeline-mode-$format.txt"
++    CLIENT_EXTRA=(--control-file "$PIPELINE_CONTROL")
++    CLIENT_EXTRA+=(--after-level "${PIPELINE_AFTER_LEVEL:-1}")
++    PROFILE_CLIENT_EXTRA=(--control-file "$PIPELINE_CONTROL" --trace-root "/comparison/model-profiler-$format" --after-level "${PIPELINE_AFTER_LEVEL:-1}")
++    printf '0\n' > "$COMPARISON_DIR/pipeline-mode-$format.txt"
++  fi
++  if [[ "${PIPELINE_CLIENT:-0}" == 1 ]]; then
++    CLIENT_SCRIPT=compare_pipeline_client.py
++  fi
++  if [[ "${PIPELINE_STAGES:-0}" == 1 && "$format" != stock-bf16 ]]; then
++    GRAPH_AB=1
++    CLIENT_SCRIPT=compare_pipeline_stages.py
++    PIPELINE_CONTROL="/comparison/pipeline-mode-$format.txt"
++    STAGE_MODES="${PIPELINE_MODES:-0,1,2,3}"
++    if [[ "$format" == stock-bf16 && -z "${PIPELINE_MODES+x}" ]]; then
++      STAGE_MODES=0,3
++    fi
++    CLIENT_EXTRA=(--control-file "$PIPELINE_CONTROL" --modes "$STAGE_MODES")
++    PROFILE_CLIENT_EXTRA=(--control-file "$PIPELINE_CONTROL" --trace-root "/comparison/model-profiler-$format" --after-level 3)
++    # The decode graph must capture the fully optimized path before the
++    # client starts randomized eager/graph ablations.
++    printf '3\n' > "$COMPARISON_DIR/pipeline-mode-$format.txt"
++  fi
++  if [[ "${PIPELINE_STAGES:-0}" == 1 && "$format" == stock-bf16 ]]; then
++    # Native BF16's CPU task updates are not compatible with the custom
++    # same-process graph bypass. Measure it in a separate fixed-mode process.
++    CLIENT_SCRIPT=compare_pipeline_client.py
++  fi
++  if [[ "$CLIENT_SCRIPT" == compare_pipeline_client.py || "$CLIENT_SCRIPT" == compare_pipeline_stages.py ]]; then
++    CLIENT_EXTRA+=(--long-input-tokens "${LONG_INPUT_TOKENS:-135}")
+   fi
+   if [[ "${PROFILE_MODEL:-0}" == 1 && "$format" == basic ]]; then
+     PROFILER_ARGS=(--profiler-config '{"profiler":"torch","torch_profiler_dir":"/model-profiler","torch_profiler_with_stack":false,"ignore_frontend":true}')
+@@ -108,6 +167,10 @@
+     -e "PSPKV_ASCEND_ATTENTION_IMPL=${ATTENTION_IMPL:-vector}" \
+     -e "PSPKV_ASCEND_SHARE_METADATA=${SHARE_METADATA:-1}" \
+     -e "PSPKV_METADATA_CONTROL_FILE=$CONTROL_FILE" \
++    -e "PSPKV_ASCEND_PIPELINE_LEVEL=${PIPELINE_LEVEL:-1}" \
++    -e "PSPKV_PIPELINE_CONTROL_FILE=$PIPELINE_CONTROL" \
++    -e "PSPKV_COMPARE_GRAPH_AB=$GRAPH_AB" \
++    -e "PSPKV_ASCEND_FULL_GRAPH=$([[ "${GRAPH_MODE:-eager}" == eager ]] && echo 0 || echo 1)" \
+     -e VLLM_WORKER_MULTIPROC_METHOD=spawn \
+     -e PSPKV_ASCEND_NATIVE_LIB=/comparison-native/libpspkv_ascend_native.so \
+     --entrypoint bash "$IMAGE" -lc \
+@@ -115,10 +178,11 @@
+     bash serve "$MODEL" \
+     --host 0.0.0.0 --port 8000 --seed 123 \
+     --tensor-parallel-size 1 --block-size 128 --max-num-seqs 1 \
+-    --max-model-len 256 --gpu-memory-utilization 0.35 \
++    --max-model-len "${MAX_MODEL_LEN:-256}" --gpu-memory-utilization 0.35 \
+     "${ATTENTION_ARGS[@]}" \
+     "${PROFILER_ARGS[@]}" \
+-    --no-enable-prefix-caching --enforce-eager \
++    "${ADDITIONAL_ARGS[@]}" \
++    --no-enable-prefix-caching "${GRAPH_ARGS[@]}" \
+     >"$COMPARISON_DIR/$format-launch.log" 2>&1 || rc=$?
+   if [[ "$rc" == 0 ]]; then
+     docker run --rm --network host --platform linux/arm64 \
+--- a/ascend/profile_model_client.py
++++ b/ascend/profile_model_client.py
+@@ -16,6 +16,7 @@
+     parser.add_argument("--output", type=Path, required=True)
+     parser.add_argument("--control-file", type=Path)
+     parser.add_argument("--trace-root", type=Path)
++    parser.add_argument("--after-level", type=int, default=1)
+     args = parser.parse_args()
+     measured = json.loads(args.input.read_text())
+     base = f"http://127.0.0.1:{args.port}"
+@@ -32,7 +33,7 @@
+     results = []
+     for enabled in (False, True) if args.control_file else (None,):
+         if args.control_file:
+-            args.control_file.write_text("1" if enabled else "0")
++            args.control_file.write_text(str(args.after_level) if enabled else "0")
+         old_dirs = set(args.trace_root.iterdir()) if args.trace_root else set()
+         requests = []
+         post("/start_profile", {})
+--- a/ascend/serve_initialized_npu.py
++++ b/ascend/serve_initialized_npu.py
+@@ -8,11 +8,21 @@
+ Only use this entry point for the single-device comparison containers.
+ """
+ 
++import os
++
+ import torch
+ import torch_npu  # noqa: F401
+ 
+ torch.npu.set_device(0)
+ 
++if (
++    os.environ.get("PSPKV_COMPARE_GRAPH_AB") == "1"
++    or os.environ.get("PSPKV_ASCEND_FULL_GRAPH") == "1"
++):
++    from pipeline_runtime import install_graph_bypass
++
++    install_graph_bypass()
++
+ if __name__ == "__main__":
+     from vllm.entrypoints.cli.main import main
+ 
+--- a/ascend/README.md
++++ b/ascend/README.md
+@@ -700,3 +700,43 @@
+ 的全部请求混合统计。配对均值的 bootstrap 区间和 P50 差异采用不同口径，报告中分别列出。
+ 
+ 结果、原始采样和复现步骤见[元数据复用报告](results/2026-10-25-metadata/REPORT.zh-CN.md)。
++
++## 推理提交链与 K/V 写入优化
++
++本轮三格式适配器增加直接 K/V 写入、单 token RoPE/写入融合、长上下文
++工作区复用与 decode ACL Graph。权重和 FP8 编码规则保持原样，BTKV 仍为
++参考布局兼容实现。以下路径属于独立测试适配层，没有安装到正常服务后端。
++
++- `packed_scatter_kv` 直接接收独立、可带 stride 的 K/V，省去 `stack` 和中间复制。
++- 有效输出由注意力完整覆盖，仅清零额外 padding；空输入仍返回零输出。
++- `rope_scatter_kv` 在 UB 中计算 NeoX RoPE，K 在 UB 舍入到 BF16 后直接编码入页，
++  Q 原地旋转，V 在同一个 kernel 内写入。仅支持单 token、BF16、head dim 128、
++  128-token 页及固定单位缩放 FP8。其他情况保留原路径。
++- `pipeline_runtime.py` 在 Qwen2 单 token decode 入口延后 RoPE，交给上述写入器。
++  插件已注册的 RoPE 算子持有原函数，单独重绑定其 Python 函数并不能完成接入。
++- 长输入使用 `gather_paged_bf16_vec_out`，同一 forward、同一设备流的各层复用
++  活跃页 BF16 工作区；各层独立 KV 内容仍逐层解码，不跨层复用数据。
++- 图重放读取 runner 持续更新的设备长度、slot 和完整页表，捕获后校验缓冲地址，
++  避免固定捕获时长度或页数。当前整模型图支持范围限制为 TP 1、单请求、BF16、
++  head dim 128、最大长度 256。长输入对照继续使用 eager。
++
++`PSPKV_ASCEND_PIPELINE_LEVEL=0/1/2` 分别选择原路径、直接写入/工作区复用、
++再增加支持范围内的 RoPE 融合；旧动态库缺少新增算子时保留兼容路径。
++比较启动器支持 `PIPELINE_LEVEL`、`GRAPH_MODE=full`、`MAX_MODEL_LEN`、
++`LONG_INPUT_TOKENS` 与可选 `ADDITIONAL_CONFIG`。
++
++`PIPELINE_STAGES=1 GRAPH_MODE=full` 使用 `compare_pipeline_stages.py` 在同一
++已加载模型中随机切换四种模式：0 原 eager，1 直接写入，2 再融合 RoPE，3 重放
++模式 2 的 decode 图。捕获时控制文件必须为 3；模式只在 forward 边界切换。
++BF16 使用独立进程分别测 eager/图模式，其原生图路径需要该插件版本的 `mode=3`
++初始化注意力参数；自定义 PSP-KV 图不依赖 vendor 的 CPU 注意力 task 参数更新。
++当前同进程旁路切换不适用于 vendor BF16 图，已加边界检查，避免用异常输出计时。
++这些旁路开关仅用于消融实验，不是正常服务的调度接口。
++
++使用 `summarize_pipeline_stages.py` 分模式统计延迟、配对区间及输出/logprob 变化，
++不能将四种模式的请求混合统计。应在 profiler 中确认 `PspkvRopeScatter` 实际出现，
++不能仅凭环境变量或独立算子测试认定整模型已经走融合路径。
++
++逐阶段速度、BF16 独立对照、长输入与剩余瓶颈见
++[本轮报告](results/2026-10-26-pipeline/REPORT.zh-CN.md)，
++具体代码改动见[实现说明](results/2026-10-26-pipeline/CHANGES.zh-CN.md)。
+--- /dev/null
++++ b/ascend/pipeline_runtime.py
+@@ -0,0 +1,244 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Forward-scoped controls for isolated pipeline ablation experiments."""
++
++import json
++import os
++from pathlib import Path
++
++GRAPH_INPUTS = set()
++
++
++def graph_signature(metadata):
++    return tuple(
++        tensor.data_ptr()
++        for tensor in (
++            metadata.block_tables,
++            metadata.slot_mapping,
++            metadata.psp_kv_device_seq_lens,
++        )
++    )
++
++
++def validate_graph_inputs(update_stream, forward_context, *args, **kwargs):
++    """Custom kernels read runner-owned device metadata on every replay.
++
++    They do not capture vendor attention task handles or CPU sequence lengths.
++    Refuse replay if the runner replaces one of the captured input buffers.
++    """
++    metadata = forward_context.attn_metadata
++    if not isinstance(metadata, dict):
++        raise ValueError("single-group full graph requires a metadata dictionary")
++    for source in metadata.values():
++        if graph_signature(source) not in GRAPH_INPUTS:
++            raise RuntimeError("PSP-KV graph metadata address changed; replay refused")
++
++
++def experiment_mode(owner):
++    if owner is not None and hasattr(owner, "_pspkv_experiment_mode"):
++        return owner._pspkv_experiment_mode
++    control = os.environ.get("PSPKV_PIPELINE_CONTROL_FILE")
++    level = int(
++        Path(control).read_text().strip()
++        if control
++        else os.environ.get("PSPKV_ASCEND_PIPELINE_LEVEL", "1")
++    )
++    if level not in (0, 1, 2, 3):
++        raise ValueError(
++            "pipeline mode must be 0 (old), 1 (direct), 2 (RoPE), or 3 (graph)"
++        )
++    if owner is not None:
++        owner._pspkv_experiment_mode = level
++    return level
++
++
++def pipeline_level(owner):
++    level = min(experiment_mode(owner), 2)
++    if owner is not None:
++        owner._pspkv_pipeline_level = level
++    return level
++
++
++def install_graph_bypass():
++    """Test-only eager/graph ablation inside the same loaded model process.
++
++    Capture with mode 3 first. Modes 0/1/2 call the same underlying runnable
++    eagerly; mode 3 replays the captured optimized decode graph. Never patch
++    the vendor module on disk or use this switch without explicit opt-in.
++    """
++    ab_test = os.environ.get("PSPKV_COMPARE_GRAPH_AB") == "1"
++    if ab_test and os.environ.get("PSPKV_COMPARE_FORMAT") == "stock-bf16":
++        raise ValueError(
++            "Native BF16 requires independent eager/graph processes; "
++            "the PSP-KV graph bypass is not compatible with its task updates"
++        )
++    if not ab_test and os.environ.get("PSPKV_ASCEND_FULL_GRAPH") != "1":
++        return
++    from vllm_ascend.compilation.acl_graph import ACLGraphWrapper
++
++    from vllm.config import CUDAGraphMode
++    from vllm.forward_context import get_forward_context
++
++    original = ACLGraphWrapper.__call__
++    if getattr(original, "_pspkv_ab", False):
++        return
++
++    def call(self, *args, **kwargs):
++        owner = get_forward_context()
++        mode = experiment_mode(owner) if ab_test else 3
++        runtime_mode = owner.cudagraph_runtime_mode
++        if mode != 3:
++            owner.cudagraph_runtime_mode = CUDAGraphMode.NONE
++        selected = owner.cudagraph_runtime_mode == self.runtime_mode
++        entry = self.concrete_aclgraph_entries.get(owner.batch_descriptor)
++        action = (
++            "replay"
++            if selected and entry is not None and entry.aclgraph is not None
++            else "capture"
++            if selected
++            else "eager"
++        )
++        if action == "replay" and os.environ.get("PSPKV_COMPARE_FORMAT") in (
++            "basic",
++            "enhanced",
++            "btkv",
++        ):
++            # mode=0 compilation intentionally bypasses vendor CPU attention
++            # task updates, so validate our device-buffer contract here too.
++            validate_graph_inputs(None, owner)
++        if not hasattr(self, "_pspkv_ab_seen"):
++            self._pspkv_ab_seen = set()
++        if (mode, action) not in self._pspkv_ab_seen:
++            print(
++                "PSPKV_GRAPH_AB " + json.dumps({"mode": mode, "action": action}),
++                flush=True,
++            )
++            self._pspkv_ab_seen.add((mode, action))
++        try:
++            return original(self, *args, **kwargs)
++        finally:
++            owner.cudagraph_runtime_mode = runtime_mode
++
++    call._pspkv_ab = True
++    ACLGraphWrapper.__call__ = call
++
++
++def install_deferred_rope():
++    """Opt-in adapter: defer supported decode RoPE to the cache writer.
++
++    Prefill, other RoPE styles/dtypes and calls outside a real forward keep
++    the plugin implementation. Pending tensors live only on this forward.
++    """
++    import torch
++    import vllm_ascend.ops.rotary_embedding as rotary
++    from shared_metadata import current_owner
++
++    from vllm.model_executor.models.qwen2 import Qwen2Attention
++
++    original = rotary.rope_forward_oot
++    original_forward = Qwen2Attention.forward
++    if getattr(original_forward, "_pspkv_deferred", False):
++        return
++
++    def deferred(
++        positions,
++        query,
++        key,
++        cos_sin_cache,
++        head_size,
++        rotary_dim,
++        is_neox_style,
++        offsets=None,
++    ):
++        owner = current_owner()
++        if (
++            owner is not None
++            and getattr(owner, "attn_metadata", None) is not None
++            and query.shape[0] == key.shape[0] == positions.numel() == 1
++            and head_size == rotary_dim == 128
++            and is_neox_style
++            and offsets is None
++            and query.dtype == key.dtype == torch.bfloat16
++            and cos_sin_cache.dtype in (torch.bfloat16, torch.float32)
++            and pipeline_level(owner) >= 2
++            and os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3") in ("e4m3", "e5m2")
++            and os.environ.get("PSPKV_COMPARE_OPTIMIZED") == "1"
++        ):
++            from vllm.v1.attention.backends.psp_kv_ascend_native import (
++                load_native_fp8_ops,
++            )
++
++            if not hasattr(load_native_fp8_ops(), "rope_scatter_kv"):
++                return original(
++                    positions,
++                    query,
++                    key,
++                    cos_sin_cache,
++                    head_size,
++                    rotary_dim,
++                    is_neox_style,
++                    offsets,
++                )
++            if not hasattr(owner, "_pspkv_pending_rope"):
++                owner._pspkv_pending_rope = {}
++            owner._pspkv_pending_rope[key.data_ptr()] = (
++                query.data_ptr(),
++                positions,
++                cos_sin_cache,
++            )
++            return query, key
++        return original(
++            positions,
++            query,
++            key,
++            cos_sin_cache,
++            head_size,
++            rotary_dim,
++            is_neox_style,
++            offsets,
++        )
++
++    def forward(self, positions, hidden_states):
++        owner = current_owner()
++        rope = self.rotary_emb
++        if not (
++            owner is not None
++            and getattr(owner, "attn_metadata", None) is not None
++            and positions.numel() == hidden_states.shape[0] == 1
++            and hidden_states.dtype == torch.bfloat16
++            and not self.qk_norm
++            and self.dual_chunk_attention_config is None
++            and rope.head_size == rope.rotary_dim == 128
++            and rope.is_neox_style
++            and pipeline_level(owner) >= 2
++        ):
++            return original_forward(self, positions, hidden_states)
++        qkv, _ = self.qkv_proj(hidden_states)
++        query, key, value = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
++        query, key = deferred(
++            positions,
++            query,
++            key,
++            rope.cos_sin_cache,
++            rope.head_size,
++            rope.rotary_dim,
++            rope.is_neox_style,
++        )
++        output = self.attn(query, key, value)
++        output, _ = self.o_proj(output)
++        return output
++
++    # The plugin registered its low-level RoPE function as a custom operator
++    # earlier. Rebinding that function does not change the registered callable.
++    # Intercept the Qwen2 model's decode entry before it invokes that operator.
++    forward._pspkv_deferred = True
++    Qwen2Attention.forward = forward
++
++
++def consume_deferred_rope(owner, query, key):
++    pending = getattr(owner, "_pspkv_pending_rope", {}) if owner is not None else {}
++    record = pending.pop(key.data_ptr(), None)
++    if record is not None and record[0] != query.data_ptr():
++        raise RuntimeError("deferred RoPE query/key pairing changed")
++    return record
+--- /dev/null
++++ b/ascend/compare_pipeline_client.py
+@@ -0,0 +1,221 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Order-balanced adjacent pipeline A/B pairs on the same loaded model."""
++
++import argparse
++import json
++import random
++import time
++import urllib.error
++import urllib.request
++from pathlib import Path
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--port", type=int, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--control-file", type=Path)
++    parser.add_argument("--after-level", type=int, default=1, choices=(1, 2))
++    parser.add_argument("--rounds", type=int, default=3)
++    parser.add_argument("--requests-per-profile", type=int, default=4)
++    parser.add_argument("--warmups", type=int, default=2)
++    parser.add_argument("--model", default="Qwen/Qwen3-0.6B")
++    parser.add_argument("--ready-timeout", type=int, default=600)
++    parser.add_argument("--long-input-tokens", type=int, default=135)
++    args = parser.parse_args()
++    base = f"http://127.0.0.1:{args.port}"
++    model = args.model
++    tested_modes = (False, True) if args.control_file else (True,)
++
++    def post(path, payload):
++        request = urllib.request.Request(
++            base + path,
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        with urllib.request.urlopen(request, timeout=180) as response:
++            return json.load(response)
++
++    deadline = time.monotonic() + args.ready_timeout
++    while time.monotonic() < deadline:
++        try:
++            with urllib.request.urlopen(base + "/health", timeout=3):
++                break
++        except (OSError, urllib.error.URLError):
++            time.sleep(3)
++    else:
++        raise RuntimeError("server readiness timed out")
++    long_text = (
++        "请阅读记录，最后用中文回答中国的首都是哪里。\n"
++        + "记录：北京是中国的首都，上海是中国的城市。\n" * 256
++        + "\n中国的首都是"
++    )
++    tokens = post("/tokenize", {"model": model, "prompt": long_text})["tokens"]
++    assert 15 <= args.long_input_tokens <= len(tokens)
++    profiles = {
++        "short": "北京是中国的",
++        "cross_page": tokens[: args.long_input_tokens - 15] + tokens[-15:],
++    }
++    prompt_counts = {
++        "short": len(
++            post("/tokenize", {"model": model, "prompt": profiles["short"]})["tokens"]
++        ),
++        "cross_page": args.long_input_tokens,
++    }
++    data = {
++        "model": model,
++        "rounds": args.rounds,
++        "requests_per_profile_per_round": args.requests_per_profile,
++        "warmups_per_profile": args.warmups,
++        "output_tokens": 32,
++        "concurrency": 1,
++        "profiles": profiles,
++        "prompt_token_counts": prompt_counts,
++        "requests": [],
++        "paired_pipeline": args.control_file is not None,
++        "after_level": args.after_level,
++    }
++
++    def generate(prompt):
++        payload = {
++            "model": model,
++            "prompt": prompt,
++            "max_tokens": 32,
++            "temperature": 0,
++            "seed": 123,
++            "ignore_eos": True,
++            "stream": True,
++            "stream_options": {"include_usage": True},
++        }
++        request = urllib.request.Request(
++            base + "/v1/completions",
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        started = time.perf_counter()
++        first = last = None
++        text, usage = "", None
++        with urllib.request.urlopen(request, timeout=180) as response:
++            for line in response:
++                if not line.startswith(b"data: "):
++                    continue
++                event = line[6:].strip()
++                if event == b"[DONE]":
++                    break
++                chunk = json.loads(event)
++                if "error" in chunk:
++                    raise RuntimeError(chunk["error"])
++                if chunk.get("usage"):
++                    usage = chunk["usage"]
++                for choice in chunk.get("choices", []):
++                    piece = choice.get("text", "")
++                    if piece:
++                        last = time.perf_counter()
++                        first = first if first is not None else last
++                        text += piece
++        ended = time.perf_counter()
++        assert usage is not None and usage["completion_tokens"] == 32
++        assert first is not None and last is not None
++        return {
++            "seconds": ended - started,
++            "ttft_ms": (first - started) * 1000,
++            "tpot_ms": (last - first) * 1000 / 31,
++            "usage": usage,
++            "text": text,
++        }
++
++    def select_mode(enabled):
++        # The server reads once per ForwardContext, before any attention layer.
++        if args.control_file:
++            args.control_file.write_text(str(args.after_level if enabled else 0))
++
++    for prompt in profiles.values():
++        for enabled in tested_modes:
++            select_mode(enabled)
++            for _ in range(args.warmups):
++                generate(prompt)
++    ordering = random.Random(20261023)
++    for round_index in range(args.rounds):
++        schedule = list(profiles) * args.requests_per_profile
++        ordering.shuffle(schedule)
++        for pair, profile in enumerate(schedule):
++            modes = list(tested_modes)
++            ordering.shuffle(modes)
++            for enabled in modes:
++                select_mode(enabled)
++                row = generate(profiles[profile])
++                row.update(
++                    {
++                        "profile": profile,
++                        "round": round_index,
++                        "pair": pair,
++                        "pipeline_optimized": enabled,
++                    }
++                )
++                assert row["usage"]["prompt_tokens"] == prompt_counts[profile]
++                data["requests"].append(row)
++                args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++                print(
++                    json.dumps(
++                        {
++                            k: row[k]
++                            for k in (
++                                "profile",
++                                "round",
++                                "pair",
++                                "pipeline_optimized",
++                                "seconds",
++                                "ttft_ms",
++                            )
++                        }
++                    ),
++                    flush=True,
++                )
++    data["quality_probes"] = []
++    for enabled in tested_modes:
++        select_mode(enabled)
++        for prompt in (
++            "1+1=",
++            "The capital of France is",
++            "2+3=",
++            "10-4=",
++            "3*4=",
++            "中国的首都是",
++            "日本的首都是",
++            "The opposite of hot is",
++            "A week has",
++            "水的化学式是",
++            "太阳从东方",
++            "The largest ocean is",
++        ):
++            data["quality_probes"].append(
++                {
++                    "prompt": prompt,
++                    "pipeline_optimized": enabled,
++                    "response": generate(prompt),
++                }
++            )
++    for profile in profiles:
++        before = {
++            r["text"]
++            for r in data["requests"]
++            if r["profile"] == profile and not r["pipeline_optimized"]
++        }
++        after = {
++            r["text"]
++            for r in data["requests"]
++            if r["profile"] == profile and r["pipeline_optimized"]
++        }
++        if args.control_file:
++            assert before == after, (
++                profile,
++                "pipeline optimization changed generated output",
++            )
++    data["pipeline_outputs_equal"] = True if args.control_file else None
++    args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/compare_pipeline_stages.py
+@@ -0,0 +1,234 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Randomized four-stage ablations in the same loaded model and decode graph."""
++
++import argparse
++import json
++import random
++import time
++import urllib.error
++import urllib.request
++from pathlib import Path
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--port", type=int, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--control-file", type=Path, required=True)
++    parser.add_argument("--modes", default="0,1,2,3")
++    parser.add_argument("--rounds", type=int, default=3)
++    parser.add_argument("--requests-per-profile", type=int, default=4)
++    parser.add_argument("--warmups", type=int, default=2)
++    parser.add_argument("--model", default="Qwen/Qwen3-0.6B")
++    parser.add_argument("--ready-timeout", type=int, default=600)
++    parser.add_argument("--long-input-tokens", type=int, default=135)
++    args = parser.parse_args()
++    base = f"http://127.0.0.1:{args.port}"
++    model = args.model
++    tested_modes = tuple(int(mode) for mode in args.modes.split(","))
++    assert tested_modes and all(mode in (0, 1, 2, 3) for mode in tested_modes)
++
++    def post(path, payload):
++        request = urllib.request.Request(
++            base + path,
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        with urllib.request.urlopen(request, timeout=180) as response:
++            return json.load(response)
++
++    deadline = time.monotonic() + args.ready_timeout
++    while time.monotonic() < deadline:
++        try:
++            with urllib.request.urlopen(base + "/health", timeout=3):
++                break
++        except (OSError, urllib.error.URLError):
++            time.sleep(3)
++    else:
++        raise RuntimeError("server readiness timed out")
++    long_text = (
++        "请阅读记录，最后用中文回答中国的首都是哪里。\n"
++        + "记录：北京是中国的首都，上海是中国的城市。\n" * 256
++        + "\n中国的首都是"
++    )
++    tokens = post("/tokenize", {"model": model, "prompt": long_text})["tokens"]
++    assert 15 <= args.long_input_tokens <= len(tokens)
++    profiles = {
++        "short": "北京是中国的",
++        "cross_page": tokens[: args.long_input_tokens - 15] + tokens[-15:],
++    }
++    prompt_counts = {
++        "short": len(
++            post("/tokenize", {"model": model, "prompt": profiles["short"]})["tokens"]
++        ),
++        "cross_page": args.long_input_tokens,
++    }
++    data = {
++        "model": model,
++        "rounds": args.rounds,
++        "requests_per_profile_per_round": args.requests_per_profile,
++        "warmups_per_profile": args.warmups,
++        "output_tokens": 32,
++        "concurrency": 1,
++        "profiles": profiles,
++        "prompt_token_counts": prompt_counts,
++        "requests": [],
++        "paired_pipeline": args.control_file is not None,
++        "modes": tested_modes,
++    }
++
++    def generate(prompt):
++        payload = {
++            "model": model,
++            "prompt": prompt,
++            "max_tokens": 32,
++            "temperature": 0,
++            "seed": 123,
++            "ignore_eos": True,
++            "stream": True,
++            "stream_options": {"include_usage": True},
++            "logprobs": 1,
++        }
++        request = urllib.request.Request(
++            base + "/v1/completions",
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        started = time.perf_counter()
++        first = last = None
++        text, usage = "", None
++        logprobs = []
++        with urllib.request.urlopen(request, timeout=180) as response:
++            for line in response:
++                if not line.startswith(b"data: "):
++                    continue
++                event = line[6:].strip()
++                if event == b"[DONE]":
++                    break
++                chunk = json.loads(event)
++                if "error" in chunk:
++                    raise RuntimeError(chunk["error"])
++                if chunk.get("usage"):
++                    usage = chunk["usage"]
++                for choice in chunk.get("choices", []):
++                    if choice.get("logprobs"):
++                        logprobs.extend(
++                            zip(
++                                choice["logprobs"]["tokens"],
++                                choice["logprobs"]["token_logprobs"],
++                            )
++                        )
++                    piece = choice.get("text", "")
++                    if piece:
++                        last = time.perf_counter()
++                        first = first if first is not None else last
++                        text += piece
++        ended = time.perf_counter()
++        assert usage is not None and usage["completion_tokens"] == 32
++        assert first is not None and last is not None
++        return {
++            "seconds": ended - started,
++            "ttft_ms": (first - started) * 1000,
++            "tpot_ms": (last - first) * 1000 / 31,
++            "usage": usage,
++            "text": text,
++            "token_logprobs": logprobs,
++        }
++
++    def select_mode(enabled):
++        # The server reads once per ForwardContext, before any attention layer.
++        if args.control_file:
++            args.control_file.write_text(str(enabled))
++
++    for prompt in profiles.values():
++        for enabled in tested_modes:
++            select_mode(enabled)
++            for _ in range(args.warmups):
++                generate(prompt)
++    ordering = random.Random(20261023)
++    for round_index in range(args.rounds):
++        schedule = list(profiles) * args.requests_per_profile
++        ordering.shuffle(schedule)
++        for pair, profile in enumerate(schedule):
++            modes = list(tested_modes)
++            ordering.shuffle(modes)
++            for enabled in modes:
++                select_mode(enabled)
++                row = generate(profiles[profile])
++                row.update(
++                    {
++                        "profile": profile,
++                        "round": round_index,
++                        "pair": pair,
++                        "pipeline_mode": enabled,
++                    }
++                )
++                assert row["usage"]["prompt_tokens"] == prompt_counts[profile]
++                data["requests"].append(row)
++                args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++                print(
++                    json.dumps(
++                        {
++                            k: row[k]
++                            for k in (
++                                "profile",
++                                "round",
++                                "pair",
++                                "pipeline_mode",
++                                "seconds",
++                                "ttft_ms",
++                            )
++                        }
++                    ),
++                    flush=True,
++                )
++    data["quality_probes"] = []
++    for enabled in tested_modes:
++        select_mode(enabled)
++        for prompt in (
++            "1+1=",
++            "The capital of France is",
++            "2+3=",
++            "10-4=",
++            "3*4=",
++            "中国的首都是",
++            "日本的首都是",
++            "The opposite of hot is",
++            "A week has",
++            "水的化学式是",
++            "太阳从东方",
++            "The largest ocean is",
++        ):
++            data["quality_probes"].append(
++                {
++                    "prompt": prompt,
++                    "pipeline_mode": enabled,
++                    "response": generate(prompt),
++                }
++            )
++    text_checks = []
++    for profile in profiles:
++        outputs = [
++            {
++                r["text"]
++                for r in data["requests"]
++                if r["profile"] == profile and r["pipeline_mode"] == mode
++            }
++            for mode in tested_modes
++        ]
++        text_checks.append(all(group == outputs[0] for group in outputs))
++    for prompt in {r["prompt"] for r in data["quality_probes"]}:
++        texts = {
++            r["response"]["text"]
++            for r in data["quality_probes"]
++            if r["prompt"] == prompt
++        }
++        text_checks.append(len(texts) == 1)
++    data["all_stage_texts_equal"] = all(text_checks)
++    args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/check_pipeline_npu.py
+@@ -0,0 +1,184 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Check direct K/V writes, untouched bytes, strides and graph metadata updates."""
++
++# Closures are executed before the enclosing test iteration advances.
++# ruff: noqa: B023
++
++import argparse
++import json
++from pathlib import Path
++
++import torch
++import torch_npu  # noqa: F401
++
++from tests.v1.attention.psp_kv_reference import pack_kv_cache
++from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
++from vllm.v1.attention.backends.psp_kv_ascend_ops import (
++    _tile_permutation,
++    packed_lookup_tables,
++)
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    torch.npu.set_device(0)
++    torch.manual_seed(20261026)
++    torch.set_num_threads(2)
++    native = load_native_fp8_ops()
++    report = {"writes": [], "graph_replays": []}
++    block, heads, dim, pages = 128, 4, 128, 4
++    for generation in range(3):
++        for pattern in ((1,), (2,), (0, 1, 2, 3)):
++            codes_cpu = torch.tensor(
++                [pattern[i % len(pattern)] for i in range(pages)], dtype=torch.uint8
++            )
++            dense = torch.zeros(pages, heads, block, dim, dtype=torch.bfloat16)
++            kb, vb, offsets_cpu = pack_kv_cache(
++                dense, dense, generation, codes_cpu, torch.bfloat16
++            )
++            codes, offsets = codes_cpu.npu(), offsets_cpu.npu()
++            scales = torch.ones(pages, heads, device="npu") * 0.75
++            for tokens in (0, 1, 3, 135, 257):
++                for strided in (False, True):
++                    source = torch.randn(tokens, 36, dim, device="npu").bfloat16()
++                    key = source[:, 28:32]
++                    value = source[:, 32:36]
++                    if not strided:
++                        key, value = key.contiguous(), value.contiguous()
++                    slots = torch.randperm(pages * block)[:tokens].long()
++                    if tokens > 1:
++                        slots[0] = -1
++                    slots = slots.npu()
++                    old_k, old_v = (
++                        torch.full_like(kb, 0x55).npu(),
++                        torch.full_like(vb, 0x55).npu(),
++                    )
++                    new_k, new_v = old_k.clone(), old_v.clone()
++                    packed = torch.stack((key, value), dim=1)
++                    native.packed_scatter_parallel(
++                        packed,
++                        old_k,
++                        old_v,
++                        slots,
++                        codes,
++                        offsets,
++                        scales,
++                        block,
++                        generation,
++                    )
++                    native.packed_scatter_kv(
++                        key,
++                        value,
++                        new_k,
++                        new_v,
++                        slots,
++                        codes,
++                        offsets,
++                        scales,
++                        block,
++                        generation,
++                    )
++                    torch.npu.synchronize()
++                    assert torch.equal(old_k.cpu(), new_k.cpu())
++                    assert torch.equal(old_v.cpu(), new_v.cpu())
++                    report["writes"].append(
++                        {
++                            "generation": generation,
++                            "pattern": pattern,
++                            "tokens": tokens,
++                            "strided": strided,
++                        }
++                    )
++        # Capture the writer + tile attention once. Change lengths, page order,
++        # slot and K/V content in place before every replay, including a new
++        # request with a previously used length. Compare to a fresh eager call.
++        codes = torch.ones(pages, dtype=torch.uint8, device="npu")
++        offsets = torch.arange(pages, dtype=torch.int32, device="npu") * (
++            block * heads * dim
++        )
++        scales = torch.ones(pages, heads, device="npu")
++        key_cache = torch.zeros(
++            pages * block * heads * dim, dtype=torch.uint8, device="npu"
++        )
++        value_cache = torch.zeros_like(key_cache)
++        tables = torch.arange(pages, dtype=torch.int32, device="npu").view(1, pages)
++        lengths = torch.tensor([1], dtype=torch.int32, device="npu")
++        slots = torch.zeros(1, dtype=torch.int64, device="npu")
++        key = torch.randn(1, heads, dim, device="npu").bfloat16()
++        value = torch.randn_like(key)
++        query = torch.randn(1, 28, dim, device="npu").bfloat16()
++        output = torch.empty_like(query)
++        e4, e5, _ = packed_lookup_tables(query.device)
++        permutation = _tile_permutation(query.device, dim)
++
++        def run():
++            native.packed_scatter_kv(
++                key,
++                value,
++                key_cache,
++                value_cache,
++                slots,
++                codes,
++                offsets,
++                scales,
++                block,
++                generation,
++            )
++            native.tile_fused_attention(
++                query,
++                key_cache,
++                value_cache,
++                tables,
++                lengths,
++                codes,
++                offsets,
++                scales,
++                e4,
++                e5,
++                permutation,
++                generation,
++                heads,
++                block,
++                dim**-0.5,
++                output,
++                0,
++            )
++
++        for _ in range(3):
++            run()
++        torch.npu.synchronize()
++        graph = torch.npu.NPUGraph()
++        with torch.npu.graph(graph):
++            run()
++        for i, length in enumerate((3, 127, 128, 129, 160, 257, 3)):
++            order = torch.randperm(pages).int()
++            tables.copy_(order.view(1, pages))
++            lengths.fill_(length)
++            slots.fill_(
++                int(order[(length - 1) // block]) * block + (length - 1) % block
++            )
++            key.normal_()
++            value.normal_()
++            query.normal_()
++            # Poison the output to check that attention overwrites every row.
++            output.fill_(float("nan"))
++            graph.replay()
++            observed = output.cpu().clone()
++            output.fill_(float("nan"))
++            run()
++            expected = output.cpu()
++            torch.testing.assert_close(observed, expected, atol=0, rtol=0)
++            assert torch.isfinite(observed).all()
++            report["graph_replays"].append(
++                {"generation": generation, "length": length, "step": i}
++            )
++    args.output.write_text(json.dumps(report, indent=2))
++    print(json.dumps({k: len(v) for k, v in report.items()}), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/check_rope_pipeline_npu.py
+@@ -0,0 +1,112 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Compare fused RoPE/write with the installed plugin's Triton RoPE + writer."""
++
++import argparse
++import json
++from pathlib import Path
++
++import torch
++import torch_npu  # noqa: F401
++from vllm_ascend.ops.triton.rope import rope_forward_triton
++from vllm_ascend.ops.triton.triton_utils import init_device_properties_triton
++
++from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    torch.npu.set_device(0)
++    init_device_properties_triton()
++    torch.manual_seed(20261026)
++    native = load_native_fp8_ops()
++    rows = []
++    pages, block, heads, dim = 4, 128, 4, 128
++    phases = torch.randn(512, dim // 2)
++    cos_sin = torch.cat((phases.cos(), phases.sin()), dim=1)
++    for generation in range(3):
++        for code in (1, 2):
++            codes = torch.full((pages,), code, dtype=torch.uint8, device="npu")
++            offsets = (
++                torch.arange(pages, dtype=torch.int32, device="npu")
++                * block
++                * heads
++                * dim
++            )
++            scales = torch.ones(pages, heads, device="npu")
++            for dtype in (torch.bfloat16, torch.float32):
++                cache = cos_sin.to(dtype).npu()
++                for pos in (0, 127, 129, 511):
++                    qkv = torch.randn(1, 36, dim, device="npu").bfloat16()
++                    query, key, value = qkv[:, :28], qkv[:, 28:32], qkv[:, 32:]
++                    q0, k0, v0 = query.clone(), key.clone(), value.clone()
++                    positions = torch.tensor([pos], dtype=torch.long, device="npu")
++                    slots = torch.tensor([pos], dtype=torch.long, device="npu")
++                    before_k = torch.full(
++                        (pages * block * heads * dim,),
++                        0x55,
++                        dtype=torch.uint8,
++                        device="npu",
++                    )
++                    before_v = torch.full_like(before_k, 0x55)
++                    after_k, after_v = before_k.clone(), before_v.clone()
++                    q_expected, k_expected = rope_forward_triton(
++                        q0,
++                        k0,
++                        cos_sin_cache=cache,
++                        positions=positions,
++                        rope_dim=dim,
++                        is_neox_style=True,
++                    )
++                    native.packed_scatter_parallel(
++                        torch.stack((k_expected, v0), dim=1),
++                        before_k,
++                        before_v,
++                        slots,
++                        codes,
++                        offsets,
++                        scales,
++                        block,
++                        generation,
++                    )
++                    native.rope_scatter_kv(
++                        query,
++                        key,
++                        value,
++                        positions,
++                        cache,
++                        after_k,
++                        after_v,
++                        slots,
++                        codes,
++                        offsets,
++                        block,
++                        generation,
++                    )
++                    observed, expected = query.cpu(), q_expected.cpu()
++                    assert torch.equal(observed, expected), (
++                        generation,
++                        code,
++                        dtype,
++                        pos,
++                        (observed.float() - expected.float()).abs().max().item(),
++                    )
++                    assert torch.equal(before_k.cpu(), after_k.cpu())
++                    assert torch.equal(before_v.cpu(), after_v.cpu())
++                    rows.append(
++                        {
++                            "generation": generation,
++                            "code": code,
++                            "cache_dtype": str(dtype),
++                            "position": pos,
++                        }
++                    )
++    args.output.write_text(json.dumps({"cases": rows}, indent=2))
++    print(json.dumps({"rope_cases": len(rows)}), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/check_workspace_npu.py
+@@ -0,0 +1,84 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Verify per-forward scratch reuse with distinct per-layer mixed KV caches."""
++
++import argparse
++import json
++import math
++from pathlib import Path
++from types import SimpleNamespace
++
++import torch
++import torch_npu  # noqa: F401
++
++from tests.v1.attention.psp_kv_reference import pack_kv_cache
++from vllm.forward_context import override_forward_context
++from vllm.v1.attention.backends.psp_kv_ascend_ops import PSPKVAscendPackedOps
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    torch.npu.set_device(0)
++    torch.manual_seed(20261026)
++    rows = []
++    ops = PSPKVAscendPackedOps()
++    for generation in range(3):
++        for seq_lens in ([257], [1536], [257, 333]):
++            block, heads, dim = 128, 4, 128
++            per_seq = math.ceil(max(seq_lens) / block)
++            pages = per_seq * len(seq_lens)
++            codes_cpu = (torch.arange(pages) % 4).byte()
++            table = torch.randperm(pages).int().view(len(seq_lens), per_seq).npu()
++            cpu_lens = torch.tensor(seq_lens, dtype=torch.int32)
++            lens = cpu_lens.npu()
++            codes = codes_cpu.npu()
++            scales = torch.ones(pages, heads, device="npu")
++            owner = SimpleNamespace(_pspkv_pipeline_level=1)
++            workspace_pointers = []
++            for _ in range(4):
++                shape = (pages, heads, block, dim)
++                key = (torch.randn(shape) * 0.25).bfloat16()
++                value = (torch.randn(shape) * 0.25).bfloat16()
++                kb, vb, offsets_cpu = pack_kv_cache(
++                    key, value, generation, codes_cpu, torch.bfloat16
++                )
++                query = torch.randn(len(seq_lens), 28, dim, device="npu").bfloat16()
++                output = torch.empty_like(query)
++                common = (
++                    generation,
++                    query,
++                    kb.npu(),
++                    vb.npu(),
++                    table,
++                    lens,
++                    codes,
++                    offsets_cpu.npu(),
++                    scales,
++                    dim**-0.5,
++                    heads,
++                    dim,
++                    output,
++                )
++                ops._attention(*common, block_size=block, context_lens_cpu=cpu_lens)
++                expected = output.cpu().clone()
++                output.fill_(float("nan"))
++                with override_forward_context(owner):
++                    ops._attention(*common, block_size=block, context_lens_cpu=cpu_lens)
++                torch.testing.assert_close(output.cpu(), expected, atol=0, rtol=0)
++                assert len(owner._pspkv_paged_workspaces) == 1
++                workspace = next(iter(owner._pspkv_paged_workspaces.values()))
++                workspace_pointers.append(tuple(t.data_ptr() for t in workspace))
++            assert len(set(workspace_pointers)) == 1
++            rows.append({"generation": generation, "lengths": seq_lens, "layers": 4})
++    args.output.write_text(json.dumps({"cases": rows}, indent=2))
++    print(
++        json.dumps({"workspace_cases": len(rows), "layer_comparisons": len(rows) * 4}),
++        flush=True,
++    )
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/profile_decode_matmuls.py
+@@ -0,0 +1,85 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Profile the four Qwen2.5-7B projection shapes with device pipe counters.
++
++Standalone diagnostics only: repeated weights may hit cache, so these timings
++and counters do not represent a full model step or justify changing weights.
++"""
++
++import argparse
++import json
++import time
++from pathlib import Path
++
++import torch
++import torch.nn.functional as F
++import torch_npu
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output-dir", type=Path, required=True)
++    args = parser.parse_args()
++    args.output_dir.mkdir(parents=True, exist_ok=True)
++    torch.npu.set_device(0)
++    torch.manual_seed(20261026)
++    torch.set_num_threads(2)
++    tensors = []
++    rows = []
++    for name, inner, outer in (
++        ("qkv", 3584, 4608),
++        ("o_proj", 3584, 3584),
++        ("gate_up", 3584, 37888),
++        ("down", 18944, 3584),
++    ):
++        weight = torch.randn(outer, inner, device="npu", dtype=torch.bfloat16)
++        for tokens in (1, 16, 135):
++            x = torch.randn(tokens, inner, device="npu", dtype=torch.bfloat16)
++            out = torch.empty(tokens, outer, device="npu", dtype=torch.bfloat16)
++            for _ in range(3):
++                torch.mm(x, weight.t(), out=out)
++            torch.npu.synchronize()
++            start = time.perf_counter()
++            for _ in range(20):
++                torch.mm(x, weight.t(), out=out)
++            torch.npu.synchronize()
++            ms = (time.perf_counter() - start) * 1000 / 20
++            row = {
++                "projection": name,
++                "tokens": tokens,
++                "inner": inner,
++                "outer": outer,
++                "host_loop_ms": ms,
++                "useful_flops": 2 * tokens * inner * outer,
++                "weight_bytes": weight.numel() * weight.element_size(),
++            }
++            rows.append(row)
++            tensors.append((name, tokens, x, weight))
++    for metric_name in ("PipeUtilization", "MemoryAccess"):
++        config = torch_npu.profiler._ExperimentalConfig(
++            profiler_level=torch_npu.profiler.ProfilerLevel.Level2,
++            aic_metrics=getattr(torch_npu.profiler.AiCMetrics, metric_name),
++        )
++        with torch_npu.profiler.profile(
++            activities=[
++                torch_npu.profiler.ProfilerActivity.CPU,
++                torch_npu.profiler.ProfilerActivity.NPU,
++            ],
++            experimental_config=config,
++            record_shapes=True,
++            on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
++                str(args.output_dir / metric_name)
++            ),
++        ) as profiler:
++            for name, tokens, x, weight in tensors:
++                with torch.autograd.profiler.record_function(f"{name}_m{tokens}"):
++                    F.linear(x, weight)
++                profiler.step()
++            torch.npu.synchronize()
++    (args.output_dir / "timings.json").write_text(json.dumps(rows, indent=2))
++    print(json.dumps(rows), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/summarize_pipeline_stages.py
+@@ -0,0 +1,171 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Summarize matched model ablations and text/log-probability changes."""
++
++import argparse
++import csv
++import json
++import random
++import statistics
++from pathlib import Path
++
++
++def percentile(values, q):
++    values = sorted(values)
++    pos = (len(values) - 1) * q
++    low = int(pos)
++    return values[low] + (values[min(low + 1, len(values) - 1)] - values[low]) * (
++        pos - low
++    )
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--input-dir", type=Path, required=True)
++    parser.add_argument("--output-dir", type=Path, required=True)
++    parser.add_argument("--exclude-formats", default="")
++    args = parser.parse_args()
++    rows, quality = [], []
++    for path in sorted(args.input_dir.glob("*-serving.json")):
++        name = path.name.removesuffix("-serving.json")
++        if name in args.exclude_formats.split(","):
++            continue
++        data = json.loads(path.read_text())
++        if "modes" not in data and data.get("paired_pipeline"):
++            after_level = data["after_level"]
++            data["modes"] = [0, after_level]
++            data["all_stage_texts_equal"] = data.get("pipeline_outputs_equal")
++            for row in data["requests"] + data["quality_probes"]:
++                row["pipeline_mode"] = after_level if row["pipeline_optimized"] else 0
++        if not data.get("all_stage_texts_equal"):
++            raise ValueError(f"missing or failed cross-stage output check: {name}")
++        for profile in data["profiles"]:
++            for mode in data["modes"]:
++                samples = [
++                    r
++                    for r in data["requests"]
++                    if r["profile"] == profile and r["pipeline_mode"] == mode
++                ]
++                baseline = [
++                    r
++                    for r in data["requests"]
++                    if r["profile"] == profile and r["pipeline_mode"] == 0
++                ]
++                by_pair = {(r["round"], r["pair"]): r for r in baseline}
++                pairs = [
++                    (by_pair[(r["round"], r["pair"])]["seconds"], r["seconds"])
++                    for r in samples
++                ]
++                rng = random.Random(20261026)
++                boot = []
++                for _ in range(10000):
++                    draw = rng.choices(pairs, k=len(pairs))
++                    boot.append(
++                        (1 - sum(b for a, b in draw) / sum(a for a, b in draw)) * 100
++                    )
++                median = statistics.median(r["seconds"] for r in samples)
++                base_median = statistics.median(r["seconds"] for r in baseline)
++                rows.append(
++                    {
++                        "format": name,
++                        "profile": profile,
++                        "input_tokens": data["prompt_token_counts"][profile],
++                        "mode": mode,
++                        "samples": len(samples),
++                        "p50_seconds": median,
++                        "p95_seconds": percentile(
++                            [r["seconds"] for r in samples], 0.95
++                        ),
++                        "ttft_p50_ms": statistics.median(r["ttft_ms"] for r in samples),
++                        "tpot_p50_ms": statistics.median(r["tpot_ms"] for r in samples),
++                        "p50_reduction_pct": (1 - median / base_median) * 100,
++                        "paired_mean_reduction_pct": (
++                            1 - sum(b for a, b in pairs) / sum(a for a, b in pairs)
++                        )
++                        * 100,
++                        "paired_mean_ci95_low": percentile(boot, 0.025),
++                        "paired_mean_ci95_high": percentile(boot, 0.975),
++                    }
++                )
++        comparisons = []
++        for mode in data["modes"]:
++            maximum = 0.0
++            changed_tokens = 0
++            compared_logprobs = 0
++            base = {
++                (r["profile"], r["round"], r["pair"]): r
++                for r in data["requests"]
++                if r["pipeline_mode"] == 0
++            }
++            for row in data["requests"]:
++                if row["pipeline_mode"] != mode:
++                    continue
++                original = base[(row["profile"], row["round"], row["pair"])]
++                if row["text"] != original["text"]:
++                    raise ValueError(f"paired generated text changed: {name}, {mode}")
++                if len(row.get("token_logprobs", [])) != len(
++                    original.get("token_logprobs", [])
++                ):
++                    raise ValueError(f"generated token count changed: {name}, {mode}")
++                for (a, ap), (b, bp) in zip(
++                    original.get("token_logprobs", []), row.get("token_logprobs", [])
++                ):
++                    changed_tokens += a != b
++                    if ap is not None and bp is not None:
++                        compared_logprobs += 1
++                        maximum = max(maximum, abs(ap - bp))
++            base_probes = {
++                r["prompt"]: r["response"]
++                for r in data["quality_probes"]
++                if r["pipeline_mode"] == 0
++            }
++            for probe in data["quality_probes"]:
++                if probe["pipeline_mode"] != mode:
++                    continue
++                observed = probe["response"]
++                original = base_probes[probe["prompt"]]
++                if observed["text"] != original["text"]:
++                    raise ValueError(f"quality probe changed: {name}, {mode}")
++                for (a, ap), (b, bp) in zip(
++                    original.get("token_logprobs", []),
++                    observed.get("token_logprobs", []),
++                ):
++                    changed_tokens += a != b
++                    if ap is not None and bp is not None:
++                        compared_logprobs += 1
++                        maximum = max(maximum, abs(ap - bp))
++            comparisons.append(
++                {
++                    "mode": mode,
++                    "max_generated_token_logprob_delta": maximum
++                    if compared_logprobs
++                    else None,
++                    "changed_generated_tokens": changed_tokens
++                    if compared_logprobs
++                    else None,
++                    "compared_logprobs": compared_logprobs,
++                }
++            )
++        quality.append(
++            {
++                "format": name,
++                "all_stage_texts_equal": True,
++                "quality_prompts": len({r["prompt"] for r in data["quality_probes"]}),
++                "quality_probe_requests": len(data["quality_probes"]),
++                "logprob_comparisons": comparisons,
++            }
++        )
++    args.output_dir.mkdir(parents=True, exist_ok=True)
++    (args.output_dir / "comparison.json").write_text(
++        json.dumps({"latency": rows, "quality": quality}, indent=2)
++    )
++    with (args.output_dir / "comparison.csv").open("w") as stream:
++        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
++        writer.writeheader()
++        writer.writerows(rows)
++    print(json.dumps({"groups": len(rows), "formats": len(quality)}))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/tests/v1/attention/test_psp_kv_pipeline.py
+@@ -0,0 +1,67 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++from ascend.pipeline_runtime import (
++    GRAPH_INPUTS,
++    consume_deferred_rope,
++    graph_signature,
++    install_graph_bypass,
++    pipeline_level,
++    validate_graph_inputs,
++)
++
++
++def test_graph_reads_changed_content_and_rejects_replaced_buffers():
++    source = SimpleNamespace(
++        block_tables=torch.tensor([[3, 1]], dtype=torch.int32),
++        slot_mapping=torch.tensor([0], dtype=torch.int64),
++        psp_kv_device_seq_lens=torch.tensor([1], dtype=torch.int32),
++    )
++    owner = SimpleNamespace(attn_metadata={"layer": source})
++    original = set(GRAPH_INPUTS)
++    try:
++        GRAPH_INPUTS.add(graph_signature(source))
++        source.block_tables.copy_(torch.tensor([[1, 3]], dtype=torch.int32))
++        source.psp_kv_device_seq_lens.fill_(129)
++        source.slot_mapping.fill_(384)
++        validate_graph_inputs(None, owner)
++        source.psp_kv_device_seq_lens = source.psp_kv_device_seq_lens.clone()
++        with pytest.raises(RuntimeError, match="address changed"):
++            validate_graph_inputs(None, owner)
++    finally:
++        GRAPH_INPUTS.clear()
++        GRAPH_INPUTS.update(original)
++
++
++def test_pipeline_control_is_fixed_for_current_forward(monkeypatch, tmp_path):
++    control = tmp_path / "mode.txt"
++    control.write_text("0")
++    monkeypatch.setenv("PSPKV_PIPELINE_CONTROL_FILE", str(control))
++    owner = SimpleNamespace()
++    assert pipeline_level(owner) == 0
++    control.write_text("2")
++    assert pipeline_level(owner) == 0
++    assert pipeline_level(SimpleNamespace()) == 2
++
++
++def test_deferred_rope_is_consumed_once_and_checks_pairing():
++    query, key = torch.empty(1, 28, 128), torch.empty(1, 4, 128)
++    record = (query.data_ptr(), torch.tensor([3]), torch.empty(4, 128))
++    owner = SimpleNamespace(_pspkv_pending_rope={key.data_ptr(): record})
++    assert consume_deferred_rope(owner, query, key) is record
++    assert consume_deferred_rope(owner, query, key) is None
++    owner._pspkv_pending_rope[key.data_ptr()] = record
++    with pytest.raises(RuntimeError, match="pairing changed"):
++        consume_deferred_rope(owner, query.clone(), key)
++
++
++def test_native_bf16_rejects_custom_graph_ab(monkeypatch):
++    monkeypatch.setenv("PSPKV_COMPARE_GRAPH_AB", "1")
++    monkeypatch.setenv("PSPKV_COMPARE_FORMAT", "stock-bf16")
++    with pytest.raises(ValueError, match="independent eager/graph processes"):
++        install_graph_bypass()
+--- a/ascend/analyze_metadata_profiles.py
++++ b/ascend/analyze_metadata_profiles.py
+@@ -59,6 +59,9 @@
+         "fused_calls": len(fused),
+         "sync_copies": int(apis.get("aclrtMemcpy", {}).get("Count", 0)),
+         "stream_syncs": int(apis.get("aclrtSynchronizeStream", {}).get("Count", 0)),
++        "stream_syncs_with_timeout": int(
++            apis.get("aclrtSynchronizeStreamWithTimeout", {}).get("Count", 0)
++        ),
+         "async_copies": int(apis.get("aclrtMemcpyAsync", {}).get("Count", 0)),
+         "device_kernel_sum_us": sum(float(r["Duration(us)"]) for r in rows),
+         "decode_layer_windows_us": window_us,

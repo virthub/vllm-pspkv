@@ -1,0 +1,16 @@
+{
+  "check_fp8_reference_npu.py": {
+    "passed": true
+  },
+  "check_packed_reference_npu.py": {
+    "passed": false,
+    "error": "AssertionError()"
+  },
+  "check_variable_npu.py": {
+    "passed": true
+  },
+  "check_variable_native_npu.py": {
+    "passed": false,
+    "error": "TypeError(\"PSPKVAscendPackedOps.psp_attention_scaled_basic_fused() got an unexpected keyword argument 'value_precision_table'\")"
+  }
+}

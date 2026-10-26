@@ -1,0 +1,5 @@
+Device_id,OP Type,Core Type,Count,Total Time(us),Min Time(us),Avg Time(us),Max Time(us),Ratio(%)
+0,_Z20PspkvGatherPagedBF16PhS_S_S_S_S_S_S_S_jjjjjj,AI_VECTOR_CORE,3,495.928,165.104,165.309,165.424,65.796
+0,_Z23PspkvTileFusedAttentionILb0EEvPhS0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_jjjjjjjf,AI_VECTOR_CORE,3,95.604,31.62,31.868,32,12.684
+0,PagedAttentionMaskNdKernel,MIX_AIC,6,86.7,13.58,14.45,15.42,11.503
+0,_Z23PspkvGatherPagedBF16VecPhS_S_S_S_S_S_S_S_S_S_S_jjjjjj,AI_VECTOR_CORE,6,75.504,10.66,12.584,14.34,10.017

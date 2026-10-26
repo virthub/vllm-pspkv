@@ -1,0 +1,555 @@
+{
+  "writes": [
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    }
+  ],
+  "attention": [
+    {
+      "format": "basic",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.0078125,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.2621747553348541,
+      "optimized_ms": 0.2154819667339325,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 6.207209080457687,
+      "optimized_ms": 0.3856644034385681,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 7.388509809970856,
+      "optimized_ms": 0.4323534667491913,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 21.145593374967575,
+      "optimized_ms": 1.0331608355045319,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 93.21749210357666,
+      "optimized_ms": 4.026629030704498,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.0078125,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 6.298229098320007,
+      "optimized_ms": 0.4131421446800232,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.38352981209754944,
+      "optimized_ms": 0.3205426037311554,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 3.508675843477249,
+      "optimized_ms": 0.7010661065578461,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 4.126541316509247,
+      "optimized_ms": 0.8068829774856567,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 14.08352330327034,
+      "optimized_ms": 1.9146353006362915,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 51.42884701490402,
+      "optimized_ms": 8.789919316768646,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 3.633197396993637,
+      "optimized_ms": 0.7447488605976105,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.42494386434555054,
+      "optimized_ms": 0.25279074907302856,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 3.511156886816025,
+      "optimized_ms": 0.7370151579380035,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 4.141569137573242,
+      "optimized_ms": 0.8375383913516998,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 12.944038957357407,
+      "optimized_ms": 1.971520483493805,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 51.52161791920662,
+      "optimized_ms": 8.859235793352127,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 3.625486046075821,
+      "optimized_ms": 0.796779990196228,
+      "bf16_scratch_bytes": 2097152
+    }
+  ]
+}

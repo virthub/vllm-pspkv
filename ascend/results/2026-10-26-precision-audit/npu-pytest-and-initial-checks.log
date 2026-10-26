@@ -1,0 +1,39 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+INFO 10-26 04:59:52 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-26 04:59:52 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-26 04:59:52 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-26 04:59:52 [__init__.py:238] Platform plugin ascend is activated
+INFO 10-26 04:59:58 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 10-26 04:59:58 [nixl_utils.py:34] NIXL is not available
+WARNING 10-26 04:59:58 [nixl_utils.py:44] NIXL agent config is not available
+/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_reference.py:26: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  sign = (bits >> 31) & 1
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<string>", line 1, in <listcomp>
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 261, in <module>
+    main()
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 249, in main
+    run_uniform_fp4_small_values(torch.device("npu:0")),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 187, in run_uniform_fp4_small_values
+    assert scales.item() == 0.25
+           ^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+NPU FP8 codecs, adaptive transitions and backend block copy match CPU
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+...............................................                          [100%]
+=============================== warnings summary ===============================
+tests/v1/attention/test_psp_kv_correctness.py::test_basic_attention[8-8-0-dtype0]
+  /workspace/pspkv-src/tests/v1/attention/test_psp_kv_correctness.py:113: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+    output = torch.empty_like(query)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+263 passed, 1 warning in 21.45s
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

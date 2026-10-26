@@ -1,0 +1,12 @@
+can not use command: npu-smi info
+........................................................................ [ 27%]
+........................................................................ [ 55%]
+........................................................................ [ 83%]
+..........................................                               [100%]
+=============================== warnings summary ===============================
+tests/v1/attention/test_psp_kv_correctness.py::test_basic_attention[8-8-0-dtype0]
+  /workspace/pspkv-src/tests/v1/attention/test_psp_kv_correctness.py:113: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+    output = torch.empty_like(query)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+258 passed, 1 warning in 14.88s

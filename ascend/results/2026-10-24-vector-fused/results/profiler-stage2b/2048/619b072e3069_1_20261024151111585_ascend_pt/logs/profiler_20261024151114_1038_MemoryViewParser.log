@@ -1,0 +1,3 @@
+[2026-10-24-15:11:14.359] [INFO] [AscendProfiler_MemoryViewParser:97] Profiler logger initialized at: /vector/results/profiler-stage2b/2048/619b072e3069_1_20261024151111585_ascend_pt/logs/profiler_20261024151114_1038_MemoryViewParser.log
+[2026-10-24-15:11:14.360] [INFO] [AscendProfiler_MemoryViewParser:78] MemoryViewParser start.
+[2026-10-24-15:11:14.364] [INFO] [AscendProfiler_MemoryViewParser:89] MemoryViewParser finish.

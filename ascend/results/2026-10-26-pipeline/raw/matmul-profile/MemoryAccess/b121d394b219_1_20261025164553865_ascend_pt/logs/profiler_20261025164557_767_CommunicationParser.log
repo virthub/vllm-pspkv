@@ -1,0 +1,4 @@
+[2026-10-25-16:45:57.059] [INFO] [AscendProfiler_CommunicationParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164557_767_CommunicationParser.log
+[2026-10-25-16:45:57.059] [INFO] [AscendProfiler_CommunicationParser:66] CommunicationParser start.
+[2026-10-25-16:45:57.059] [WARNING] [AscendProfiler_CommunicationParser:69] Get step range failed, the step node list is empty.
+[2026-10-25-16:45:57.061] [INFO] [AscendProfiler_CommunicationParser:73] CommunicationParser finish.

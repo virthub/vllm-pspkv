@@ -1,0 +1,4 @@
+[2026-10-24-14:58:24.045] [INFO] [AscendProfiler_TraceStepTimeParser:97] Profiler logger initialized at: /vector/results/profiler-stage2/2048/08710bb1feb0_1_20261024145821763_ascend_pt/logs/profiler_20261024145824_1035_TraceStepTimeParser.log
+[2026-10-24-14:58:24.045] [INFO] [AscendProfiler_TraceStepTimeParser:169] TraceStepTimeParser start.
+[2026-10-24-14:58:24.046] [WARNING] [AscendProfiler_TraceStepTimeParser:69] Get step range failed, the step node list is empty.
+[2026-10-24-14:58:24.050] [INFO] [AscendProfiler_TraceStepTimeParser:177] TraceStepTimeParser finish.

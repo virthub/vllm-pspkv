@@ -1,0 +1,99 @@
+compiled basic
+[
+  {
+    "input": 0.0,
+    "original_cuda_byte": 0,
+    "original_cuda_decoded": 0.0,
+    "torch_e4m3fn_decoded": 0.0
+  },
+  {
+    "input": 1.0,
+    "original_cuda_byte": 56,
+    "original_cuda_decoded": 1.0,
+    "torch_e4m3fn_decoded": 1.0
+  },
+  {
+    "input": 240.0,
+    "original_cuda_byte": 119,
+    "original_cuda_decoded": 240.0,
+    "torch_e4m3fn_decoded": 240.0
+  },
+  {
+    "input": 248.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 256.0
+  },
+  {
+    "input": 256.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 256.0
+  },
+  {
+    "input": 272.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 256.0
+  },
+  {
+    "input": 288.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 288.0
+  },
+  {
+    "input": 320.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 320.0
+  },
+  {
+    "input": 352.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 352.0
+  },
+  {
+    "input": 384.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 384.0
+  },
+  {
+    "input": 416.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 416.0
+  },
+  {
+    "input": 418.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 416.0
+  },
+  {
+    "input": 432.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 448.0
+  },
+  {
+    "input": 448.0,
+    "original_cuda_byte": 120,
+    "original_cuda_decoded": 256.0,
+    "torch_e4m3fn_decoded": 448.0
+  },
+  {
+    "input": -418.0,
+    "original_cuda_byte": 248,
+    "original_cuda_decoded": -256.0,
+    "torch_e4m3fn_decoded": -416.0
+  },
+  {
+    "input": -448.0,
+    "original_cuda_byte": 248,
+    "original_cuda_decoded": -256.0,
+    "torch_e4m3fn_decoded": -448.0
+  }
+]

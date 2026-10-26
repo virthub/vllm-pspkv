@@ -1,0 +1,9 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+INFO 10-25 16:39:01 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-25 16:39:01 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-25 16:39:01 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-25 16:39:02 [__init__.py:238] Platform plugin ascend is activated
+/pipeline/final-runtime/check_workspace_npu.py:49: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  output = torch.empty_like(query)
+{"workspace_cases": 9, "layer_comparisons": 36}

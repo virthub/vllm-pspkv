@@ -1,0 +1,76 @@
+{
+  "valid_baselines": [
+    {
+      "case": "native-bf16-eager",
+      "physical_npu": 2,
+      "profile": "short",
+      "samples": 12,
+      "p50_seconds": 1.536054166033864,
+      "p95_seconds": 1.5959455998614431,
+      "tpot_p50_ms": 46.14216960485904,
+      "ttft_p50_ms": 107.12132975459099,
+      "texts_equal_to_eager": true
+    },
+    {
+      "case": "native-bf16-eager",
+      "physical_npu": 2,
+      "profile": "cross_page",
+      "samples": 12,
+      "p50_seconds": 1.5552205126732588,
+      "p95_seconds": 1.5911481795832514,
+      "tpot_p50_ms": 46.90804248375277,
+      "ttft_p50_ms": 102.71774232387543,
+      "texts_equal_to_eager": true
+    },
+    {
+      "case": "native-bf16-graph",
+      "physical_npu": 2,
+      "profile": "short",
+      "samples": 12,
+      "p50_seconds": 0.4992745239287615,
+      "p95_seconds": 0.5096752405166626,
+      "tpot_p50_ms": 14.094399528638009,
+      "ttft_p50_ms": 61.357418075203896,
+      "texts_equal_to_eager": true
+    },
+    {
+      "case": "native-bf16-graph",
+      "physical_npu": 2,
+      "profile": "cross_page",
+      "samples": 12,
+      "p50_seconds": 0.4972520601004362,
+      "p95_seconds": 0.5003012238070369,
+      "tpot_p50_ms": 14.12767063706152,
+      "ttft_p50_ms": 58.24434570968151,
+      "texts_equal_to_eager": true
+    },
+    {
+      "case": "native-bf16-full",
+      "physical_npu": 4,
+      "profile": "short",
+      "samples": 12,
+      "p50_seconds": 0.5018838401883841,
+      "p95_seconds": 0.5339942902326583,
+      "tpot_p50_ms": 14.06146507830389,
+      "ttft_p50_ms": 64.03459794819355,
+      "texts_equal_to_eager": true
+    },
+    {
+      "case": "native-bf16-full",
+      "physical_npu": 4,
+      "profile": "cross_page",
+      "samples": 12,
+      "p50_seconds": 0.5101517904549837,
+      "p95_seconds": 0.5432302124798297,
+      "tpot_p50_ms": 14.554824319577985,
+      "ttft_p50_ms": 60.886407271027565,
+      "texts_equal_to_eager": true
+    }
+  ],
+  "quality_probes_per_case": 12,
+  "all_independent_baseline_texts_equal": true,
+  "excluded_experiment": {
+    "path": "raw/final-stages/stock-bf16-serving.json",
+    "reason": "Same-process custom graph bypass is incompatible with native BF16 task updates; 12/12 quality-probe texts changed. Excluded from valid latency comparisons."
+  }
+}

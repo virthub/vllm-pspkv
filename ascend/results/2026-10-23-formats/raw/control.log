@@ -1,0 +1,4 @@
+/comparison/compare_formats_control.py:185: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  shared_v = torch.empty_like(canonical[2])
+{"workload": "gqa_512", "precision": "bf16", "wall_ms": {"basic": 10.421171598136425, "enhanced": 4.536524228751659, "btkv": 4.537287540733814}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "e4m3", "wall_ms": {"basic": 11.715422384440899, "enhanced": 6.7749179899692535, "btkv": 6.777747347950935}, "cross_format_bit_equal": true}

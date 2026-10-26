@@ -1,0 +1,12 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+Ascend910B3
+INFO 10-24 15:10:40 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-24 15:10:40 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-24 15:10:40 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-24 15:10:40 [__init__.py:238] Platform plugin ascend is activated
+INFO 10-24 15:10:46 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 10-24 15:10:46 [nixl_utils.py:34] NIXL is not available
+WARNING 10-24 15:10:46 [nixl_utils.py:44] NIXL agent config is not available
+`Qwen2VLImageProcessorFast` is deprecated. The `Fast` suffix for image processors has been removed; use `Qwen2VLImageProcessor` instead.
+ATB init OK

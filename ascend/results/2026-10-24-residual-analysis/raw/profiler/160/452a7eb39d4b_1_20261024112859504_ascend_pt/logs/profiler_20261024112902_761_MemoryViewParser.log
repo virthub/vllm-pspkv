@@ -1,0 +1,3 @@
+[2026-10-24-11:29:02.317] [INFO] [AscendProfiler_MemoryViewParser:97] Profiler logger initialized at: /analysis/profiler/160/452a7eb39d4b_1_20261024112859504_ascend_pt/logs/profiler_20261024112902_761_MemoryViewParser.log
+[2026-10-24-11:29:02.317] [INFO] [AscendProfiler_MemoryViewParser:78] MemoryViewParser start.
+[2026-10-24-11:29:02.321] [INFO] [AscendProfiler_MemoryViewParser:89] MemoryViewParser finish.

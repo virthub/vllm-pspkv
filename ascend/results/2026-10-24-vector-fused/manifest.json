@@ -1,0 +1,26 @@
+{
+  "library_sha256": "8980346ea75b271574f5e01ea03c5c641b202b1fb3855c86c1627162df35c358",
+  "new_source_files": {
+    "ascend/native/pspkv_fp8.asc": "3103c86c7088213516967242de686ab0effd00ccad3879aad552513aa6c23c6d",
+    "ascend/native/pspkv_tiled.h": "471e0428d26fa4f6f3d685831c564aecc599c3fadeade32266628144d27c10f3",
+    "ascend/native/build.py": "7f6391eeb551492b30f9fd93ff6fab6337c81b257c75e07c808e57404ba28975",
+    "vllm/v1/attention/backends/psp_kv_ascend_ops.py": "c05d2fb068d96afbf3280e6eb4005a96f84d72edf86b919aedc6821d33f6381d",
+    "ascend/check_tiled_attention_npu.py": "e47cd3675785f82cb4c4802ab2b68be6e5de68215522fd44600d14f16b4e1b4d",
+    "ascend/run_format_comparison.sh": "49d6e54277b3f423f612b8e9387e0ca01e868422df47f3f9bd28bc939878d94a",
+    "ascend/serve_initialized_npu.py": "ea27697ea59d218ccbbe74c587fcc6ff39abc3e823c0386c6c04fbfda83bca33",
+    "ascend/profile_model_client.py": "70cc61d4bce99482916be14290f2924bba55b43c891de1826618c068512dff7a",
+    "ascend/format_compare_runtime.py": "f4fd4aa475103b60c7aab806f1fa1f4968c9880eb4362c0f57f94676e635cbbf",
+    "ascend/README.md": "79127e70de440a546013674f3681bc933a9bf769634cd7f5c4e4a6806d9f7006"
+  },
+  "previous_library_sha256": "6431a9e4782eb78edf21487d0ff455e04bfab0d68414989fea531b08f5250779",
+  "model_physical_device": 4,
+  "final_operator_physical_device": 2,
+  "timed_model_requests": 168,
+  "warmups_per_profile": 4,
+  "requests_per_profile": 12,
+  "tested_native_snapshot": {
+    "native/build.py": "7f6391eeb551492b30f9fd93ff6fab6337c81b257c75e07c808e57404ba28975",
+    "native/pspkv_fp8.asc": "3103c86c7088213516967242de686ab0effd00ccad3879aad552513aa6c23c6d",
+    "native/pspkv_tiled.h": "471e0428d26fa4f6f3d685831c564aecc599c3fadeade32266628144d27c10f3"
+  }
+}

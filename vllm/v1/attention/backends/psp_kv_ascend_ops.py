@@ -8,6 +8,7 @@ head-major K / transposed V byte layout as enhanced. Ascend has no CUDA TMA;
 the native kernels implement the reference's observable cache contract.
 """
 
+import os
 from functools import lru_cache
 
 import torch
@@ -20,6 +21,56 @@ _TARGET_DTYPES = {
     torch.float8_e4m3fn: 2,
     torch.float8_e5m2: 3,
 }
+
+_ATTENTION_IMPL = os.environ.get("PSPKV_ASCEND_ATTENTION_IMPL", "auto")
+if _ATTENTION_IMPL not in ("gather", "vector", "fused", "auto"):
+    raise ValueError(
+        "PSPKV_ASCEND_ATTENTION_IMPL must be auto, gather, vector or fused"
+    )
+
+
+@lru_cache(maxsize=32)
+def _tile_permutation(device: torch.device, dimension: int) -> torch.Tensor:
+    indices = torch.arange(32 * dimension, dtype=torch.int32)
+    return ((indices % dimension * 32 + indices // dimension) * 4).to(device)
+
+
+@lru_cache(maxsize=32)
+def _scratch_block_table(
+    device: torch.device, sequences: int, blocks: int
+) -> torch.Tensor:
+    return torch.arange(sequences * blocks, dtype=torch.int32, device=device).view(
+        sequences, blocks
+    )
+
+
+def _forward_workspace(query, tables, heads, dimension, block_size):
+    """Reuse active-page scratch only within one forward and one NPU stream.
+
+    Layers execute sequentially on that stream: each attention consumes the
+    scratch before the next layer overwrites it. No BF16 shadow of the full
+    compressed cache is retained, and no cross-request workspace is cached.
+    """
+    from vllm.forward_context import (
+        get_forward_context,
+        is_forward_context_available,
+    )
+
+    if not is_forward_context_available():
+        return None
+    owner = get_forward_context()
+    if getattr(owner, "_pspkv_pipeline_level", 0) < 1:
+        return None
+    if not hasattr(owner, "_pspkv_paged_workspaces"):
+        owner._pspkv_paged_workspaces = {}
+    shape = (tables.numel(), block_size, heads, dimension)
+    stream = torch.npu.current_stream(query.device).npu_stream
+    cache_key = (query.device, stream, shape)
+    workspaces = owner._pspkv_paged_workspaces
+    if cache_key not in workspaces:
+        key = torch.empty(shape, dtype=torch.bfloat16, device=query.device)
+        workspaces[cache_key] = (key, torch.empty_like(key))
+    return workspaces[cache_key]
 
 
 @lru_cache(maxsize=2)
@@ -178,6 +229,7 @@ class PSPKVAscendPackedOps:
         head_size: int,
         out: torch.Tensor,
         block_size: int = 16,
+        context_lens_cpu: torch.Tensor | None = None,
     ) -> None:
         if query.dtype not in _TARGET_DTYPES or out.dtype != query.dtype:
             raise ValueError("PSP-KV packed attention needs matching FP16/BF16/FP8 Q/O")
@@ -190,6 +242,103 @@ class PSPKVAscendPackedOps:
                 raise ValueError("Enhanced/BTKV need a per-head scale table")
             scale_table = torch.empty(0, device=query.device, dtype=torch.float32)
         ops = load_native_fp8_ops()
+        use_fused = _ATTENTION_IMPL == "fused" or (
+            _ATTENTION_IMPL == "auto"
+            and query.dtype == torch.bfloat16
+            and query.shape[0] == 1
+            and block_size == 128
+            and head_size == 128
+            and generation in (0, 1, 2)
+            and block_tables.shape[1] <= 2
+            and hasattr(ops, "tile_fused_attention")
+        )
+        if use_fused:
+            e4, e5, _ = packed_lookup_tables(query.device)
+            ops.tile_fused_attention(
+                query,
+                key_cache,
+                value_cache,
+                block_tables,
+                context_lens,
+                precision_table,
+                block_offsets,
+                scale_table,
+                e4,
+                e5,
+                _tile_permutation(query.device, head_size),
+                generation,
+                num_kv_heads,
+                block_size,
+                softmax_scale,
+                out,
+                0,
+            )
+            return
+        if context_lens_cpu is not None:
+            if (
+                query.dtype != torch.bfloat16
+                or generation not in (0, 1, 2)
+                or head_size not in (128, 256)
+                or block_size != 128
+                or context_lens_cpu.device.type != "cpu"
+                or context_lens_cpu.dtype != torch.int32
+                or context_lens_cpu.shape != context_lens.shape
+                or not context_lens_cpu.is_contiguous()
+            ):
+                raise ValueError(
+                    "Native paged scratch needs BF16, 128-token pages "
+                    "and CPU int32 lengths"
+                )
+            import torch_npu
+
+            # Only active pages are materialized; there is no persistent BF16
+            # copy of the compressed arena. The original layouts stay intact.
+            gather = ops.gather_paged_bf16
+            table_args = []
+            if _ATTENTION_IMPL != "gather" and hasattr(ops, "gather_paged_bf16_vec"):
+                gather = ops.gather_paged_bf16_vec
+                e4, e5, _ = packed_lookup_tables(query.device)
+                table_args = [e4, e5, _tile_permutation(query.device, head_size)]
+            gather_args = (
+                key_cache,
+                value_cache,
+                block_tables,
+                context_lens,
+                precision_table,
+                block_offsets,
+                scale_table,
+                *table_args,
+                generation,
+                num_kv_heads,
+                head_size,
+                block_size,
+            )
+            workspace = (
+                _forward_workspace(
+                    query, block_tables, num_kv_heads, head_size, block_size
+                )
+                if table_args and hasattr(ops, "gather_paged_bf16_vec_out")
+                else None
+            )
+            if workspace is not None:
+                key, value = workspace
+                ops.gather_paged_bf16_vec_out(*gather_args, key, value)
+            else:
+                key, value = gather(*gather_args)
+            torch_npu._npu_paged_attention(
+                query=query,
+                key_cache=key,
+                value_cache=value,
+                num_kv_heads=num_kv_heads,
+                num_heads=query.shape[1],
+                scale_value=softmax_scale,
+                block_table=_scratch_block_table(
+                    query.device, query.shape[0], block_tables.shape[1]
+                ),
+                context_lens=context_lens_cpu,
+                out=out,
+            )
+            return
         scores = ops.packed_scores(
             query,
             key_cache,
@@ -236,6 +385,9 @@ class PSPKVAscendPackedOps:
         num_kv_heads: int,
         head_size: int,
         out: torch.Tensor,
+        *,
+        context_lens_cpu: torch.Tensor | None = None,
+        block_size: int = 16,
     ) -> None:
         self._attention(
             0,
@@ -251,6 +403,8 @@ class PSPKVAscendPackedOps:
             num_kv_heads,
             head_size,
             out,
+            block_size=block_size,
+            context_lens_cpu=context_lens_cpu,
         )
 
     def psp_attention_scaled_basic(
@@ -418,6 +572,9 @@ class PSPKVAscendPackedOps:
         num_kv_heads: int,
         head_size: int,
         out: torch.Tensor,
+        *,
+        context_lens_cpu: torch.Tensor | None = None,
+        block_size: int = 16,
     ) -> None:
         self._attention(
             1,
@@ -433,6 +590,8 @@ class PSPKVAscendPackedOps:
             num_kv_heads,
             head_size,
             out,
+            block_size=block_size,
+            context_lens_cpu=context_lens_cpu,
         )
 
     def psp_attention_btkv(
@@ -450,6 +609,9 @@ class PSPKVAscendPackedOps:
         num_kv_heads: int,
         head_size: int,
         out: torch.Tensor,
+        *,
+        context_lens_cpu: torch.Tensor | None = None,
+        block_size: int = 16,
     ) -> None:
         if (
             tma_descriptors.dtype != torch.int64
@@ -472,4 +634,6 @@ class PSPKVAscendPackedOps:
             num_kv_heads,
             head_size,
             out,
+            block_size=block_size,
+            context_lens_cpu=context_lens_cpu,
         )

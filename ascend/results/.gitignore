@@ -1,0 +1,11 @@
+# Keep text evidence, including logs/CSV ignored by the repository root.
+!**/*.log
+!**/*.csv
+
+# Hardware collectors and timelines remain in the original server run folders.
+**/FRAMEWORK/
+**/PROF_*/
+**/*.db
+**/trace_view.json
+**/memory_view.json
+**/*.done

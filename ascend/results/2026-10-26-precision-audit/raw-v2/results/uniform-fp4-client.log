@@ -1,0 +1,4 @@
+{"seconds": 2.1187898442149162, "usage": {"prompt_tokens": 3, "total_tokens": 19, "completion_tokens": 16, "prompt_tokens_details": null}, "text": "首都#10 strugg性价性价性价性价性价性价性价性价性价性价性价", "profile": "short", "repeat": 0}
+{"seconds": 2.1789462342858315, "usage": {"prompt_tokens": 135, "total_tokens": 151, "completion_tokens": 16, "prompt_tokens_details": null}, "text": "北京：SingleOrDefaultolley.MSG:北京、在alborg:numel{}.MSG:北京、", "profile": "cross_page", "repeat": 0}
+{"seconds": 1.9814484305679798, "usage": {"prompt_tokens": 3, "total_tokens": 19, "completion_tokens": 16, "prompt_tokens_details": null}, "text": "首都#10 strugg性价性价性价性价性价性价性价性价性价性价性价", "profile": "short", "repeat": 1}
+{"seconds": 2.1002549529075623, "usage": {"prompt_tokens": 135, "total_tokens": 151, "completion_tokens": 16, "prompt_tokens_details": null}, "text": "北京：SingleOrDefaultolley.MSG:北京、在alborg:numel{}.MSG:北京、", "profile": "cross_page", "repeat": 1}

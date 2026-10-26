@@ -1,0 +1,1716 @@
+{
+  "scope": "Two extra 4-token requests per mode; profiler overhead included. Kernel interval coverage is not unprofiled whole-device utilization.",
+  "before": {
+    "trace_directory": "rank0_236_20261025165222475_ascend_pt",
+    "kernel_count": 3344,
+    "fused_calls": 168,
+    "sync_copies": 0,
+    "stream_syncs": 0,
+    "async_copies": 126,
+    "device_kernel_sum_us": 128962.032,
+    "decode_layer_windows_us": 292640.5,
+    "decode_layer_kernel_union_us": 73954.5,
+    "kernels": {
+      "aclnnMatmul_MatMulCommon_MatMulV2": {
+        "count": 680,
+        "device_us": 99201.064
+      },
+      "_Z26PspkvPackedScatterParallelILb0EEvPhS0_S0_S0_S0_S0_S0_S0_jjjjjjjjj": {
+        "count": 224,
+        "device_us": 8787.547999999992
+      },
+      "aclnnAddmm_MatMulCommon_MatMulV2": {
+        "count": 224,
+        "device_us": 7875.303999999998
+      },
+      "_Z23PspkvTileFusedAttentionILb0EEvPhS0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_jjjjjjjf": {
+        "count": 168,
+        "device_us": 3071.7240000000015
+      },
+      "FusedInferAttentionScore": {
+        "count": 56,
+        "device_us": 1781.9080000000001
+      },
+      "AddRmsNormBias": {
+        "count": 448,
+        "device_us": 1698.5040000000006
+      },
+      "SwiGlu": {
+        "count": 224,
+        "device_us": 1542.7720000000008
+      },
+      "_triton_rope": {
+        "count": 224,
+        "device_us": 1138.3800000000003
+      },
+      "_compute_slot_mapping_kernel": {
+        "count": 8,
+        "device_us": 961.796
+      },
+      "aclnnStack_PackAiCore_Pack": {
+        "count": 224,
+        "device_us": 740.7880000000004
+      },
+      "aclnnInplaceZero_ZerosLikeAiCore_ZerosLike": {
+        "count": 224,
+        "device_us": 523.559999999999
+      },
+      "aclnnInplaceCopy_SliceAiCore_Slice": {
+        "count": 172,
+        "device_us": 361.312
+      },
+      "aclnnAddmm_CastAiCore_Cast": {
+        "count": 224,
+        "device_us": 330.44399999999985
+      },
+      "aclnnInplaceCopy_TensorMoveAiCore_TensorMove": {
+        "count": 28,
+        "device_us": 232.71599999999998
+      },
+      "aclnnArgMax_ArgMaxV2AiCore_ArgMaxV2": {
+        "count": 8,
+        "device_us": 149.83200000000002
+      },
+      "aclnnIndex_IndexAiCore_Index": {
+        "count": 16,
+        "device_us": 122.55999999999999
+      },
+      "aclnnStack_SliceAiCore_Slice": {
+        "count": 56,
+        "device_us": 105.55599999999998
+      },
+      "aclnnInplaceCopy_CastAiCore_Cast": {
+        "count": 40,
+        "device_us": 87.15200000000002
+      },
+      "aclnnEmbedding_GatherV2AiCore_GatherV2": {
+        "count": 8,
+        "device_us": 55.22
+      },
+      "aclnnIndexSelect_GatherV3AiCore_GatherV3": {
+        "count": 16,
+        "device_us": 49.98000000000001
+      },
+      "RmsNorm": {
+        "count": 8,
+        "device_us": 43.304
+      },
+      "aclnnRepeat_TileAiCore_Tile": {
+        "count": 16,
+        "device_us": 31.7
+      },
+      "aclnnAdd_AddAiCore_Add": {
+        "count": 16,
+        "device_us": 30.380000000000003
+      },
+      "aclnnInplaceFillScalar_FillAiCore_Fill": {
+        "count": 16,
+        "device_us": 17.128000000000004
+      },
+      "aclnnSubs_SubAiCore_Sub": {
+        "count": 8,
+        "device_us": 12.876000000000001
+      },
+      "aclnnArgMax_CastAiCore_Cast": {
+        "count": 8,
+        "device_us": 8.524
+      }
+    },
+    "host_ops": {
+      "vllm::npu_rotary_embedding": {
+        "count": 224,
+        "self_us": 55496.649999999994
+      },
+      "vllm::unified_attention_with_output": {
+        "count": 224,
+        "self_us": 52911.250000000044
+      },
+      "empty_tensor": {
+        "count": 4264,
+        "self_us": 27063.96999999993
+      },
+      "_C_ascend::npu_add_rms_norm_bias": {
+        "count": 448,
+        "self_us": 16133.8
+      },
+      "vllm::unquantized_gemm": {
+        "count": 896,
+        "self_us": 12991.989999999998
+      },
+      "psp_kv_ascend_native::packed_scatter_parallel": {
+        "count": 224,
+        "self_us": 12626.639999999998
+      },
+      "aten::as_strided": {
+        "count": 3494,
+        "self_us": 11755.970000000014
+      },
+      "aten::matmul": {
+        "count": 680,
+        "self_us": 11330.97
+      },
+      "aten::view": {
+        "count": 3082,
+        "self_us": 10571.469999999998
+      },
+      "npu::npu_swiglu": {
+        "count": 224,
+        "self_us": 8544.349999999995
+      },
+      "psp_kv_ascend_native::tile_fused_attention": {
+        "count": 168,
+        "self_us": 7898.790000000002
+      },
+      "aten::copy_": {
+        "count": 396,
+        "self_us": 6422.920000000002
+      },
+      "aclnnMatmul": {
+        "count": 680,
+        "self_us": 6040.630000000003
+      },
+      "aten::slice": {
+        "count": 1886,
+        "self_us": 5781.180000000002
+      },
+      "vllm::maybe_chunk_residual": {
+        "count": 448,
+        "self_us": 4868.839999999999
+      },
+      "aten::empty": {
+        "count": 2408,
+        "self_us": 4858.059999999992
+      },
+      "aten::addmm": {
+        "count": 224,
+        "self_us": 4699.1799999999985
+      },
+      "aclnnAddRmsNormBias": {
+        "count": 448,
+        "self_us": 4492.940000000004
+      },
+      "npu::npu_fused_infer_attention_score": {
+        "count": 56,
+        "self_us": 4404.9400000000005
+      },
+      "aten::stack": {
+        "count": 224,
+        "self_us": 3804.3399999999992
+      },
+      "aten::t": {
+        "count": 904,
+        "self_us": 3730.479999999996
+      },
+      "Event::synchronize": {
+        "count": 12,
+        "self_us": 3406.3300000000004
+      },
+      "_triton_rope": {
+        "count": 224,
+        "self_us": 3281.2699999999986
+      },
+      "Event::record": {
+        "count": 28,
+        "self_us": 3264.6599999999994
+      },
+      "aten::linear": {
+        "count": 904,
+        "self_us": 3220.259999999999
+      },
+      "aten::zero_": {
+        "count": 224,
+        "self_us": 3178.11
+      },
+      "aclnnInplaceCopy": {
+        "count": 302,
+        "self_us": 3048.99
+      },
+      "aten::transpose": {
+        "count": 904,
+        "self_us": 2568.5400000000004
+      },
+      "aclnnInplaceZero": {
+        "count": 224,
+        "self_us": 2332.050000000001
+      },
+      "aclnnSwiGlu": {
+        "count": 224,
+        "self_us": 2032.7899999999997
+      },
+      "aclnnAddmm": {
+        "count": 224,
+        "self_us": 1774.2400000000005
+      },
+      "aclnnStack": {
+        "count": 224,
+        "self_us": 1750.8999999999996
+      },
+      "aten::split_with_sizes": {
+        "count": 224,
+        "self_us": 1154.3300000000006
+      },
+      "acl_memcpy_host_to_device": {
+        "count": 64,
+        "self_us": 872.9599999999997
+      },
+      "aten::fill_": {
+        "count": 58,
+        "self_us": 574.8600000000004
+      },
+      "aclnnFusedInferAttentionScoreV3": {
+        "count": 56,
+        "self_us": 554.46
+      },
+      "aten::clone": {
+        "count": 168,
+        "self_us": 546.3699999999997
+      },
+      "aten::to": {
+        "count": 278,
+        "self_us": 530.4800000000001
+      },
+      "npu::npu_rms_norm": {
+        "count": 8,
+        "self_us": 524.64
+      },
+      "aten::add": {
+        "count": 24,
+        "self_us": 480.46000000000004
+      },
+      "Event::wait": {
+        "count": 8,
+        "self_us": 464.64
+      },
+      "aten::index": {
+        "count": 16,
+        "self_us": 443.21999999999997
+      },
+      "aten::index_select": {
+        "count": 24,
+        "self_us": 401.06
+      },
+      "aclnnInplaceFillScalar": {
+        "count": 40,
+        "self_us": 385.8
+      },
+      "aten::_to_copy": {
+        "count": 60,
+        "self_us": 350.7400000000002
+      },
+      "record_event": {
+        "count": 28,
+        "self_us": 327.42999999999995
+      },
+      "aten::contiguous": {
+        "count": 168,
+        "self_us": 308.2800000000001
+      },
+      "aten::argmax": {
+        "count": 18,
+        "self_us": 288.15000000000003
+      },
+      "aten::sub": {
+        "count": 10,
+        "self_us": 216.34000000000003
+      },
+      "aclnnIndex": {
+        "count": 16,
+        "self_us": 163.84
+      },
+      "aten::repeat": {
+        "count": 16,
+        "self_us": 151.89000000000001
+      },
+      "aten::empty_strided": {
+        "count": 12,
+        "self_us": 139.74
+      },
+      "aten::lt": {
+        "count": 8,
+        "self_us": 134.6
+      },
+      "vllm::maybe_pad_and_reduce": {
+        "count": 8,
+        "self_us": 129.77
+      },
+      "aten::embedding": {
+        "count": 8,
+        "self_us": 120.39000000000001
+      },
+      "aclnnIndexSelect": {
+        "count": 16,
+        "self_us": 117.36000000000001
+      },
+      "_compute_slot_mapping_kernel": {
+        "count": 8,
+        "self_us": 112.64999999999999
+      },
+      "aclnnEmbedding": {
+        "count": 8,
+        "self_us": 92.05000000000001
+      },
+      "aclnnAdd": {
+        "count": 16,
+        "self_us": 91.77000000000001
+      },
+      "aten::alias": {
+        "count": 12,
+        "self_us": 87.63
+      },
+      "aclnnRepeat": {
+        "count": 16,
+        "self_us": 83.64999999999999
+      },
+      "aten::narrow": {
+        "count": 32,
+        "self_us": 78.7
+      },
+      "aten::detach": {
+        "count": 16,
+        "self_us": 73.88999999999999
+      },
+      "aten::chunk": {
+        "count": 16,
+        "self_us": 73.55999999999999
+      },
+      "wait_event": {
+        "count": 8,
+        "self_us": 73.22
+      },
+      "aclnnRmsNorm": {
+        "count": 8,
+        "self_us": 69.04
+      },
+      "aclnnSubs": {
+        "count": 8,
+        "self_us": 64.46
+      },
+      "aten::split": {
+        "count": 16,
+        "self_us": 58.87
+      },
+      "aclnnArgMax": {
+        "count": 8,
+        "self_us": 57.59
+      },
+      "aten::select": {
+        "count": 8,
+        "self_us": 56.709999999999994
+      },
+      "aten::expand": {
+        "count": 16,
+        "self_us": 52.620000000000005
+      },
+      "acl_memcpy_device_to_host": {
+        "count": 8,
+        "self_us": 51.45
+      },
+      "destroy_event": {
+        "count": 8,
+        "self_us": 49.14000000000001
+      },
+      "aten::flatten": {
+        "count": 8,
+        "self_us": 40.18
+      },
+      "aten::is_pinned": {
+        "count": 8,
+        "self_us": 37.96
+      },
+      "aten::pin_memory": {
+        "count": 8,
+        "self_us": 34.1
+      },
+      "aten::lift_fresh": {
+        "count": 32,
+        "self_us": 33.2
+      },
+      "aten::item": {
+        "count": 14,
+        "self_us": 31.56
+      },
+      "aten::_local_scalar_dense": {
+        "count": 14,
+        "self_us": 31.4
+      },
+      "aten::unsqueeze": {
+        "count": 8,
+        "self_us": 30.47
+      },
+      "aten::gt": {
+        "count": 2,
+        "self_us": 28.85
+      },
+      "aten::resolve_conj": {
+        "count": 32,
+        "self_us": 24.14
+      },
+      "aten::any": {
+        "count": 2,
+        "self_us": 19.37
+      },
+      "aten::reshape": {
+        "count": 8,
+        "self_us": 17.27
+      },
+      "aten::resolve_neg": {
+        "count": 32,
+        "self_us": 16.97
+      },
+      "aten::is_nonzero": {
+        "count": 2,
+        "self_us": 7.140000000000001
+      },
+      "aten::view_as": {
+        "count": 2,
+        "self_us": 5.52
+      }
+    },
+    "apis": {
+      "aclnnAdd": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAdd",
+        "Time(us)": "180.4",
+        "Count": "16",
+        "Avg(us)": "11.275",
+        "Min(us)": "9.81",
+        "Max(us)": "14.97",
+        "Variance": "2.051"
+      },
+      "aclnnAddRmsNormBias": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddRmsNormBias",
+        "Time(us)": "7630.56",
+        "Count": "448",
+        "Avg(us)": "17.033",
+        "Min(us)": "10.97",
+        "Max(us)": "105.37",
+        "Variance": "50.109"
+      },
+      "aclnnAddRmsNormBiasGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddRmsNormBiasGetWorkspaceSize",
+        "Time(us)": "6531",
+        "Count": "448",
+        "Avg(us)": "14.578",
+        "Min(us)": "11.46",
+        "Max(us)": "40.65",
+        "Variance": "6.64"
+      },
+      "aclnnAddmm": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddmm",
+        "Time(us)": "3434.04",
+        "Count": "224",
+        "Avg(us)": "15.331",
+        "Min(us)": "12.53",
+        "Max(us)": "30.31",
+        "Variance": "6.547"
+      },
+      "aclnnArgMax": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnArgMax",
+        "Time(us)": "142.02",
+        "Count": "8",
+        "Avg(us)": "17.753",
+        "Min(us)": "12.14",
+        "Max(us)": "37.38",
+        "Variance": "56.414"
+      },
+      "aclnnEmbedding": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnEmbedding",
+        "Time(us)": "95.53",
+        "Count": "8",
+        "Avg(us)": "11.941",
+        "Min(us)": "9.54",
+        "Max(us)": "20.17",
+        "Variance": "12.524"
+      },
+      "aclnnIndex": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnIndex",
+        "Time(us)": "216.37",
+        "Count": "16",
+        "Avg(us)": "13.523",
+        "Min(us)": "10.4",
+        "Max(us)": "23.54",
+        "Variance": "15.246"
+      },
+      "aclnnIndexSelect": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnIndexSelect",
+        "Time(us)": "229.7",
+        "Count": "16",
+        "Avg(us)": "14.356",
+        "Min(us)": "8.6",
+        "Max(us)": "30.12",
+        "Variance": "24.931"
+      },
+      "aclnnInnerFusedInferAttentionScore": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInnerFusedInferAttentionScore",
+        "Time(us)": "1733.85",
+        "Count": "56",
+        "Avg(us)": "30.962",
+        "Min(us)": "22.91",
+        "Max(us)": "58.31",
+        "Variance": "74.301"
+      },
+      "aclnnInnerFusedInferAttentionScoreGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInnerFusedInferAttentionScoreGetWorkspaceSize",
+        "Time(us)": "1092.16",
+        "Count": "56",
+        "Avg(us)": "19.503",
+        "Min(us)": "17.21",
+        "Max(us)": "36.48",
+        "Variance": "8.604"
+      },
+      "aclnnInplaceCopy": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceCopy",
+        "Time(us)": "3599.16",
+        "Count": "302",
+        "Avg(us)": "11.918",
+        "Min(us)": "7.67",
+        "Max(us)": "31.81",
+        "Variance": "10.598"
+      },
+      "aclnnInplaceCopyGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceCopyGetWorkspaceSize",
+        "Time(us)": "1241.78",
+        "Count": "62",
+        "Avg(us)": "20.029",
+        "Min(us)": "12.3",
+        "Max(us)": "49.31",
+        "Variance": "58.216"
+      },
+      "aclnnInplaceFillScalar": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceFillScalar",
+        "Time(us)": "387.04",
+        "Count": "40",
+        "Avg(us)": "9.676",
+        "Min(us)": "1.45",
+        "Max(us)": "74.07",
+        "Variance": "202.139"
+      },
+      "aclnnInplaceZero": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceZero",
+        "Time(us)": "2921.81",
+        "Count": "224",
+        "Avg(us)": "13.044",
+        "Min(us)": "9.5",
+        "Max(us)": "42.88",
+        "Variance": "20.695"
+      },
+      "aclnnMatmul": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnMatmul",
+        "Time(us)": "7411.03",
+        "Count": "680",
+        "Avg(us)": "10.899",
+        "Min(us)": "8.26",
+        "Max(us)": "25.75",
+        "Variance": "5.239"
+      },
+      "aclnnRepeat": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRepeat",
+        "Time(us)": "170.35",
+        "Count": "16",
+        "Avg(us)": "10.647",
+        "Min(us)": "8.74",
+        "Max(us)": "14.9",
+        "Variance": "2.81"
+      },
+      "aclnnRmsNorm": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRmsNorm",
+        "Time(us)": "239.78",
+        "Count": "8",
+        "Avg(us)": "29.973",
+        "Min(us)": "20.04",
+        "Max(us)": "51.71",
+        "Variance": "152.025"
+      },
+      "aclnnRmsNormGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRmsNormGetWorkspaceSize",
+        "Time(us)": "180.73",
+        "Count": "8",
+        "Avg(us)": "22.591",
+        "Min(us)": "16.55",
+        "Max(us)": "40.15",
+        "Variance": "66.806"
+      },
+      "aclnnStack": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnStack",
+        "Time(us)": "2584.41",
+        "Count": "224",
+        "Avg(us)": "11.538",
+        "Min(us)": "8.23",
+        "Max(us)": "23.62",
+        "Variance": "7.592"
+      },
+      "aclnnSubs": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSubs",
+        "Time(us)": "119.81",
+        "Count": "8",
+        "Avg(us)": "14.976",
+        "Min(us)": "11.09",
+        "Max(us)": "21.7",
+        "Variance": "11.901"
+      },
+      "aclnnSwiGlu": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSwiGlu",
+        "Time(us)": "3107.61",
+        "Count": "224",
+        "Avg(us)": "13.873",
+        "Min(us)": "10.99",
+        "Max(us)": "28.27",
+        "Variance": "6.385"
+      },
+      "aclnnSwiGluGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSwiGluGetWorkspaceSize",
+        "Time(us)": "2962.5",
+        "Count": "224",
+        "Avg(us)": "13.225",
+        "Min(us)": "10.75",
+        "Max(us)": "24.28",
+        "Variance": "1.622"
+      },
+      "aclrtCreateEventExWithFlag": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtCreateEventExWithFlag",
+        "Time(us)": "123.01",
+        "Count": "16",
+        "Avg(us)": "7.688",
+        "Min(us)": "4.36",
+        "Max(us)": "13.27",
+        "Variance": "7.221"
+      },
+      "aclrtDestroyEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtDestroyEvent",
+        "Time(us)": "46.98",
+        "Count": "16",
+        "Avg(us)": "2.936",
+        "Min(us)": "1.17",
+        "Max(us)": "5.78",
+        "Variance": "0.859"
+      },
+      "aclrtGetResInCurrentThread": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtGetResInCurrentThread",
+        "Time(us)": "1451.17",
+        "Count": "1596",
+        "Avg(us)": "0.909",
+        "Min(us)": "0.26",
+        "Max(us)": "5.09",
+        "Variance": "0.37"
+      },
+      "aclrtGetStreamAttribute": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtGetStreamAttribute",
+        "Time(us)": "1236.44",
+        "Count": "2518",
+        "Avg(us)": "0.491",
+        "Min(us)": "0.34",
+        "Max(us)": "7.99",
+        "Variance": "0.061"
+      },
+      "aclrtLaunchKernelWithHostArgs": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtLaunchKernelWithHostArgs",
+        "Time(us)": "20129.63",
+        "Count": "3112",
+        "Avg(us)": "6.468",
+        "Min(us)": "2.06",
+        "Max(us)": "38.29",
+        "Variance": "12.636"
+      },
+      "aclrtMemcpyAsync": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtMemcpyAsync",
+        "Time(us)": "962.39",
+        "Count": "126",
+        "Avg(us)": "7.638",
+        "Min(us)": "2.93",
+        "Max(us)": "48.38",
+        "Variance": "21.666"
+      },
+      "aclrtMemcpyAsyncWithCondition": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtMemcpyAsyncWithCondition",
+        "Time(us)": "134.02",
+        "Count": "8",
+        "Avg(us)": "16.752",
+        "Min(us)": "9.54",
+        "Max(us)": "22.17",
+        "Variance": "17.931"
+      },
+      "aclrtPointerGetAttributes": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtPointerGetAttributes",
+        "Time(us)": "1681.36",
+        "Count": "928",
+        "Avg(us)": "1.812",
+        "Min(us)": "0.52",
+        "Max(us)": "12.15",
+        "Variance": "3.966"
+      },
+      "aclrtQueryEventStatus": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtQueryEventStatus",
+        "Time(us)": "39.75",
+        "Count": "17",
+        "Avg(us)": "2.338",
+        "Min(us)": "0.5",
+        "Max(us)": "5.29",
+        "Variance": "3.588"
+      },
+      "aclrtRecordEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtRecordEvent",
+        "Time(us)": "571.23",
+        "Count": "36",
+        "Avg(us)": "15.868",
+        "Min(us)": "6.08",
+        "Max(us)": "39.79",
+        "Variance": "86.791"
+      },
+      "aclrtStreamWaitEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtStreamWaitEvent",
+        "Time(us)": "126.57",
+        "Count": "8",
+        "Avg(us)": "15.821",
+        "Min(us)": "9.96",
+        "Max(us)": "20.38",
+        "Variance": "7.092"
+      },
+      "aclrtSynchronizeDeviceWithTimeout": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtSynchronizeDeviceWithTimeout",
+        "Time(us)": "42.83",
+        "Count": "1",
+        "Avg(us)": "42.83",
+        "Min(us)": "42.83",
+        "Max(us)": "42.83",
+        "Variance": "0"
+      },
+      "aclrtSynchronizeEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtSynchronizeEvent",
+        "Time(us)": "242.6",
+        "Count": "20",
+        "Avg(us)": "12.13",
+        "Min(us)": "3",
+        "Max(us)": "25.48",
+        "Variance": "49.877"
+      },
+      "launch": {
+        "Device_id": "host",
+        "Level": "node",
+        "API Name": "launch",
+        "Time(us)": "37018.74",
+        "Count": "3344",
+        "Avg(us)": "11.07",
+        "Min(us)": "2.79",
+        "Max(us)": "199.25",
+        "Variance": "140.833"
+      }
+    }
+  },
+  "after": {
+    "trace_directory": "rank0_236_20261025165228684_ascend_pt",
+    "kernel_count": 2840,
+    "fused_calls": 168,
+    "sync_copies": 0,
+    "stream_syncs": 0,
+    "async_copies": 126,
+    "device_kernel_sum_us": 127239.252,
+    "decode_layer_windows_us": 72922.75,
+    "decode_layer_kernel_union_us": 72847.0,
+    "kernels": {
+      "aclnnMatmul_MatMulCommon_MatMulV2": {
+        "count": 680,
+        "device_us": 98953.5439999999
+      },
+      "_Z26PspkvPackedScatterParallelILb1EEvPhS0_S0_S0_S0_S0_S0_S0_jjjjjjjjj": {
+        "count": 224,
+        "device_us": 8636.371999999998
+      },
+      "aclnnAddmm_MatMulCommon_MatMulV2": {
+        "count": 224,
+        "device_us": 7905.820000000002
+      },
+      "_Z23PspkvTileFusedAttentionILb0EEvPhS0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_S0_jjjjjjjf": {
+        "count": 168,
+        "device_us": 3020.9959999999987
+      },
+      "FusedInferAttentionScore": {
+        "count": 56,
+        "device_us": 1783.4800000000002
+      },
+      "AddRmsNormBias": {
+        "count": 448,
+        "device_us": 1727.0400000000009
+      },
+      "SwiGlu": {
+        "count": 224,
+        "device_us": 1549.8519999999994
+      },
+      "_compute_slot_mapping_kernel": {
+        "count": 8,
+        "device_us": 961.5799999999999
+      },
+      "_triton_rope_1": {
+        "count": 168,
+        "device_us": 578.6040000000002
+      },
+      "_triton_rope": {
+        "count": 56,
+        "device_us": 548.224
+      },
+      "aclnnInplaceCopy_SliceAiCore_Slice": {
+        "count": 172,
+        "device_us": 370.12399999999997
+      },
+      "aclnnAddmm_CastAiCore_Cast": {
+        "count": 224,
+        "device_us": 360.66399999999976
+      },
+      "aclnnInplaceCopy_TensorMoveAiCore_TensorMove": {
+        "count": 28,
+        "device_us": 226.75199999999995
+      },
+      "aclnnArgMax_ArgMaxV2AiCore_ArgMaxV2": {
+        "count": 8,
+        "device_us": 149.35999999999999
+      },
+      "aclnnIndex_IndexAiCore_Index": {
+        "count": 16,
+        "device_us": 124.92000000000002
+      },
+      "aclnnInplaceCopy_CastAiCore_Cast": {
+        "count": 40,
+        "device_us": 90.548
+      },
+      "aclnnEmbedding_GatherV2AiCore_GatherV2": {
+        "count": 8,
+        "device_us": 55.519999999999996
+      },
+      "aclnnIndexSelect_GatherV3AiCore_GatherV3": {
+        "count": 16,
+        "device_us": 49.14
+      },
+      "RmsNorm": {
+        "count": 8,
+        "device_us": 43.10800000000001
+      },
+      "aclnnRepeat_TileAiCore_Tile": {
+        "count": 16,
+        "device_us": 34.339999999999996
+      },
+      "aclnnAdd_AddAiCore_Add": {
+        "count": 16,
+        "device_us": 31.459999999999994
+      },
+      "aclnnInplaceFillScalar_FillAiCore_Fill": {
+        "count": 16,
+        "device_us": 17.184
+      },
+      "aclnnSubs_SubAiCore_Sub": {
+        "count": 8,
+        "device_us": 11.6
+      },
+      "aclnnArgMax_CastAiCore_Cast": {
+        "count": 8,
+        "device_us": 9.020000000000001
+      }
+    },
+    "host_ops": {
+      "vllm::npu_rotary_embedding": {
+        "count": 56,
+        "self_us": 15129.820000000003
+      },
+      "vllm::unified_attention_with_output": {
+        "count": 56,
+        "self_us": 12750.940000000002
+      },
+      "empty_tensor": {
+        "count": 1322,
+        "self_us": 8041.049999999997
+      },
+      "aten::copy_": {
+        "count": 384,
+        "self_us": 6330.050000000004
+      },
+      "npu::npu_fused_infer_attention_score": {
+        "count": 56,
+        "self_us": 4704.43
+      },
+      "_C_ascend::npu_add_rms_norm_bias": {
+        "count": 112,
+        "self_us": 4028.0099999999998
+      },
+      "aten::as_strided": {
+        "count": 1295,
+        "self_us": 3612.8599999999997
+      },
+      "psp_kv_ascend_native::packed_scatter_kv": {
+        "count": 56,
+        "self_us": 3554.8099999999995
+      },
+      "vllm::unquantized_gemm": {
+        "count": 224,
+        "self_us": 3316.34
+      },
+      "Event::synchronize": {
+        "count": 12,
+        "self_us": 3148.9899999999993
+      },
+      "Event::record": {
+        "count": 28,
+        "self_us": 3071.66
+      },
+      "aten::matmul": {
+        "count": 176,
+        "self_us": 2851.0200000000004
+      },
+      "aclnnInplaceCopy": {
+        "count": 290,
+        "self_us": 2849.2699999999986
+      },
+      "aten::view": {
+        "count": 730,
+        "self_us": 2815.7200000000025
+      },
+      "aten::slice": {
+        "count": 863,
+        "self_us": 2317.0299999999993
+      },
+      "npu::npu_swiglu": {
+        "count": 56,
+        "self_us": 2156.0100000000007
+      },
+      "aclnnMatmul": {
+        "count": 176,
+        "self_us": 1493.57
+      },
+      "vllm::maybe_chunk_residual": {
+        "count": 112,
+        "self_us": 1281.6100000000001
+      },
+      "aten::addmm": {
+        "count": 56,
+        "self_us": 1232.8900000000006
+      },
+      "aten::empty": {
+        "count": 548,
+        "self_us": 1145.3500000000006
+      },
+      "aten::t": {
+        "count": 232,
+        "self_us": 1125.1700000000003
+      },
+      "aclnnAddRmsNormBias": {
+        "count": 112,
+        "self_us": 1074.0199999999995
+      },
+      "aten::linear": {
+        "count": 232,
+        "self_us": 874.5
+      },
+      "acl_memcpy_host_to_device": {
+        "count": 64,
+        "self_us": 795.8200000000003
+      },
+      "_triton_rope": {
+        "count": 56,
+        "self_us": 731.92
+      },
+      "aten::transpose": {
+        "count": 232,
+        "self_us": 675.4299999999998
+      },
+      "aten::clone": {
+        "count": 168,
+        "self_us": 602.7800000000001
+      },
+      "aten::fill_": {
+        "count": 58,
+        "self_us": 532.8900000000002
+      },
+      "aclnnFusedInferAttentionScoreV3": {
+        "count": 56,
+        "self_us": 477.99999999999994
+      },
+      "aclnnInplaceFillScalar": {
+        "count": 40,
+        "self_us": 459.5999999999999
+      },
+      "aclnnAddmm": {
+        "count": 56,
+        "self_us": 432.20000000000005
+      },
+      "aclnnSwiGlu": {
+        "count": 56,
+        "self_us": 413.6000000000001
+      },
+      "aten::index": {
+        "count": 16,
+        "self_us": 405.7099999999999
+      },
+      "aten::add": {
+        "count": 24,
+        "self_us": 400.3799999999999
+      },
+      "Event::wait": {
+        "count": 8,
+        "self_us": 386.0
+      },
+      "aten::index_select": {
+        "count": 24,
+        "self_us": 372.20000000000005
+      },
+      "aten::contiguous": {
+        "count": 168,
+        "self_us": 330.3599999999998
+      },
+      "record_event": {
+        "count": 28,
+        "self_us": 308.68
+      },
+      "aten::split_with_sizes": {
+        "count": 56,
+        "self_us": 305.75
+      },
+      "aten::_to_copy": {
+        "count": 48,
+        "self_us": 263.93
+      },
+      "destroy_event": {
+        "count": 8,
+        "self_us": 255.30999999999997
+      },
+      "aten::argmax": {
+        "count": 18,
+        "self_us": 223.91
+      },
+      "aten::sub": {
+        "count": 10,
+        "self_us": 198.42
+      },
+      "npu::npu_rms_norm": {
+        "count": 2,
+        "self_us": 185.19
+      },
+      "aclnnIndex": {
+        "count": 16,
+        "self_us": 153.10000000000002
+      },
+      "aclnnArgMax": {
+        "count": 8,
+        "self_us": 150.8
+      },
+      "aten::repeat": {
+        "count": 16,
+        "self_us": 147.48000000000002
+      },
+      "aclnnIndexSelect": {
+        "count": 16,
+        "self_us": 142.47000000000003
+      },
+      "aten::lt": {
+        "count": 8,
+        "self_us": 140.85999999999999
+      },
+      "aten::to": {
+        "count": 80,
+        "self_us": 139.57
+      },
+      "wait_event": {
+        "count": 8,
+        "self_us": 134.8
+      },
+      "aten::empty_strided": {
+        "count": 12,
+        "self_us": 126.34
+      },
+      "aclnnAdd": {
+        "count": 16,
+        "self_us": 116.32000000000002
+      },
+      "_compute_slot_mapping_kernel": {
+        "count": 8,
+        "self_us": 109.32
+      },
+      "aclnnRepeat": {
+        "count": 16,
+        "self_us": 87.11999999999999
+      },
+      "aten::narrow": {
+        "count": 32,
+        "self_us": 71.38000000000001
+      },
+      "aten::detach": {
+        "count": 16,
+        "self_us": 65.57
+      },
+      "aclnnSubs": {
+        "count": 8,
+        "self_us": 58.75000000000001
+      },
+      "aten::chunk": {
+        "count": 16,
+        "self_us": 58.42
+      },
+      "aten::split": {
+        "count": 16,
+        "self_us": 52.470000000000006
+      },
+      "vllm::maybe_pad_and_reduce": {
+        "count": 2,
+        "self_us": 52.08
+      },
+      "acl_memcpy_device_to_host": {
+        "count": 8,
+        "self_us": 48.42
+      },
+      "aten::select": {
+        "count": 8,
+        "self_us": 47.89999999999999
+      },
+      "aten::expand": {
+        "count": 16,
+        "self_us": 44.91
+      },
+      "aten::alias": {
+        "count": 9,
+        "self_us": 39.620000000000005
+      },
+      "aten::flatten": {
+        "count": 8,
+        "self_us": 34.52
+      },
+      "aten::is_pinned": {
+        "count": 8,
+        "self_us": 32.779999999999994
+      },
+      "aten::gt": {
+        "count": 2,
+        "self_us": 31.130000000000003
+      },
+      "aten::embedding": {
+        "count": 2,
+        "self_us": 30.5
+      },
+      "aten::pin_memory": {
+        "count": 8,
+        "self_us": 28.819999999999997
+      },
+      "aten::lift_fresh": {
+        "count": 32,
+        "self_us": 27.310000000000002
+      },
+      "aten::item": {
+        "count": 14,
+        "self_us": 25.599999999999998
+      },
+      "aten::resolve_conj": {
+        "count": 32,
+        "self_us": 23.919999999999995
+      },
+      "aten::_local_scalar_dense": {
+        "count": 14,
+        "self_us": 23.869999999999997
+      },
+      "aten::unsqueeze": {
+        "count": 8,
+        "self_us": 23.250000000000004
+      },
+      "aten::any": {
+        "count": 2,
+        "self_us": 21.13
+      },
+      "aclnnRmsNorm": {
+        "count": 2,
+        "self_us": 15.25
+      },
+      "aten::resolve_neg": {
+        "count": 32,
+        "self_us": 14.95
+      },
+      "aten::reshape": {
+        "count": 8,
+        "self_us": 12.469999999999999
+      },
+      "aclnnEmbedding": {
+        "count": 2,
+        "self_us": 12.09
+      },
+      "aten::view_as": {
+        "count": 2,
+        "self_us": 7.17
+      },
+      "aten::is_nonzero": {
+        "count": 2,
+        "self_us": 6.529999999999999
+      }
+    },
+    "apis": {
+      "aclmdlRICaptureGetInfo": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclmdlRICaptureGetInfo",
+        "Time(us)": "8.25",
+        "Count": "6",
+        "Avg(us)": "1.375",
+        "Min(us)": "1.08",
+        "Max(us)": "1.8",
+        "Variance": "0.071"
+      },
+      "aclmdlRIExecuteAsync": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclmdlRIExecuteAsync",
+        "Time(us)": "108.99",
+        "Count": "6",
+        "Avg(us)": "18.165",
+        "Min(us)": "13.4",
+        "Max(us)": "26.93",
+        "Variance": "21.341"
+      },
+      "aclnnAdd": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAdd",
+        "Time(us)": "186.67",
+        "Count": "16",
+        "Avg(us)": "11.667",
+        "Min(us)": "9.38",
+        "Max(us)": "17.64",
+        "Variance": "6.93"
+      },
+      "aclnnAddRmsNormBias": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddRmsNormBias",
+        "Time(us)": "1970.07",
+        "Count": "112",
+        "Avg(us)": "17.59",
+        "Min(us)": "11.91",
+        "Max(us)": "27.1",
+        "Variance": "13.285"
+      },
+      "aclnnAddRmsNormBiasGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddRmsNormBiasGetWorkspaceSize",
+        "Time(us)": "1595.61",
+        "Count": "112",
+        "Avg(us)": "14.247",
+        "Min(us)": "12.13",
+        "Max(us)": "22.44",
+        "Variance": "2.582"
+      },
+      "aclnnAddmm": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnAddmm",
+        "Time(us)": "934.7",
+        "Count": "56",
+        "Avg(us)": "16.691",
+        "Min(us)": "12.93",
+        "Max(us)": "24.43",
+        "Variance": "7.664"
+      },
+      "aclnnArgMax": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnArgMax",
+        "Time(us)": "125.71",
+        "Count": "8",
+        "Avg(us)": "15.714",
+        "Min(us)": "13.34",
+        "Max(us)": "19.63",
+        "Variance": "4.79"
+      },
+      "aclnnEmbedding": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnEmbedding",
+        "Time(us)": "24.67",
+        "Count": "2",
+        "Avg(us)": "12.335",
+        "Min(us)": "11.98",
+        "Max(us)": "12.69",
+        "Variance": "0.126"
+      },
+      "aclnnIndex": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnIndex",
+        "Time(us)": "243.14",
+        "Count": "16",
+        "Avg(us)": "15.196",
+        "Min(us)": "10.92",
+        "Max(us)": "27.38",
+        "Variance": "15.204"
+      },
+      "aclnnIndexSelect": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnIndexSelect",
+        "Time(us)": "248.82",
+        "Count": "16",
+        "Avg(us)": "15.551",
+        "Min(us)": "9.72",
+        "Max(us)": "33.95",
+        "Variance": "39.448"
+      },
+      "aclnnInnerFusedInferAttentionScore": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInnerFusedInferAttentionScore",
+        "Time(us)": "1903.83",
+        "Count": "56",
+        "Avg(us)": "33.997",
+        "Min(us)": "23.29",
+        "Max(us)": "55.41",
+        "Variance": "41.935"
+      },
+      "aclnnInnerFusedInferAttentionScoreGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInnerFusedInferAttentionScoreGetWorkspaceSize",
+        "Time(us)": "1191.67",
+        "Count": "56",
+        "Avg(us)": "21.28",
+        "Min(us)": "17.52",
+        "Max(us)": "33.61",
+        "Variance": "8.665"
+      },
+      "aclnnInplaceCopy": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceCopy",
+        "Time(us)": "3574.22",
+        "Count": "290",
+        "Avg(us)": "12.325",
+        "Min(us)": "8.01",
+        "Max(us)": "25.26",
+        "Variance": "11.211"
+      },
+      "aclnnInplaceCopyGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceCopyGetWorkspaceSize",
+        "Time(us)": "1238.2",
+        "Count": "62",
+        "Avg(us)": "19.971",
+        "Min(us)": "12.41",
+        "Max(us)": "51.67",
+        "Variance": "40.574"
+      },
+      "aclnnInplaceFillScalar": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnInplaceFillScalar",
+        "Time(us)": "362.64",
+        "Count": "40",
+        "Avg(us)": "9.066",
+        "Min(us)": "1.44",
+        "Max(us)": "65.56",
+        "Variance": "143.476"
+      },
+      "aclnnMatmul": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnMatmul",
+        "Time(us)": "2016.97",
+        "Count": "176",
+        "Avg(us)": "11.46",
+        "Min(us)": "8.12",
+        "Max(us)": "20.96",
+        "Variance": "4.87"
+      },
+      "aclnnRepeat": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRepeat",
+        "Time(us)": "170.94",
+        "Count": "16",
+        "Avg(us)": "10.684",
+        "Min(us)": "9",
+        "Max(us)": "14.65",
+        "Variance": "2.808"
+      },
+      "aclnnRmsNorm": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRmsNorm",
+        "Time(us)": "106.07",
+        "Count": "2",
+        "Avg(us)": "53.035",
+        "Min(us)": "49.79",
+        "Max(us)": "56.28",
+        "Variance": "10.53"
+      },
+      "aclnnRmsNormGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnRmsNormGetWorkspaceSize",
+        "Time(us)": "81.35",
+        "Count": "2",
+        "Avg(us)": "40.675",
+        "Min(us)": "33.24",
+        "Max(us)": "48.11",
+        "Variance": "55.279"
+      },
+      "aclnnSubs": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSubs",
+        "Time(us)": "111.86",
+        "Count": "8",
+        "Avg(us)": "13.983",
+        "Min(us)": "10.64",
+        "Max(us)": "20.73",
+        "Variance": "13.052"
+      },
+      "aclnnSwiGlu": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSwiGlu",
+        "Time(us)": "848.96",
+        "Count": "56",
+        "Avg(us)": "15.16",
+        "Min(us)": "11.8",
+        "Max(us)": "24.37",
+        "Variance": "6.75"
+      },
+      "aclnnSwiGluGetWorkspaceSize": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclnnSwiGluGetWorkspaceSize",
+        "Time(us)": "747.51",
+        "Count": "56",
+        "Avg(us)": "13.348",
+        "Min(us)": "11.92",
+        "Max(us)": "19.47",
+        "Variance": "1.11"
+      },
+      "aclrtCreateEventExWithFlag": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtCreateEventExWithFlag",
+        "Time(us)": "102.24",
+        "Count": "16",
+        "Avg(us)": "6.39",
+        "Min(us)": "4.11",
+        "Max(us)": "11.55",
+        "Variance": "5.076"
+      },
+      "aclrtDestroyEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtDestroyEvent",
+        "Time(us)": "39.53",
+        "Count": "16",
+        "Avg(us)": "2.471",
+        "Min(us)": "0.81",
+        "Max(us)": "6.32",
+        "Variance": "1.874"
+      },
+      "aclrtGetResInCurrentThread": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtGetResInCurrentThread",
+        "Time(us)": "547.13",
+        "Count": "576",
+        "Avg(us)": "0.95",
+        "Min(us)": "0.27",
+        "Max(us)": "3.88",
+        "Variance": "0.427"
+      },
+      "aclrtGetStreamAttribute": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtGetStreamAttribute",
+        "Time(us)": "413.45",
+        "Count": "870",
+        "Avg(us)": "0.475",
+        "Min(us)": "0.34",
+        "Max(us)": "2.47",
+        "Variance": "0.013"
+      },
+      "aclrtLaunchKernelWithHostArgs": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtLaunchKernelWithHostArgs",
+        "Time(us)": "6071.26",
+        "Count": "904",
+        "Avg(us)": "6.716",
+        "Min(us)": "2.19",
+        "Max(us)": "25.27",
+        "Variance": "12.535"
+      },
+      "aclrtMemcpyAsync": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtMemcpyAsync",
+        "Time(us)": "947.6",
+        "Count": "126",
+        "Avg(us)": "7.521",
+        "Min(us)": "3.24",
+        "Max(us)": "39.33",
+        "Variance": "15.52"
+      },
+      "aclrtMemcpyAsyncWithCondition": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtMemcpyAsyncWithCondition",
+        "Time(us)": "79.84",
+        "Count": "8",
+        "Avg(us)": "9.98",
+        "Min(us)": "7.18",
+        "Max(us)": "18.57",
+        "Variance": "11.84"
+      },
+      "aclrtPointerGetAttributes": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtPointerGetAttributes",
+        "Time(us)": "520.51",
+        "Count": "256",
+        "Avg(us)": "2.033",
+        "Min(us)": "0.53",
+        "Max(us)": "8.07",
+        "Variance": "5.433"
+      },
+      "aclrtQueryEventStatus": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtQueryEventStatus",
+        "Time(us)": "27.87",
+        "Count": "8",
+        "Avg(us)": "3.484",
+        "Min(us)": "2.55",
+        "Max(us)": "5.57",
+        "Variance": "1.21"
+      },
+      "aclrtRecordEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtRecordEvent",
+        "Time(us)": "532.72",
+        "Count": "36",
+        "Avg(us)": "14.798",
+        "Min(us)": "7.39",
+        "Max(us)": "46.22",
+        "Variance": "82.427"
+      },
+      "aclrtStreamWaitEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtStreamWaitEvent",
+        "Time(us)": "100.62",
+        "Count": "8",
+        "Avg(us)": "12.578",
+        "Min(us)": "7.73",
+        "Max(us)": "29.33",
+        "Variance": "45.92"
+      },
+      "aclrtSynchronizeDeviceWithTimeout": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtSynchronizeDeviceWithTimeout",
+        "Time(us)": "45.33",
+        "Count": "1",
+        "Avg(us)": "45.33",
+        "Min(us)": "45.33",
+        "Max(us)": "45.33",
+        "Variance": "0"
+      },
+      "aclrtSynchronizeEvent": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtSynchronizeEvent",
+        "Time(us)": "70535.98",
+        "Count": "20",
+        "Avg(us)": "3526.799",
+        "Min(us)": "3.32",
+        "Max(us)": "12132.86",
+        "Variance": "28908727.487"
+      },
+      "aclrtSynchronizeStreamWithTimeout": {
+        "Device_id": "host",
+        "Level": "acl",
+        "API Name": "aclrtSynchronizeStreamWithTimeout",
+        "Time(us)": "36082",
+        "Count": "6",
+        "Avg(us)": "6013.667",
+        "Min(us)": "20.57",
+        "Max(us)": "9425.41",
+        "Variance": "18028559.377"
+      },
+      "launch": {
+        "Device_id": "host",
+        "Level": "node",
+        "API Name": "launch",
+        "Time(us)": "10169.12",
+        "Count": "968",
+        "Avg(us)": "10.505",
+        "Min(us)": "2.92",
+        "Max(us)": "123.79",
+        "Variance": "114.002"
+      }
+    }
+  }
+}

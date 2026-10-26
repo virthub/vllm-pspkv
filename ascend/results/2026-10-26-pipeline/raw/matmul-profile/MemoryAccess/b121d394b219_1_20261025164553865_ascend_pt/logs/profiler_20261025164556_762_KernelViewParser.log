@@ -1,0 +1,5 @@
+[2026-10-25-16:45:56.537] [INFO] [AscendProfiler_KernelViewParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164556_762_KernelViewParser.log
+[2026-10-25-16:45:56.538] [INFO] [AscendProfiler_KernelViewParser:38] KernelViewParser start.
+[2026-10-25-16:45:56.538] [WARNING] [AscendProfiler_KernelViewParser:69] Get step range failed, the step node list is empty.
+[2026-10-25-16:45:56.538] [WARNING] [AscendProfiler_KernelViewParser:82] Kernel view get step range failed, the step range is empty.
+[2026-10-25-16:45:56.541] [INFO] [AscendProfiler_KernelViewParser:46] KernelViewParser finish.

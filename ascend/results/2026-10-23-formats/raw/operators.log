@@ -1,0 +1,32 @@
+/comparison/compare_formats.py:171: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  outputs = [torch.empty_like(f[0]) for f in fixtures]
+{"workload": "gqa_128", "precision": "bf16", "wall_ms": {"basic": 2.6018505915999413, "enhanced": 1.1465905234217644, "btkv": 1.1470470577478409}, "cross_format_bit_equal": true}
+{"workload": "gqa_128", "precision": "e4m3", "wall_ms": {"basic": 2.9257960617542267, "enhanced": 1.7184393480420113, "btkv": 1.72160305082798}, "cross_format_bit_equal": true}
+{"workload": "gqa_128", "precision": "e5m2", "wall_ms": {"basic": 2.9311442747712135, "enhanced": 1.6493773087859154, "btkv": 1.6502352431416512}, "cross_format_bit_equal": true}
+{"workload": "gqa_128", "precision": "fp4", "wall_ms": {"basic": 2.7429237961769104, "enhanced": 1.4371881261467934, "btkv": 1.4688391238451004}, "cross_format_bit_equal": true}
+{"workload": "gqa_128", "precision": "mixed_fp8", "wall_ms": {"basic": 2.9374761506915092, "enhanced": 1.6622835770249367, "btkv": 1.661965250968933}, "cross_format_bit_equal": true}
+{"workload": "gqa_128", "precision": "mixed_all", "wall_ms": {"basic": 2.569481171667576, "enhanced": 1.54635701328516, "btkv": 1.565663143992424}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "bf16", "wall_ms": {"basic": 10.357605293393135, "enhanced": 5.123069696128368, "btkv": 4.516706429421902}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "e4m3", "wall_ms": {"basic": 11.722192913293839, "enhanced": 6.781810149550438, "btkv": 6.7657675594091415}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "e5m2", "wall_ms": {"basic": 11.718289367854595, "enhanced": 6.4718496054410934, "btkv": 6.455697491765022}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "fp4", "wall_ms": {"basic": 11.013594083487988, "enhanced": 5.704420618712902, "btkv": 5.704846605658531}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "mixed_fp8", "wall_ms": {"basic": 11.72951478511095, "enhanced": 6.666585057973862, "btkv": 6.630861759185791}, "cross_format_bit_equal": true}
+{"workload": "gqa_512", "precision": "mixed_all", "wall_ms": {"basic": 11.37702465057373, "enhanced": 5.92291746288538, "btkv": 5.927041918039322}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "bf16", "wall_ms": {"basic": 41.63921698927879, "enhanced": 18.048581294715405, "btkv": 18.020538985729218}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "e4m3", "wall_ms": {"basic": 46.782988496124744, "enhanced": 26.95200014859438, "btkv": 27.017212845385075}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "e5m2", "wall_ms": {"basic": 47.00280111283064, "enhanced": 25.797985680401325, "btkv": 25.773992016911507}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "fp4", "wall_ms": {"basic": 43.68173107504845, "enhanced": 22.783835604786873, "btkv": 22.75046929717064}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "mixed_fp8", "wall_ms": {"basic": 46.766884066164494, "enhanced": 26.63199659436941, "btkv": 26.382213085889816}, "cross_format_bit_equal": true}
+{"workload": "gqa_2048", "precision": "mixed_all", "wall_ms": {"basic": 45.407974161207676, "enhanced": 23.56314416974783, "btkv": 23.520278744399548}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "bf16", "wall_ms": {"basic": 10.308165103197098, "enhanced": 4.522761330008507, "btkv": 4.508172534406185}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "e4m3", "wall_ms": {"basic": 11.635277606546879, "enhanced": 6.7633287981152534, "btkv": 6.737649440765381}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "e5m2", "wall_ms": {"basic": 11.711864359676838, "enhanced": 6.446366384625435, "btkv": 6.498756259679794}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "fp4", "wall_ms": {"basic": 10.815053805708885, "enhanced": 5.762764252722263, "btkv": 5.705826543271542}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "mixed_fp8", "wall_ms": {"basic": 11.692258901894093, "enhanced": 6.6510893404483795, "btkv": 6.647117994725704}, "cross_format_bit_equal": true}
+{"workload": "mha_512", "precision": "mixed_all", "wall_ms": {"basic": 11.194453947246075, "enhanced": 5.953636020421982, "btkv": 5.901460349559784}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "bf16", "wall_ms": {"basic": 2.2680869325995445, "enhanced": 1.008731685578823, "btkv": 1.0055722668766975}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "e4m3", "wall_ms": {"basic": 2.6105862110853195, "enhanced": 1.5150832012295723, "btkv": 1.514487899839878}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "e5m2", "wall_ms": {"basic": 2.6080910116434097, "enhanced": 1.4387967064976692, "btkv": 1.457013562321663}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "fp4", "wall_ms": {"basic": 1.349586434662342, "enhanced": 1.2105019763112068, "btkv": 1.2066800147294998}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "mixed_fp8", "wall_ms": {"basic": 2.6118556037545204, "enhanced": 1.644294522702694, "btkv": 1.4725320041179657}, "cross_format_bit_equal": true}
+{"workload": "batch4_partial", "precision": "mixed_all", "wall_ms": {"basic": 1.4829713851213455, "enhanced": 1.2283559888601303, "btkv": 1.2286262586712837}, "cross_format_bit_equal": true}

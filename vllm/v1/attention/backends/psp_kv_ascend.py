@@ -19,6 +19,8 @@ import torch
 from vllm_ascend.attention.attention_v1 import (
     AscendAttentionBackend,
     AscendAttentionBackendImpl,
+    AscendAttentionMetadataBuilder,
+    AscendCommonAttentionMetadata,
     AscendMetadata,
 )
 
@@ -106,7 +108,20 @@ class PSPKVAscendImpl(AscendAttentionBackendImpl):
                 "PSP-KV Ascend does not support cross-layer KV sharing"
             )
         config = self.vllm_config
-        if not config.model_config.enforce_eager:
+        # The isolated fixed-format adapter supplies graph-safe kernels and
+        # verifies runner-owned metadata addresses before replay. Other
+        # reference/dynamic paths still require eager execution.
+        comparison_graph = (
+            os.environ.get("PSPKV_ASCEND_FULL_GRAPH") == "1"
+            and os.environ.get("PSPKV_COMPARE_FORMAT") in ("basic", "enhanced", "btkv")
+            and os.environ.get("PSPKV_COMPARE_OPTIMIZED") == "1"
+            and os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3") in ("e4m3", "e5m2")
+            and config.model_config.dtype == torch.bfloat16
+            and config.model_config.max_model_len <= 256
+            and config.scheduler_config.max_num_seqs == 1
+            and self.head_size == 128
+        )
+        if not config.model_config.enforce_eager and not comparison_graph:
             raise ValueError("PSP-KV Ascend reference backend requires --enforce-eager")
         if config.kv_transfer_config is not None:
             raise NotImplementedError("PSP-KV Ascend does not support KV transfer")
@@ -678,10 +693,30 @@ class PSPKVAscendImpl(AscendAttentionBackendImpl):
         )
 
 
+class PSPKVAscendMetadataBuilder(AscendAttentionMetadataBuilder):
+    """Retain builder-owned device lengths alongside Ascend's CPU lengths."""
+
+    def build(
+        self,
+        common_prefix_len: int,
+        common_attn_metadata: AscendCommonAttentionMetadata,
+        fast_build: bool = False,
+    ) -> AscendMetadata:
+        metadata = super().build(common_prefix_len, common_attn_metadata, fast_build)
+        # The plugin normally puts CPU lengths in metadata.seq_lens. Preserve
+        # the existing device buffer instead of copying it back in every layer.
+        metadata.psp_kv_device_seq_lens = common_attn_metadata.seq_lens
+        return metadata
+
+
 class PSPKVAscendBackend(AscendAttentionBackend):
     """Use plugin metadata with PSP-KV's selected cache storage format."""
 
     supported_kv_cache_dtypes = ["fp8"]
+
+    @staticmethod
+    def get_builder_cls() -> type[PSPKVAscendMetadataBuilder]:
+        return PSPKVAscendMetadataBuilder
 
     @staticmethod
     def get_kv_cache_shape(

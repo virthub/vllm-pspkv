@@ -1,0 +1,133 @@
+{
+  "rows": [
+    {
+      "format": "basic",
+      "profile": "short",
+      "pairs": 12,
+      "bf16_p50_s": 1.4897151291370392,
+      "before_p50_s": 1.642462208867073,
+      "after_p50_s": 1.4789543002843857,
+      "p50_reduction_percent": 9.955048444948444,
+      "paired_mean_reduction_percent": 9.328382278593939,
+      "paired_mean_bootstrap95_low": 6.779931209204629,
+      "paired_mean_bootstrap95_high": 11.850682977743334,
+      "before_p95_s": 1.7662539111450313,
+      "after_p95_s": 1.6265315713360906,
+      "before_tpot_ms": 49.165170038900065,
+      "after_tpot_ms": 44.36836535892179,
+      "before_ttft_ms": 110.23034527897835,
+      "after_ttft_ms": 104.36692088842392,
+      "output_text_equal": true
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "pairs": 12,
+      "bf16_p50_s": 1.5100477933883667,
+      "before_p50_s": 1.6515226028859615,
+      "after_p50_s": 1.4887021761387587,
+      "p50_reduction_percent": 9.858807046460127,
+      "paired_mean_reduction_percent": 11.509381416905951,
+      "paired_mean_bootstrap95_low": 8.711656206955984,
+      "paired_mean_bootstrap95_high": 13.937762304342057,
+      "before_p95_s": 1.8668635675683616,
+      "after_p95_s": 1.5974502805620432,
+      "before_tpot_ms": 49.805462660808715,
+      "after_tpot_ms": 44.697738342708156,
+      "before_ttft_ms": 108.48581045866013,
+      "after_ttft_ms": 101.1281255632639,
+      "output_text_equal": true
+    },
+    {
+      "format": "enhanced",
+      "profile": "short",
+      "pairs": 12,
+      "bf16_p50_s": 1.4897151291370392,
+      "before_p50_s": 1.679332034662366,
+      "after_p50_s": 1.5024413764476776,
+      "p50_reduction_percent": 10.533393906837052,
+      "paired_mean_reduction_percent": 8.826855368481013,
+      "paired_mean_bootstrap95_low": 6.610694532050417,
+      "paired_mean_bootstrap95_high": 11.167469538434693,
+      "before_p95_s": 1.833901803381741,
+      "after_p95_s": 1.62513432148844,
+      "before_tpot_ms": 50.54114560686773,
+      "after_tpot_ms": 45.19151181222931,
+      "before_ttft_ms": 111.18156835436821,
+      "after_ttft_ms": 106.7271064966917,
+      "output_text_equal": true
+    },
+    {
+      "format": "enhanced",
+      "profile": "cross_page",
+      "pairs": 12,
+      "bf16_p50_s": 1.5100477933883667,
+      "before_p50_s": 1.7517913915216923,
+      "after_p50_s": 1.5533314943313599,
+      "p50_reduction_percent": 11.328968628961034,
+      "paired_mean_reduction_percent": 11.422147295521567,
+      "paired_mean_bootstrap95_low": 9.301222328806581,
+      "paired_mean_bootstrap95_high": 13.63131848318859,
+      "before_p95_s": 1.84634958691895,
+      "after_p95_s": 1.615985764749348,
+      "before_tpot_ms": 52.64154569275917,
+      "after_tpot_ms": 46.72310729661295,
+      "before_ttft_ms": 112.09109425544739,
+      "after_ttft_ms": 102.63959132134914,
+      "output_text_equal": true
+    },
+    {
+      "format": "btkv",
+      "profile": "short",
+      "pairs": 12,
+      "bf16_p50_s": 1.4897151291370392,
+      "before_p50_s": 1.644993580877781,
+      "after_p50_s": 1.506637716665864,
+      "p50_reduction_percent": 8.41072365389348,
+      "paired_mean_reduction_percent": 6.7246811675603535,
+      "paired_mean_bootstrap95_low": 3.620043287516715,
+      "paired_mean_bootstrap95_high": 9.392737108216256,
+      "before_p95_s": 1.701952661573887,
+      "after_p95_s": 1.700108210556209,
+      "before_tpot_ms": 49.49136895518149,
+      "after_tpot_ms": 45.28774483309638,
+      "before_ttft_ms": 111.29236593842506,
+      "after_ttft_ms": 104.43655773997307,
+      "output_text_equal": true
+    },
+    {
+      "format": "btkv",
+      "profile": "cross_page",
+      "pairs": 12,
+      "bf16_p50_s": 1.5100477933883667,
+      "before_p50_s": 1.6628959439694881,
+      "after_p50_s": 1.5012649204581976,
+      "p50_reduction_percent": 9.719851930449853,
+      "paired_mean_reduction_percent": 9.986654797441652,
+      "paired_mean_bootstrap95_low": 7.696051828366141,
+      "paired_mean_bootstrap95_high": 11.96450747436815,
+      "before_p95_s": 1.8147742370143531,
+      "after_p95_s": 1.62627146653831,
+      "before_tpot_ms": 50.24604319084075,
+      "after_tpot_ms": 45.154810913147465,
+      "before_ttft_ms": 106.88740760087967,
+      "after_ttft_ms": 100.86623765528202,
+      "output_text_equal": true
+    }
+  ],
+  "output_text_equal": {
+    "basic": {
+      "short": true,
+      "cross_page": true
+    },
+    "enhanced": {
+      "short": true,
+      "cross_page": true
+    },
+    "btkv": {
+      "short": true,
+      "cross_page": true
+    }
+  },
+  "interval_scope": "Paired mean latency reduction, not the P50 reduction; 10000 paired bootstrap resamples, no cross-server/run confidence claim."
+}

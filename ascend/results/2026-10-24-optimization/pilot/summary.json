@@ -1,0 +1,129 @@
+{
+  "operator_combinations": 0,
+  "all_operator_outputs_bit_equal": null,
+  "max_operator_reference_error": null,
+  "serving": [
+    {
+      "format": "basic",
+      "profile": "short",
+      "requests": 12,
+      "prompt_tokens": 3,
+      "output_tokens": 32,
+      "latency_s_p50": 1.84133904799819,
+      "latency_s_p95": 1.9784343117848038,
+      "ttft_ms_p50": 115.88433384895325,
+      "ttft_ms_p95": 125.44718310236931,
+      "tpot_ms_p50": 55.57227615387209,
+      "tpot_ms_p95": 59.98649088846099,
+      "serial_output_tokens_per_s": 17.31292121691886,
+      "identical_repeated_outputs": true
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "requests": 12,
+      "prompt_tokens": 135,
+      "output_tokens": 32,
+      "latency_s_p50": 1.8726354353129864,
+      "latency_s_p95": 1.926674347743392,
+      "ttft_ms_p50": 113.18382620811462,
+      "ttft_ms_p95": 121.93500809371471,
+      "tpot_ms_p50": 56.86211147375646,
+      "tpot_ms_p95": 58.21383580445282,
+      "serial_output_tokens_per_s": 17.34457563015548,
+      "identical_repeated_outputs": true
+    },
+    {
+      "format": "enhanced",
+      "profile": "short",
+      "requests": 12,
+      "prompt_tokens": 3,
+      "output_tokens": 32,
+      "latency_s_p50": 1.7100194562226534,
+      "latency_s_p95": 1.97224349565804,
+      "ttft_ms_p50": 108.16891118884087,
+      "ttft_ms_p95": 135.29081642627713,
+      "tpot_ms_p50": 51.71161120937717,
+      "tpot_ms_p95": 59.57836288838617,
+      "serial_output_tokens_per_s": 18.137957958571793,
+      "identical_repeated_outputs": true
+    },
+    {
+      "format": "enhanced",
+      "profile": "cross_page",
+      "requests": 12,
+      "prompt_tokens": 135,
+      "output_tokens": 32,
+      "latency_s_p50": 1.6855467725545168,
+      "latency_s_p95": 1.8012515181675552,
+      "ttft_ms_p50": 106.81111365556717,
+      "ttft_ms_p95": 115.3131790459156,
+      "tpot_ms_p50": 50.84849990183307,
+      "tpot_ms_p95": 54.46664657323591,
+      "serial_output_tokens_per_s": 18.712615370381155,
+      "identical_repeated_outputs": true
+    },
+    {
+      "format": "btkv",
+      "profile": "short",
+      "requests": 12,
+      "prompt_tokens": 3,
+      "output_tokens": 32,
+      "latency_s_p50": 1.7830016147345304,
+      "latency_s_p95": 1.884876801818609,
+      "ttft_ms_p50": 116.20328389108181,
+      "ttft_ms_p95": 127.70481072366238,
+      "tpot_ms_p50": 53.49304881547728,
+      "tpot_ms_p95": 56.92450729829649,
+      "serial_output_tokens_per_s": 17.86118906953208,
+      "identical_repeated_outputs": true
+    },
+    {
+      "format": "btkv",
+      "profile": "cross_page",
+      "requests": 12,
+      "prompt_tokens": 135,
+      "output_tokens": 32,
+      "latency_s_p50": 1.7785777188837528,
+      "latency_s_p95": 1.9595179360359904,
+      "ttft_ms_p50": 112.18808777630329,
+      "ttft_ms_p95": 121.14946004003286,
+      "tpot_ms_p50": 53.9174504097431,
+      "tpot_ms_p95": 59.39579066489973,
+      "serial_output_tokens_per_s": 17.68290995696644,
+      "identical_repeated_outputs": true
+    }
+  ],
+  "resources": {
+    "basic": {
+      "kv_token_capacity": 261504,
+      "recorded_attention_layers": 28,
+      "adapter_metadata_bytes": 1201284,
+      "decode_entries": [
+        "psp_attention_basic"
+      ]
+    },
+    "enhanced": {
+      "kv_token_capacity": 261504,
+      "recorded_attention_layers": 28,
+      "adapter_metadata_bytes": 1201284,
+      "decode_entries": [
+        "psp_attention_enhanced"
+      ]
+    },
+    "btkv": {
+      "kv_token_capacity": 261504,
+      "recorded_attention_layers": 28,
+      "adapter_metadata_bytes": 8523396,
+      "decode_entries": [
+        "psp_attention_btkv"
+      ]
+    }
+  },
+  "measured_generation_requests": 72,
+  "cross_format_output_equal": {
+    "short": true,
+    "cross_page": true
+  },
+  "quality_probe_outputs_equal": true
+}

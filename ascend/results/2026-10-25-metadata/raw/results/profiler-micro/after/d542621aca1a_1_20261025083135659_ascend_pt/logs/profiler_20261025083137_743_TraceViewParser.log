@@ -1,0 +1,3 @@
+[2026-10-25-08:31:37.943] [INFO] [AscendProfiler_TraceViewParser:97] Profiler logger initialized at: /metadata/results/profiler-micro/after/d542621aca1a_1_20261025083135659_ascend_pt/logs/profiler_20261025083137_743_TraceViewParser.log
+[2026-10-25-08:31:37.944] [INFO] [AscendProfiler_TraceViewParser:53] TraceViewParser start.
+[2026-10-25-08:31:38.020] [INFO] [AscendProfiler_TraceViewParser:68] TraceViewParser finish.

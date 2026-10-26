@@ -1,0 +1,105 @@
+{
+  "model": "Qwen/Qwen2.5-7B (base)",
+  "platform": "Ascend 910B3",
+  "container_image": "quay.io/ascend/vllm-ascend:v0.20.2rc1",
+  "image_sha256": "27d1146419e99981c0a676a3fff102d2119fa6ecf5ae00e5c83aab611f5b7733",
+  "native_library_sha256": "482c2e32311b74685df8dd09165720dd6098b2523f5b719a84aa5aeca886c712",
+  "native_library_server_path": "/root/zhang/pspkv-pipeline-20261026/libpspkv_pipeline.so",
+  "original_shared_library_sha256_unchanged": "72f17c1718609e04e3fad08404d832ab7fb2553fc42520fc31b06f1de1428ed1",
+  "main_model_physical_npu": 4,
+  "long_input_physical_npu": 2,
+  "bf16_eager_physical_npu": 2,
+  "bf16_graph_physical_npus": [
+    2,
+    4
+  ],
+  "format_modes": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "input_tokens": [
+    3,
+    135
+  ],
+  "output_tokens": 32,
+  "pairs_per_input_and_format": 12,
+  "fp8_timed_requests": 288,
+  "fp8_quality_probe_requests": 144,
+  "long_input_tokens": 1536,
+  "long_timed_requests": 72,
+  "long_quality_probe_requests": 72,
+  "checks": {
+    "cpu_passed": 71,
+    "npu_existing_regression_passed": 263,
+    "direct_write_cases": 90,
+    "rope_cases": 48,
+    "dynamic_graph_replays": 21,
+    "workspace_cases": 9,
+    "workspace_layer_comparisons": 36
+  },
+  "quality": {
+    "fp8_paired_texts_equal": true,
+    "fp8_generated_token_logprob_max_delta": 0.0,
+    "independent_native_bf16_texts_equal": true,
+    "native_bf16_same_process_bypass_excluded": true
+  },
+  "workspace_source_sha256": {
+    "ascend/native/pspkv_fp8.asc": "787bde8b4b82631e1c020706ffbfad20d989ac071dfff6c4ed294c74116fe13d",
+    "ascend/native/pspkv_rope.h": "6a56da567e71911fb91ff71a81c8f956350f9e4b0f78ee19e14774a8ebff6631",
+    "vllm/v1/attention/backends/psp_kv_ascend.py": "40a33484ce88e67752859d868a71175bd13903c69a3eb903e2eb84bb0835d021",
+    "vllm/v1/attention/backends/psp_kv_ascend_ops.py": "bd1d0751326e1aa4a52c9322e6eb27acfa6a6f32981675db05cfc8873972e25d",
+    "ascend/format_compare_runtime.py": "3dcdf5ea393b653b0a05e7e104614339d69ad6e89e3d8c98b134a2390aa4ef27",
+    "ascend/run_format_comparison.sh": "c1c67127f9617d8168d4234a7990ea86a7136331fab8a995a64b9478dbc45be8",
+    "ascend/profile_model_client.py": "5e2d181c41dd168cf152d239166920f8f2d00157f9acfef3ee7408d134ac06e7",
+    "ascend/serve_initialized_npu.py": "dca39db7ef702a1f8099345834649280dcac99fef5885d06b69d1c1925672ec6",
+    "ascend/README.md": "6a495de1290c61bf1e442341b589c5c94704f946e7f0d69224759b100b24b931",
+    "ascend/pipeline_runtime.py": "8f216174846ae098615165101cb576f949afe3f83903808cce4fb7a9ad71e21b",
+    "ascend/compare_pipeline_client.py": "9270218250965d02e2becf1a13237c4de5d9fa0e02e085d75226849fc981f92a",
+    "ascend/compare_pipeline_stages.py": "563e5421893e207ad979844a5d8bc7a2c37fa504e764e84bc7cc260827691186",
+    "ascend/check_pipeline_npu.py": "b4d4f8b766f1ad308f4972af660e079a3bc205bbf2b0b0639ccac9ddc8510ea6",
+    "ascend/check_rope_pipeline_npu.py": "d316a7a4581af1dab31429ff913fe870ac16585225bac4f6c36ac0e8c1ea86c6",
+    "ascend/check_workspace_npu.py": "a0148f627c93e1ab91b5f41cb78034fa44ca1e69cc3bd8ff60a04433acfdfdb9",
+    "ascend/profile_decode_matmuls.py": "cf19bba0be8da035bb48084a48292eab4c79c1b287232dc782e03364f4ce4a9e",
+    "ascend/summarize_pipeline_stages.py": "8e34678605c5554e98298d05386e416c0e5c4fa14d0ec456fddb232682c0c0ae",
+    "tests/v1/attention/test_psp_kv_pipeline.py": "208c54bcd32598bbc06118f1f55e23f564f5548f4fe7f6d81feeb85a7f44a1a3",
+    "ascend/analyze_metadata_profiles.py": "344b1ead4ee295ec8ad74c271d6b5b001021c985fd2560d66b7bbe2787be3c38",
+    "ascend/native/build.py": "7f6391eeb551492b30f9fd93ff6fab6337c81b257c75e07c808e57404ba28975",
+    "ascend/native/pspkv_tiled.h": "471e0428d26fa4f6f3d685831c564aecc599c3fadeade32266628144d27c10f3",
+    "ascend/shared_metadata.py": "1c0e9d22a577f49c2de5ca1ebf940d92319f8c17ccb8c7ff939cd491f640fd56",
+    "ascend/results/2026-10-26-pipeline/REPORT.zh-CN.md": "b35885f2804453176c568874fc260ec076ae9eabfde377bc2730718194c39452",
+    "ascend/results/2026-10-26-pipeline/CHANGES.zh-CN.md": "718cccbe3d77df7e888f380eafe3364dd9b580123d77811c9fd45cf3ffa5837d"
+  },
+  "tested_release_source_sha256": {
+    "ascend/serve_initialized_npu.py": "dca39db7ef702a1f8099345834649280dcac99fef5885d06b69d1c1925672ec6",
+    "vllm/v1/attention/backends/psp_kv_ascend.py": "40a33484ce88e67752859d868a71175bd13903c69a3eb903e2eb84bb0835d021",
+    "ascend/format_compare_runtime.py": "3dcdf5ea393b653b0a05e7e104614339d69ad6e89e3d8c98b134a2390aa4ef27",
+    "ascend/profile_model_client.py": "5e2d181c41dd168cf152d239166920f8f2d00157f9acfef3ee7408d134ac06e7",
+    "ascend/compare_pipeline_stages.py": "563e5421893e207ad979844a5d8bc7a2c37fa504e764e84bc7cc260827691186",
+    "ascend/compare_pipeline_client.py": "9270218250965d02e2becf1a13237c4de5d9fa0e02e085d75226849fc981f92a",
+    "ascend/run_format_comparison.sh": "ab5adf01e95b921ee7a919b26c2fa051d1d943284c280f47d0e13103dcceea07",
+    "ascend/compare_formats_client.py": "b067c0e27a09cb314defd07541a8b0dac26513759b536aed6b2e5b5c4dac75bc",
+    "ascend/pipeline_runtime.py": "ff69e393c8b67157f4a9714bfca3230c940ce218fc1a872d4946de7af844a603",
+    "ascend/shared_metadata.py": "1c0e9d22a577f49c2de5ca1ebf940d92319f8c17ccb8c7ff939cd491f640fd56",
+    "vllm/v1/attention/backends/psp_kv_ascend_ops.py": "bd1d0751326e1aa4a52c9322e6eb27acfa6a6f32981675db05cfc8873972e25d"
+  },
+  "tested_native_source_sha256": {
+    "build.py": "7f6391eeb551492b30f9fd93ff6fab6337c81b257c75e07c808e57404ba28975",
+    "pspkv_fp8.asc": "787bde8b4b82631e1c020706ffbfad20d989ac071dfff6c4ed294c74116fe13d",
+    "pspkv_rope.h": "8d29755bc693d3944094e9feba2bc059de125f955e1976cb3bfb6b99f80365dd",
+    "pspkv_tiled.h": "471e0428d26fa4f6f3d685831c564aecc599c3fadeade32266628144d27c10f3"
+  },
+  "source_difference_notes": [
+    "Final Python runtime adds a rejection for native BF16 same-process graph ablations; final launcher isolates BF16 and rejects invalid control combinations. These do not change the measured FP8 computation path.",
+    "The native RoPE header was clang-formatted after compilation. Its whitespace-normalized contents are identical to the compiled source; both hashes are retained.",
+    "Main conclusions use final-stages and final-long. Earlier candidates and invalid native BF16 bypass data are retained but excluded."
+  ],
+  "server_review_directory": "/root/zhang/pspkv-pipeline-20261026/final-review",
+  "code_patch_sha256": "d1d76385af1e311c5a0eeb6642c65c3da187f5c7e5c4e5039bb5dfdfff171ad6",
+  "verification_log_sha256": {
+    "pre-commit.txt": "c8bb3cc3e7105fe892c06c4fd6e2ade75e907e1f4f645dfa4309e8b14073bb1c",
+    "cpu-tests.txt": "b1e7d8fa24131017e0e105cf88ac8dfeddeed0682a4dfab27030d2bbf6320bea",
+    "server-final-state.txt": "bbbd72f7a8562157fa82c7b24d336200796f3e30b25ea119c605b50b1881964b"
+  }
+}

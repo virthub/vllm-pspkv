@@ -1,0 +1,905 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "architecture": "compute_89",
+  "source_revision": "f613ce1",
+  "scope": "original CUDA device bodies; original host registration and TMA path not tested",
+  "kernels": {
+    "basic": {
+      "source": "csrc/attention/psp_kv/basic/paged_attention_basic.cu",
+      "source_sha256": "ac24fe3589e792c55b21f5e50a5412c62910440651c4ea12b39cdd5d69c3a279",
+      "header_sha256": "e8038ed9d04b8be74fd01c97848b63ff4563ba3a0a1afca02099798c5ed18086",
+      "compiler_options": [
+        "--std=c++17",
+        "--gpu-architecture=compute_89",
+        "--include-path=/tmp/pspkv-cuda-reference/.venv/lib/python3.12/site-packages/nvidia/cuda_runtime/include"
+      ]
+    },
+    "enhanced": {
+      "source": "csrc/attention/psp_kv/enhanced/paged_attention_enhanced.cu",
+      "source_sha256": "b72e1807a6d72c316dfe70219fed9a999a1f9535107eed96bed333cb306c8de3",
+      "header_sha256": "e8038ed9d04b8be74fd01c97848b63ff4563ba3a0a1afca02099798c5ed18086",
+      "compiler_options": [
+        "--std=c++17",
+        "--gpu-architecture=compute_89",
+        "--include-path=/tmp/pspkv-cuda-reference/.venv/lib/python3.12/site-packages/nvidia/cuda_runtime/include"
+      ]
+    },
+    "btkv": {
+      "source": "csrc/attention/psp_kv/btkv/paged_attention_btkv.cu",
+      "source_sha256": "d91d6479d8dbc452154dc6b66d343414c8c5fc26b6ad3982891b0a49aaf0f382",
+      "header_sha256": "e8038ed9d04b8be74fd01c97848b63ff4563ba3a0a1afca02099798c5ed18086",
+      "compiler_options": [
+        "--std=c++17",
+        "--gpu-architecture=compute_89",
+        "--include-path=/tmp/pspkv-cuda-reference/.venv/lib/python3.12/site-packages/nvidia/cuda_runtime/include"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "workload": "gqa_128",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_128",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 2.384185791015625e-07
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 2.384185791015625e-07
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 2.384185791015625e-07
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.9073486328125e-06,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.9073486328125e-06,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.9073486328125e-06,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.000244140625,
+      "cuda_cpu_max_abs_error": 0.000244140625
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.000244140625,
+      "cuda_cpu_max_abs_error": 0.000244140625
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.000244140625,
+      "cuda_cpu_max_abs_error": 0.000244140625
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_512",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.1920928955078125e-07,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.1920928955078125e-07,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.1920928955078125e-07,
+      "cuda_cpu_max_abs_error": 1.9073486328125e-06
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 1.4901161193847656e-08
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 1.4901161193847656e-08
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 1.4901161193847656e-08
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.384185791015625e-07,
+      "cuda_cpu_max_abs_error": 1.52587890625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.384185791015625e-07,
+      "cuda_cpu_max_abs_error": 1.52587890625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.384185791015625e-07,
+      "cuda_cpu_max_abs_error": 1.52587890625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "gqa_2048",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 6.103515625e-05,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "mha_512",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 1.1920928955078125e-07
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 1.1920928955078125e-07
+    },
+    {
+      "workload": "mha_512",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 1.1920928955078125e-07
+    },
+    {
+      "workload": "mha_512",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "mha_512",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "mha_512",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 5.960464477539063e-08,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0001220703125,
+      "cuda_cpu_max_abs_error": 0.0001220703125
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0001220703125,
+      "cuda_cpu_max_abs_error": 0.0001220703125
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0001220703125,
+      "cuda_cpu_max_abs_error": 0.0001220703125
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "mha_512",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.00048828125,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.00048828125,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.00048828125,
+      "cuda_cpu_max_abs_error": 6.103515625e-05
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 4.76837158203125e-07,
+      "cuda_cpu_max_abs_error": 5.960464477539063e-08
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 7.450580596923828e-09,
+      "cuda_cpu_max_abs_error": 7.450580596923828e-09
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 7.450580596923828e-09,
+      "cuda_cpu_max_abs_error": 7.450580596923828e-09
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 7.450580596923828e-09,
+      "cuda_cpu_max_abs_error": 7.450580596923828e-09
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "batch4_partial",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "bf16",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.52587890625e-05,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "bf16",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.52587890625e-05,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "bf16",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 1.52587890625e-05,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e4m3",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0009765625,
+      "cuda_cpu_max_abs_error": 0.0009765625
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e4m3",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0009765625,
+      "cuda_cpu_max_abs_error": 0.0009765625
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e4m3",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 0.0009765625,
+      "cuda_cpu_max_abs_error": 0.0009765625
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e5m2",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.9802322387695312e-08,
+      "cuda_cpu_max_abs_error": 2.9802322387695312e-08
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e5m2",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.9802322387695312e-08,
+      "cuda_cpu_max_abs_error": 2.9802322387695312e-08
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "e5m2",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 2.9802322387695312e-08,
+      "cuda_cpu_max_abs_error": 2.9802322387695312e-08
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "fp4",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "fp4",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "fp4",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_fp8",
+      "format": "basic",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_fp8",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_fp8",
+      "format": "btkv",
+      "cuda_npu_bit_equal": true,
+      "cuda_npu_max_abs_error": 0.0,
+      "cuda_cpu_max_abs_error": 0.0
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_all",
+      "format": "basic",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 3.814697265625e-06,
+      "cuda_cpu_max_abs_error": 7.62939453125e-06
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_all",
+      "format": "enhanced",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 3.814697265625e-06,
+      "cuda_cpu_max_abs_error": 7.62939453125e-06
+    },
+    {
+      "workload": "qwen25_gqa_128",
+      "precision": "mixed_all",
+      "format": "btkv",
+      "cuda_npu_bit_equal": false,
+      "cuda_npu_max_abs_error": 3.814697265625e-06,
+      "cuda_cpu_max_abs_error": 7.62939453125e-06
+    }
+  ],
+  "fixtures_sha256": "cc92570012b60b41780bf5c5fcdc6356d9a0cd467e6201be82cb158d2a302ac3"
+}

@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/virthub/vllm-pspkv",
+  "branch": "develop",
+  "commit": "00b78e954225947fbd05281fc19bd9f22164f851",
+  "previous_cuda_reference": "f613ce1337fb4e8815cbf1c6d485d9096dd8d933",
+  "downloaded_worktree": "/home/zmh/workspace/vllm-pspkv-develop-20261026",
+  "cuda_execution_this_audit": false,
+  "integrated_into_ascend": false,
+  "server_source_snapshot": "/root/zhang/vllm-pspkv-develop-00b78e9"
+}

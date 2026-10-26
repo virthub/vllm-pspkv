@@ -1,0 +1,62 @@
+[
+  {
+    "profile": "cross_page",
+    "response": {
+      "id": "cmpl-a56533a4c7d50271",
+      "object": "text_completion",
+      "created": 1792856432,
+      "model": "Qwen/Qwen2.5-7B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "北京。Human",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 139,
+        "completion_tokens": 4,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  },
+  {
+    "profile": "short",
+    "response": {
+      "id": "cmpl-b8e9446fd66c5e57",
+      "object": "text_completion",
+      "created": 1792856432,
+      "model": "Qwen/Qwen2.5-7B",
+      "choices": [
+        {
+          "index": 0,
+          "text": "首都，也是中国",
+          "logprobs": null,
+          "finish_reason": "length",
+          "stop_reason": null,
+          "token_ids": null,
+          "prompt_logprobs": null,
+          "prompt_token_ids": null
+        }
+      ],
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 7,
+        "completion_tokens": 4,
+        "prompt_tokens_details": null
+      },
+      "kv_transfer_params": null
+    }
+  }
+]

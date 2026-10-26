@@ -1,0 +1,938 @@
+{
+  "model": "Qwen/Qwen2.5-7B",
+  "rounds": 3,
+  "requests_per_profile_per_round": 4,
+  "warmups_per_profile": 4,
+  "output_tokens": 32,
+  "concurrency": 1,
+  "profiles": {
+    "short": "北京是中国的",
+    "cross_page": [
+      14880,
+      101113,
+      65577,
+      3837,
+      100161,
+      11622,
+      104811,
+      102104,
+      105538,
+      59975,
+      100132,
+      101314,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      3407,
+      105538,
+      59975,
+      100132
+    ]
+  },
+  "prompt_token_counts": {
+    "short": 3,
+    "cross_page": 135
+  },
+  "requests": [
+    {
+      "seconds": 1.4080988764762878,
+      "ttft_ms": 100.63011571764946,
+      "tpot_ms": 42.171836500206304,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 0,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.6289790272712708,
+      "ttft_ms": 111.54824867844582,
+      "tpot_ms": 48.94475098098478,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 0,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.5953704118728638,
+      "ttft_ms": 104.41144183278084,
+      "tpot_ms": 48.090439049466966,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 1,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4291400015354156,
+      "ttft_ms": 98.06608036160469,
+      "tpot_ms": 42.931017736273425,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 1,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.443542879074812,
+      "ttft_ms": 101.73776745796204,
+      "tpot_ms": 43.2791838482503,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 2,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.588764127343893,
+      "ttft_ms": 107.59663954377174,
+      "tpot_ms": 47.77440693109266,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 2,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.5668920353055,
+      "ttft_ms": 107.17853531241417,
+      "tpot_ms": 47.08293032261633,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 3,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.440086416900158,
+      "ttft_ms": 100.41766613721848,
+      "tpot_ms": 43.209186845248745,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 3,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.593669656664133,
+      "ttft_ms": 99.4148962199688,
+      "tpot_ms": 48.197823426415844,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 4,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.9276026524603367,
+      "ttft_ms": 112.16086149215698,
+      "tpot_ms": 58.5570998730198,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 4,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.8010883629322052,
+      "ttft_ms": 129.59540635347366,
+      "tpot_ms": 53.91371274186719,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 5,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.532567348331213,
+      "ttft_ms": 104.4197641313076,
+      "tpot_ms": 46.06524013703869,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 5,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.8455640263855457,
+      "ttft_ms": 110.82533001899719,
+      "tpot_ms": 55.95426657988179,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 6,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4991938881576061,
+      "ttft_ms": 103.85049879550934,
+      "tpot_ms": 45.00606079255381,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 6,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.6731316931545734,
+      "ttft_ms": 108.33295807242393,
+      "tpot_ms": 50.47327604505323,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 7,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4897652603685856,
+      "ttft_ms": 108.42970013618469,
+      "tpot_ms": 44.555519617372944,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 0,
+      "pair": 7,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.651750274002552,
+      "ttft_ms": 106.12250491976738,
+      "tpot_ms": 49.8550396052099,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 0,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4821690171957016,
+      "ttft_ms": 103.20033878087997,
+      "tpot_ms": 44.47896730515264,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 0,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.6076110675930977,
+      "ttft_ms": 104.72379624843597,
+      "tpot_ms": 48.476533543679025,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 1,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.5472216308116913,
+      "ttft_ms": 100.82068666815758,
+      "tpot_ms": 46.65407586482264,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 1,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.597585491836071,
+      "ttft_ms": 115.2891032397747,
+      "tpot_ms": 47.8112299836451,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 2,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.701363816857338,
+      "ttft_ms": 111.88213154673576,
+      "tpot_ms": 51.269697325844916,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 2,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.651294931769371,
+      "ttft_ms": 108.74626412987709,
+      "tpot_ms": 49.755885716407526,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 3,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4605611748993397,
+      "ttft_ms": 97.63247892260551,
+      "tpot_ms": 43.96150140993057,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 3,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.4304940551519394,
+      "ttft_ms": 104.8833429813385,
+      "tpot_ms": 42.75772420148696,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 4,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.566008698195219,
+      "ttft_ms": 105.13930767774582,
+      "tpot_ms": 47.119629238882375,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 4,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.6565597392618656,
+      "ttft_ms": 107.19204694032669,
+      "tpot_ms": 49.976055900896746,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 5,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4777932949364185,
+      "ttft_ms": 105.40275275707245,
+      "tpot_ms": 44.266823679208755,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 5,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.4514977298676968,
+      "ttft_ms": 99.19526055455208,
+      "tpot_ms": 43.618251599611774,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 6,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.686984572559595,
+      "ttft_ms": 108.22535678744316,
+      "tpot_ms": 50.923989905465035,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 6,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.635551456362009,
+      "ttft_ms": 109.6353605389595,
+      "tpot_ms": 49.21828715070601,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 7,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.5228507742285728,
+      "ttft_ms": 106.54954984784126,
+      "tpot_ms": 45.68308279398949,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 1,
+      "pair": 7,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.817167952656746,
+      "ttft_ms": 110.96779257059097,
+      "tpot_ms": 55.03117545477806,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 0,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.5097009912133217,
+      "ttft_ms": 103.81592437624931,
+      "tpot_ms": 45.34654211132757,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 0,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.7205168679356575,
+      "ttft_ms": 127.72766128182411,
+      "tpot_ms": 51.376433622452524,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 1,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4952353350818157,
+      "ttft_ms": 102.7057096362114,
+      "tpot_ms": 44.91650938026367,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 1,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.4562206491827965,
+      "ttft_ms": 102.58660465478897,
+      "tpot_ms": 43.66180192558996,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 2,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.5916826464235783,
+      "ttft_ms": 106.09568655490875,
+      "tpot_ms": 47.918126227394225,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 2,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.4801153056323528,
+      "ttft_ms": 101.42621770501137,
+      "tpot_ms": 44.46990703863482,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 3,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.662365511059761,
+      "ttft_ms": 112.26571723818779,
+      "tpot_ms": 49.99945060380043,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 3,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.6251019276678562,
+      "ttft_ms": 105.31241446733475,
+      "tpot_ms": 49.02159939369848,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 4,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.6020710431039333,
+      "ttft_ms": 101.43556445837021,
+      "tpot_ms": 48.4021321660088,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 4,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.60691874101758,
+      "ttft_ms": 113.485187292099,
+      "tpot_ms": 48.17153008714799,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 5,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.448566023260355,
+      "ttft_ms": 102.69617661833763,
+      "tpot_ms": 43.411350178141745,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 5,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.5991025269031525,
+      "ttft_ms": 115.93341082334518,
+      "tpot_ms": 47.84024663029179,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 6,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.417187511920929,
+      "ttft_ms": 101.32239758968353,
+      "tpot_ms": 42.443209838482645,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 6,
+      "metadata_reuse": true
+    },
+    {
+      "seconds": 1.649372961372137,
+      "ttft_ms": 126.7838105559349,
+      "tpot_ms": 49.11205292709412,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 7,
+      "metadata_reuse": false
+    },
+    {
+      "seconds": 1.6619101129472256,
+      "ttft_ms": 165.16433656215668,
+      "tpot_ms": 48.27568728116251,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一之一",
+      "profile": "short",
+      "round": 2,
+      "pair": 7,
+      "metadata_reuse": true
+    }
+  ],
+  "paired_metadata": true,
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "metadata_reuse": false,
+      "response": {
+        "seconds": 1.681877862662077,
+        "ttft_ms": 116.8840155005455,
+        "tpot_ms": 50.478552137651754,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "2, 2+2=4, 3+3=9, 4+4=16. 5+5=?\n?\n "
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "metadata_reuse": false,
+      "response": {
+        "seconds": 1.745929803699255,
+        "ttft_ms": 111.17816716432571,
+        "tpot_ms": 52.73047798583585,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": " Paris. The capital of the United States is Washington, D.C. The capital of the United Kingdom is London. The capital of Italy is Rome. The capital"
+      }
+    },
+    {
+      "prompt": "1+1=",
+      "metadata_reuse": true,
+      "response": {
+        "seconds": 1.6100017987191677,
+        "ttft_ms": 101.58296674489975,
+        "tpot_ms": 48.65511494778818,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "2, 2+2=4, 3+3=9, 4+4=16. 5+5=?\n?\n "
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "metadata_reuse": true,
+      "response": {
+        "seconds": 1.6009136624634266,
+        "ttft_ms": 119.23858150839806,
+        "tpot_ms": 47.79145001403747,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": " Paris. The capital of the United States is Washington, D.C. The capital of the United Kingdom is London. The capital of Italy is Rome. The capital"
+      }
+    }
+  ],
+  "metadata_outputs_equal": true
+}

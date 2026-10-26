@@ -1,0 +1,1310 @@
+--- a/vllm/v1/attention/backends/psp_kv_ascend.py
++++ b/vllm/v1/attention/backends/psp_kv_ascend.py
+@@ -19,6 +19,8 @@
+ from vllm_ascend.attention.attention_v1 import (
+     AscendAttentionBackend,
+     AscendAttentionBackendImpl,
++    AscendAttentionMetadataBuilder,
++    AscendCommonAttentionMetadata,
+     AscendMetadata,
+ )
+ 
+@@ -191,12 +193,10 @@
+                         f"Static precision for {name} must use codes 1, 2 or 3"
+                     )
+                 groups = int(entry.get("groups", 1))
+-                if 3 in (k_code, v_code):
+-                    if groups < 1 or self.head_size % groups:
+-                        raise ValueError(
+-                            f"Static FP4 {name} group count must divide the "
+-                            "head size"
+-                        )
++                if 3 in (k_code, v_code) and (groups < 1 or self.head_size % groups):
++                    raise ValueError(
++                        f"Static FP4 {name} group count must divide the head size"
++                    )
+                 for stream, stream_code in (
+                     ("k_scales", k_code),
+                     ("v_scales", v_code),
+@@ -442,8 +442,7 @@
+                     or expected_v <= 0
+                     or k_cache.numel() % expected_k
+                     or v_cache.numel() % expected_v
+-                    or k_cache.numel() // expected_k
+-                    != v_cache.numel() // expected_v
++                    or k_cache.numel() // expected_k != v_cache.numel() // expected_v
+                 ):
+                     raise ValueError(
+                         "PSP-KV variable arena sizes are incompatible with the "
+@@ -681,10 +680,30 @@
+         )
+ 
+ 
++class PSPKVAscendMetadataBuilder(AscendAttentionMetadataBuilder):
++    """Retain builder-owned device lengths alongside Ascend's CPU lengths."""
++
++    def build(
++        self,
++        common_prefix_len: int,
++        common_attn_metadata: AscendCommonAttentionMetadata,
++        fast_build: bool = False,
++    ) -> AscendMetadata:
++        metadata = super().build(common_prefix_len, common_attn_metadata, fast_build)
++        # The plugin normally puts CPU lengths in metadata.seq_lens. Preserve
++        # the existing device buffer instead of copying it back in every layer.
++        metadata.psp_kv_device_seq_lens = common_attn_metadata.seq_lens
++        return metadata
++
++
+ class PSPKVAscendBackend(AscendAttentionBackend):
+     """Use plugin metadata with PSP-KV's selected cache storage format."""
+ 
+     supported_kv_cache_dtypes = ["fp8"]
++
++    @staticmethod
++    def get_builder_cls() -> type[PSPKVAscendMetadataBuilder]:
++        return PSPKVAscendMetadataBuilder
+ 
+     @staticmethod
+     def get_kv_cache_shape(
+@@ -700,12 +719,8 @@
+ 
+             k_avg = _psp_kv_avg_bytes("k")
+             v_avg = _psp_kv_avg_bytes("v")
+-            k_bytes = (
+-                num_blocks * block_size * num_kv_heads * head_size * k_avg
+-            )
+-            v_bytes = (
+-                num_blocks * block_size * num_kv_heads * head_size * v_avg
+-            )
++            k_bytes = num_blocks * block_size * num_kv_heads * head_size * k_avg
++            v_bytes = num_blocks * block_size * num_kv_heads * head_size * v_avg
+             if (
+                 not math.isfinite(k_bytes)
+                 or not math.isfinite(v_bytes)
+--- a/ascend/format_compare_runtime.py
++++ b/ascend/format_compare_runtime.py
+@@ -20,6 +20,7 @@
+ from functools import lru_cache
+ 
+ import torch
++from shared_metadata import current_owner, prepare_metadata, reuse_enabled
+ 
+ from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
+ from vllm.v1.attention.backends.psp_kv_ascend_ops import PSPKVAscendPackedOps
+@@ -27,6 +28,7 @@
+ NAMES = ("basic", "enhanced", "btkv")
+ STATES = {}
+ SHADOW_CACHES = {}
++METADATA_LOGGED = False
+ 
+ 
+ @lru_cache(maxsize=2)
+@@ -57,6 +59,7 @@
+     scale,
+     **kwargs,
+ ):
++    global METADATA_LOGGED
+     name = os.environ["PSPKV_COMPARE_FORMAT"]
+     generation = NAMES.index(name)
+     precision = os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3")
+@@ -76,6 +79,30 @@
+     assert query_ends[-1] == actual
+     num_queries = query_ends[0]
+     prefix_length = seq_lens[0] - num_queries
++    owner = current_owner()
++    share_metadata = code in (1, 2) and reuse_enabled(owner)
++    prepared = (
++        prepare_metadata(
++            owner, block_tables, slot_mapping, seq_lens, block_size, query.device
++        )
++        if share_metadata
++        else None
++    )
++    if prepared is not None and not METADATA_LOGGED:
++        print(
++            "PSPKV_SHARED_METADATA "
++            + json.dumps(
++                {
++                    "forward_scoped": owner is not None,
++                    "borrowed_device_lengths": prepared.borrowed_lengths,
++                    "length_device": str(prepared.lengths.device),
++                    "length_dtype": str(prepared.lengths.dtype),
++                    "source_type": type(prepared.source).__name__,
++                }
++            ),
++            flush=True,
++        )
++        METADATA_LOGGED = True
+     identity = (k_cache.data_ptr(), v_cache.data_ptr())
+     if identity not in STATES:
+         # The engine only accepts FP8 arenas. This small BF16 shadow is an
+@@ -107,6 +134,21 @@
+             + json.dumps(
+                 {
+                     "format": name,
++                    "metadata_reuse": (
++                        "paired"
++                        if os.environ.get("PSPKV_METADATA_CONTROL_FILE")
++                        else share_metadata
++                    ),
++                    "metadata_lengths_source": (
++                        "builder_device"
++                        if prepared is not None and prepared.borrowed_lengths
++                        else "prepared_once"
++                        if prepared is not None
++                        else "per_layer"
++                    ),
++                    "attention_impl": os.environ.get(
++                        "PSPKV_ASCEND_ATTENTION_IMPL", "auto"
++                    ),
+                     "precision": precision,
+                     "block_size": block_size,
+                     "physical_blocks": num_blocks,
+@@ -120,7 +162,10 @@
+                     "optimized": optimized,
+                     "paged_min_length": paged_min_length,
+                     "attention_path": (
+-                        "length_dispatch_scalar_or_native_paged"
++                        "tile_fused_or_vector_paged"
++                        if os.environ.get("PSPKV_ASCEND_ATTENTION_IMPL", "auto")
++                        in ("auto", "fused")
++                        else "length_dispatch_scalar_or_native_paged"
+                         if optimized and paged_min_length
+                         else (
+                             "active_bf16_scratch_then_native_paged"
+@@ -161,7 +206,11 @@
+         )
+     native = load_native_fp8_ops()
+     source = torch.stack((key[:actual], value[:actual]), dim=1).contiguous()
+-    slots = slot_mapping.to(torch.int64).contiguous()
++    slots = (
++        prepared.slots
++        if prepared is not None
++        else slot_mapping.to(torch.int64).contiguous()
++    )
+     if optimized and code in (1, 2):
+         native.packed_scatter_parallel(
+             source,
+@@ -190,9 +239,13 @@
+         )
+     if num_queries == 1:
+         tables = (
+-            block_tables[:1, : math.ceil(seq_lens[0] / block_size)]
+-            .to(torch.int32)
+-            .contiguous()
++            prepared.tables
++            if prepared is not None
++            else (
++                block_tables[:1, : math.ceil(seq_lens[0] / block_size)]
++                .to(torch.int32)
++                .contiguous()
++            )
+         )
+         if code == 0:
+             tables = torch.arange(
+@@ -200,7 +253,11 @@
+                 dtype=torch.int32,
+                 device=query.device,
+             ).unsqueeze(0)
+-        lengths = torch.tensor(seq_lens, dtype=torch.int32, device=query.device)
++        lengths = (
++            prepared.lengths
++            if prepared is not None
++            else torch.tensor(seq_lens, dtype=torch.int32, device=query.device)
++        )
+         args = [
+             query[:1].contiguous(),
+             k_cache.view(-1),
+@@ -217,8 +274,10 @@
+         args.extend((scale, kv_heads, dimension, result[:1]))
+         extra = (
+             {
+-                "context_lens_cpu": torch.tensor(
+-                    seq_lens, dtype=torch.int32, device="cpu"
++                "context_lens_cpu": (
++                    prepared.get_cpu_lengths()
++                    if prepared is not None
++                    else torch.tensor(seq_lens, dtype=torch.int32, device="cpu")
+                 )
+             }
+             if optimized and code in (1, 2) and seq_lens[0] >= paged_min_length
+--- a/ascend/run_format_comparison.sh
++++ b/ascend/run_format_comparison.sh
+@@ -33,7 +33,7 @@
+ }
+ trap cleanup EXIT INT TERM
+ 
+-cp "$SOURCE_ROOT/vllm/v1/attention/backends/psp_kv_ascend.py" \
++cp "${BACKEND_SOURCE:-$SOURCE_ROOT/vllm/v1/attention/backends/psp_kv_ascend.py}" \
+   "$COMPARISON_DIR/backend_overlay.py"
+ cat >> "$COMPARISON_DIR/backend_overlay.py" <<'PY'
+ 
+@@ -56,6 +56,17 @@
+   ATTENTION_ARGS=(--attention-backend PSP_KV --kv-cache-dtype fp8)
+   PROFILER_ARGS=()
+   PROFILER_MOUNTS=()
++  CLIENT_SCRIPT=compare_formats_client.py
++  CLIENT_EXTRA=()
++  PROFILE_CLIENT_EXTRA=()
++  CONTROL_FILE=""
++  if [[ "${PAIRED_METADATA:-0}" == 1 && "$format" != stock-bf16 ]]; then
++    CLIENT_SCRIPT=compare_metadata_client.py
++    CONTROL_FILE="/comparison/metadata-mode-$format.txt"
++    CLIENT_EXTRA=(--control-file "$CONTROL_FILE")
++    PROFILE_CLIENT_EXTRA=(--control-file "$CONTROL_FILE" --trace-root "/comparison/model-profiler-$format")
++    printf '0\n' > "$COMPARISON_DIR/metadata-mode-$format.txt"
++  fi
+   if [[ "${PROFILE_MODEL:-0}" == 1 && "$format" == basic ]]; then
+     PROFILER_ARGS=(--profiler-config '{"profiler":"torch","torch_profiler_dir":"/model-profiler","torch_profiler_with_stack":false,"ignore_frontend":true}')
+     PROFILER_MOUNTS=(-v "$COMPARISON_DIR/model-profiler-$format:/model-profiler")
+@@ -95,6 +106,8 @@
+     -e "PSPKV_COMPARE_OPTIMIZED=${COMPARE_OPTIMIZED:-0}" \
+     -e "PSPKV_COMPARE_PAGED_MIN_LENGTH=${PAGED_MIN_LENGTH:-0}" \
+     -e "PSPKV_ASCEND_ATTENTION_IMPL=${ATTENTION_IMPL:-vector}" \
++    -e "PSPKV_ASCEND_SHARE_METADATA=${SHARE_METADATA:-1}" \
++    -e "PSPKV_METADATA_CONTROL_FILE=$CONTROL_FILE" \
+     -e VLLM_WORKER_MULTIPROC_METHOD=spawn \
+     -e PSPKV_ASCEND_NATIVE_LIB=/comparison-native/libpspkv_ascend_native.so \
+     --entrypoint bash "$IMAGE" -lc \
+@@ -112,7 +125,7 @@
+       --entrypoint /workspace/pspkv-native-build/.venv/bin/python \
+       -v "$BUILD_DIR:/workspace/pspkv-native-build:ro" \
+       -v "$COMPARISON_DIR:/comparison" "$IMAGE" \
+-      /comparison/compare_formats_client.py --port "$HOST_PORT" \
++      "/comparison/$CLIENT_SCRIPT" --port "$HOST_PORT" "${CLIENT_EXTRA[@]}" \
+       --model "$MODEL" --ready-timeout "$READY_TIMEOUT" \
+       --rounds "${CLIENT_ROUNDS:-3}" \
+       --requests-per-profile "${CLIENT_REQUESTS:-4}" \
+@@ -125,6 +138,7 @@
+         -v "$BUILD_DIR:/workspace/pspkv-native-build:ro" \
+         -v "$COMPARISON_DIR:/comparison" "$IMAGE" \
+         /comparison/profile_model_client.py --port "$HOST_PORT" \
++        "${PROFILE_CLIENT_EXTRA[@]}" \
+         --input "/comparison/$format-serving.json" \
+         --output "/comparison/$format-profile-requests.json" \
+         >"$COMPARISON_DIR/$format-profiler-client.log" 2>&1 || rc=$?
+--- a/ascend/profile_model_client.py
++++ b/ascend/profile_model_client.py
+@@ -14,6 +14,8 @@
+     parser.add_argument("--port", type=int, required=True)
+     parser.add_argument("--input", type=Path, required=True)
+     parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--control-file", type=Path)
++    parser.add_argument("--trace-root", type=Path)
+     args = parser.parse_args()
+     measured = json.loads(args.input.read_text())
+     base = f"http://127.0.0.1:{args.port}"
+@@ -28,26 +30,44 @@
+             return response.read()
+ 
+     results = []
+-    post("/start_profile", {})
+-    try:
+-        for profile in ("cross_page", "short"):
+-            response = json.loads(
+-                post(
+-                    "/v1/completions",
+-                    {
+-                        "model": measured["model"],
+-                        "prompt": measured["profiles"][profile],
+-                        "max_tokens": 4,
+-                        "temperature": 0,
+-                        "seed": 123,
+-                        "ignore_eos": True,
+-                    },
++    for enabled in (False, True) if args.control_file else (None,):
++        if args.control_file:
++            args.control_file.write_text("1" if enabled else "0")
++        old_dirs = set(args.trace_root.iterdir()) if args.trace_root else set()
++        requests = []
++        post("/start_profile", {})
++        try:
++            for profile in ("cross_page", "short"):
++                response = json.loads(
++                    post(
++                        "/v1/completions",
++                        {
++                            "model": measured["model"],
++                            "prompt": measured["profiles"][profile],
++                            "max_tokens": 4,
++                            "temperature": 0,
++                            "seed": 123,
++                            "ignore_eos": True,
++                        },
++                    )
+                 )
++                assert response["usage"]["completion_tokens"] == 4
++                requests.append({"profile": profile, "response": response})
++        finally:
++            post("/stop_profile", {})
++        if args.control_file:
++            new_dirs = (
++                set(args.trace_root.iterdir()) - old_dirs if args.trace_root else set()
+             )
+-            assert response["usage"]["completion_tokens"] == 4
+-            results.append({"profile": profile, "response": response})
+-    finally:
+-        post("/stop_profile", {})
++            results.append(
++                {
++                    "metadata_reuse": enabled,
++                    "requests": requests,
++                    "trace_directories": sorted(path.name for path in new_dirs),
++                }
++            )
++        else:
++            results = requests
+     args.output.write_text(json.dumps(results, ensure_ascii=False, indent=2))
+ 
+ 
+--- /dev/null
++++ b/ascend/shared_metadata.py
+@@ -0,0 +1,175 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Prepare packed-attention metadata once per vLLM forward, never per length.
++
++The owner is the current ForwardContext. Keeping converted tensors on that
++owner prevents stale page/slot mappings when a new request has the same length
++or vLLM updates its persistent device buffers in place. Layer-specific KV,
++precision and scale tensors are deliberately excluded.
++"""
++
++import os
++from dataclasses import dataclass, field
++from pathlib import Path
++from typing import Any
++
++import torch
++
++
++def current_owner():
++    from vllm.forward_context import (
++        get_forward_context,
++        is_forward_context_available,
++    )
++
++    return get_forward_context() if is_forward_context_available() else None
++
++
++def reuse_enabled(owner) -> bool:
++    """An optional test-only control file is read once per forward, not layer."""
++    control = os.environ.get("PSPKV_METADATA_CONTROL_FILE")
++    if not control:
++        return os.environ.get("PSPKV_ASCEND_SHARE_METADATA", "1") == "1"
++    if owner is not None and hasattr(owner, "_pspkv_metadata_mode"):
++        return owner._pspkv_metadata_mode
++    value = Path(control).read_text().strip()
++    if value not in ("0", "1"):
++        raise ValueError("metadata control file must contain 0 or 1")
++    enabled = value == "1"
++    if owner is not None:
++        owner._pspkv_metadata_mode = enabled
++    return enabled
++
++
++@dataclass
++class PreparedMetadata:
++    tables: torch.Tensor
++    slots: torch.Tensor
++    lengths: torch.Tensor
++    host_lengths: tuple[int, ...]
++    cpu_lengths: torch.Tensor | None
++    borrowed_lengths: bool
++    # Retain source objects so their ids cannot be recycled during this forward.
++    source: Any = None
++    input_tables: torch.Tensor | None = None
++    input_slots: torch.Tensor | None = None
++
++    def get_cpu_lengths(self):
++        if self.cpu_lengths is None:
++            self.cpu_lengths = torch.tensor(self.host_lengths, dtype=torch.int32)
++        return self.cpu_lengths
++
++
++@dataclass
++class ForwardMetadata:
++    by_table: dict = field(default_factory=dict)
++    prepared: dict = field(default_factory=dict)
++    builds: int = 0
++    hits: int = 0
++    borrowed_lengths: int = 0
++    created_lengths: int = 0
++
++
++def _sources(value):
++    if isinstance(value, dict):
++        for child in value.values():
++            yield from _sources(child)
++    elif isinstance(value, (list, tuple)):
++        for child in value:
++            yield from _sources(child)
++    elif value is not None:
++        yield value
++
++
++def _cache(owner):
++    if owner is not None and hasattr(owner, "_pspkv_step_metadata"):
++        return owner._pspkv_step_metadata
++    cache = ForwardMetadata()
++    if owner is not None:
++        for metadata in _sources(getattr(owner, "attn_metadata", None)):
++            tables = getattr(metadata, "block_tables", None)
++            if isinstance(tables, torch.Tensor):
++                cache.by_table[id(tables)] = metadata
++        owner._pspkv_step_metadata = cache
++    return cache
++
++
++def prepare_metadata(owner, block_tables, slots, seq_lens, block_size, device):
++    """Borrow builder-owned lengths and share trimmed/converted views by group.
++
++    With no forward owner, preparation remains uncached. This supports direct
++    operator callers without silently retaining tensors across arbitrary calls.
++    Inputs must remain unchanged during a forward, as in vLLM's eager runner.
++    """
++    cache = _cache(owner)
++    host_lengths = tuple(seq_lens)
++    sequences = len(host_lengths)
++    pages = (max(host_lengths) + block_size - 1) // block_size
++    # Slots are often freshly sliced views in each layer; data_ptr includes
++    # their storage offset. A distinct page-table object denotes a cache group.
++    key = (
++        id(block_tables),
++        slots.data_ptr(),
++        tuple(slots.shape),
++        slots.stride(),
++        slots.dtype,
++        host_lengths,
++        block_size,
++        device,
++    )
++    if key in cache.prepared:
++        cache.hits += 1
++        return cache.prepared[key]
++    metadata = cache.by_table.get(id(block_tables))
++    source_lengths = getattr(metadata, "psp_kv_device_seq_lens", None)
++    if source_lengths is None:
++        source_lengths = getattr(metadata, "seq_lens", None)
++    if isinstance(source_lengths, torch.Tensor):
++        if source_lengths.ndim != 1 or source_lengths.numel() < sequences:
++            raise ValueError("builder context lengths do not cover the requests")
++        lengths = (
++            source_lengths[:sequences]
++            .to(
++                device=device,
++                dtype=torch.int32,
++                non_blocking=(
++                    source_lengths.device.type == "cpu" and source_lengths.is_pinned()
++                ),
++            )
++            .contiguous()
++        )
++        borrowed = (
++            source_lengths.device == device
++            and source_lengths.dtype == torch.int32
++            and source_lengths.is_contiguous()
++        )
++    else:
++        lengths = torch.tensor(host_lengths, dtype=torch.int32, device=device)
++        borrowed = False
++    # Read only an existing CPU field. Never obtain CPU lengths by copying
++    # the device tensor back to the host.
++    cpu_source = (
++        vars(metadata).get("seq_lens_cpu") if hasattr(metadata, "__dict__") else None
++    )
++    cpu_lengths = None
++    if isinstance(cpu_source, torch.Tensor) and cpu_source.device.type == "cpu":
++        if cpu_source.ndim != 1 or cpu_source.numel() < sequences:
++            raise ValueError("builder CPU lengths do not cover the requests")
++        cpu_lengths = cpu_source[:sequences].to(torch.int32).contiguous()
++    prepared = PreparedMetadata(
++        tables=block_tables[:sequences, :pages].to(torch.int32).contiguous(),
++        slots=slots.to(torch.int64).contiguous(),
++        lengths=lengths,
++        host_lengths=host_lengths,
++        cpu_lengths=cpu_lengths,
++        borrowed_lengths=borrowed,
++        source=metadata,
++        input_tables=block_tables,
++        input_slots=slots,
++    )
++    cache.prepared[key] = prepared
++    cache.builds += 1
++    cache.borrowed_lengths += int(borrowed)
++    cache.created_lengths += int(not borrowed)
++    return prepared
+--- /dev/null
++++ b/ascend/compare_metadata_client.py
+@@ -0,0 +1,195 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Order-balanced adjacent metadata A/B pairs on the same loaded model."""
++
++import argparse
++import json
++import random
++import time
++import urllib.error
++import urllib.request
++from pathlib import Path
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--port", type=int, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--control-file", type=Path, required=True)
++    parser.add_argument("--rounds", type=int, default=3)
++    parser.add_argument("--requests-per-profile", type=int, default=4)
++    parser.add_argument("--warmups", type=int, default=2)
++    parser.add_argument("--model", default="Qwen/Qwen3-0.6B")
++    parser.add_argument("--ready-timeout", type=int, default=600)
++    args = parser.parse_args()
++    base = f"http://127.0.0.1:{args.port}"
++    model = args.model
++
++    def post(path, payload):
++        request = urllib.request.Request(
++            base + path,
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        with urllib.request.urlopen(request, timeout=180) as response:
++            return json.load(response)
++
++    deadline = time.monotonic() + args.ready_timeout
++    while time.monotonic() < deadline:
++        try:
++            with urllib.request.urlopen(base + "/health", timeout=3):
++                break
++        except (OSError, urllib.error.URLError):
++            time.sleep(3)
++    else:
++        raise RuntimeError("server readiness timed out")
++    long_text = (
++        "请阅读记录，最后用中文回答中国的首都是哪里。\n"
++        + "记录：北京是中国的首都，上海是中国的城市。\n" * 20
++        + "\n中国的首都是"
++    )
++    tokens = post("/tokenize", {"model": model, "prompt": long_text})["tokens"]
++    profiles = {"short": "北京是中国的", "cross_page": tokens[:120] + tokens[-15:]}
++    prompt_counts = {
++        "short": len(
++            post("/tokenize", {"model": model, "prompt": profiles["short"]})["tokens"]
++        ),
++        "cross_page": 135,
++    }
++    data = {
++        "model": model,
++        "rounds": args.rounds,
++        "requests_per_profile_per_round": args.requests_per_profile,
++        "warmups_per_profile": args.warmups,
++        "output_tokens": 32,
++        "concurrency": 1,
++        "profiles": profiles,
++        "prompt_token_counts": prompt_counts,
++        "requests": [],
++        "paired_metadata": True,
++    }
++
++    def generate(prompt):
++        payload = {
++            "model": model,
++            "prompt": prompt,
++            "max_tokens": 32,
++            "temperature": 0,
++            "seed": 123,
++            "ignore_eos": True,
++            "stream": True,
++            "stream_options": {"include_usage": True},
++        }
++        request = urllib.request.Request(
++            base + "/v1/completions",
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        started = time.perf_counter()
++        first = last = None
++        text, usage = "", None
++        with urllib.request.urlopen(request, timeout=180) as response:
++            for line in response:
++                if not line.startswith(b"data: "):
++                    continue
++                event = line[6:].strip()
++                if event == b"[DONE]":
++                    break
++                chunk = json.loads(event)
++                if "error" in chunk:
++                    raise RuntimeError(chunk["error"])
++                if chunk.get("usage"):
++                    usage = chunk["usage"]
++                for choice in chunk.get("choices", []):
++                    piece = choice.get("text", "")
++                    if piece:
++                        last = time.perf_counter()
++                        first = first if first is not None else last
++                        text += piece
++        ended = time.perf_counter()
++        assert usage is not None and usage["completion_tokens"] == 32
++        assert first is not None and last is not None
++        return {
++            "seconds": ended - started,
++            "ttft_ms": (first - started) * 1000,
++            "tpot_ms": (last - first) * 1000 / 31,
++            "usage": usage,
++            "text": text,
++        }
++
++    def select_mode(enabled):
++        # The server reads once per ForwardContext, before any attention layer.
++        args.control_file.write_text("1" if enabled else "0")
++
++    for prompt in profiles.values():
++        for enabled in (False, True):
++            select_mode(enabled)
++            for _ in range(args.warmups):
++                generate(prompt)
++    ordering = random.Random(20261023)
++    for round_index in range(args.rounds):
++        schedule = list(profiles) * args.requests_per_profile
++        ordering.shuffle(schedule)
++        for pair, profile in enumerate(schedule):
++            modes = [False, True]
++            ordering.shuffle(modes)
++            for enabled in modes:
++                select_mode(enabled)
++                row = generate(profiles[profile])
++                row.update(
++                    {
++                        "profile": profile,
++                        "round": round_index,
++                        "pair": pair,
++                        "metadata_reuse": enabled,
++                    }
++                )
++                assert row["usage"]["prompt_tokens"] == prompt_counts[profile]
++                data["requests"].append(row)
++                args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++                print(
++                    json.dumps(
++                        {
++                            k: row[k]
++                            for k in (
++                                "profile",
++                                "round",
++                                "pair",
++                                "metadata_reuse",
++                                "seconds",
++                                "ttft_ms",
++                            )
++                        }
++                    ),
++                    flush=True,
++                )
++    data["quality_probes"] = []
++    for enabled in (False, True):
++        select_mode(enabled)
++        for prompt in ("1+1=", "The capital of France is"):
++            data["quality_probes"].append(
++                {
++                    "prompt": prompt,
++                    "metadata_reuse": enabled,
++                    "response": generate(prompt),
++                }
++            )
++    for profile in profiles:
++        before = {
++            r["text"]
++            for r in data["requests"]
++            if r["profile"] == profile and not r["metadata_reuse"]
++        }
++        after = {
++            r["text"]
++            for r in data["requests"]
++            if r["profile"] == profile and r["metadata_reuse"]
++        }
++        assert before == after, (profile, "metadata reuse changed generated output")
++    data["metadata_outputs_equal"] = True
++    args.output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/check_shared_metadata_npu.py
+@@ -0,0 +1,167 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Check cross-layer metadata reuse against identical pre-optimization calls."""
++
++import argparse
++import json
++import math
++import os
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import patch
++
++import torch
++import torch_npu
++from analyze_attention_performance import measure
++from format_compare_runtime import STATES, comparison_attention
++
++from tests.v1.attention.psp_kv_reference import pack_kv_cache
++from vllm.forward_context import override_forward_context
++from vllm.v1.attention.backends.psp_kv_ascend import (
++    AscendAttentionMetadataBuilder,
++    PSPKVAscendBackend,
++    PSPKVAscendMetadataBuilder,
++)
++
++
++def run_fixture(length, generation, layer_count):
++    block, kv_heads, dim, heads = 128, 4, 128, 28
++    pages = math.ceil(length / block)
++    tables_cpu = torch.randperm(pages).to(torch.int32).view(1, pages)
++    tables = tables_cpu.to("npu")
++    cpu_lengths = torch.tensor([length], dtype=torch.int32)
++    device_lengths = cpu_lengths.to("npu")
++    slot = tables_cpu[0, (length - 1) // block].item() * block + (length - 1) % block
++    slots = torch.tensor([slot], dtype=torch.int64, device="npu")
++    source = SimpleNamespace(
++        block_tables=tables,
++        seq_lens=cpu_lengths,
++        seq_lens_cpu=cpu_lengths,
++        psp_kv_device_seq_lens=device_lengths,
++    )
++    layers = []
++    for _ in range(layer_count):
++        kc = (torch.randn(pages, kv_heads, block, dim) * 0.3).bfloat16()
++        vc = (torch.randn_like(kc.float()) * 0.3).bfloat16()
++        k, v, _ = pack_kv_cache(
++            kc, vc, generation, torch.ones(pages, dtype=torch.uint8), torch.bfloat16
++        )
++        k, v = [t.to("npu").view(pages, block, kv_heads, dim) for t in (k, v)]
++        key = kc[slot // block, :, slot % block].unsqueeze(0).to("npu")
++        value = vc[slot // block, :, slot % block].unsqueeze(0).to("npu")
++        query = torch.randn(1, heads, dim).bfloat16().to("npu")
++        output = torch.empty_like(query)
++        layers.append((query, key, value, k, v, output))
++
++    def step():
++        owner = SimpleNamespace(
++            attn_metadata={str(i): source for i in range(layer_count)}
++        )
++        with override_forward_context(owner):
++            for query, key, value, k, v, output in layers:
++                comparison_attention(
++                    query,
++                    key,
++                    value,
++                    k,
++                    v,
++                    slots[:1],
++                    tables,
++                    [1],
++                    [length],
++                    output,
++                    1 / math.sqrt(dim),
++                )
++        return owner
++
++    name = ("basic", "enhanced", "btkv")[generation]
++    os.environ["PSPKV_COMPARE_FORMAT"] = name
++    os.environ["PSPKV_COMPARE_PRECISION"] = "e4m3"
++    os.environ["PSPKV_COMPARE_OPTIMIZED"] = "1"
++    os.environ["PSPKV_COMPARE_PAGED_MIN_LENGTH"] = "64"
++    STATES.clear()
++    os.environ["PSPKV_ASCEND_SHARE_METADATA"] = "0"
++    step()
++    torch.npu.synchronize()
++    before = [row[-1].cpu().clone() for row in layers]
++    os.environ["PSPKV_ASCEND_SHARE_METADATA"] = "1"
++    owner = step()
++    torch.npu.synchronize()
++    for row, expected in zip(layers, before):
++        torch.testing.assert_close(row[-1].cpu(), expected, atol=0, rtol=0)
++    cache = owner._pspkv_step_metadata
++    assert cache.builds == 1 and cache.hits == layer_count - 1
++    assert cache.borrowed_lengths == 1 and cache.created_lengths == 0
++    prepared = next(iter(cache.prepared.values()))
++    assert prepared.lengths.data_ptr() == device_lengths.data_ptr()
++    return step, {
++        "format": name,
++        "length": length,
++        "layers": layer_count,
++        "outputs_bit_equal": True,
++        "builds": cache.builds,
++        "hits": cache.hits,
++        "borrowed_lengths": cache.borrowed_lengths,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--trace-dir", type=Path)
++    args = parser.parse_args()
++    torch.set_num_threads(2)
++    torch.manual_seed(20261025)
++    torch.npu.set_device(0)
++    os.environ.pop("PSPKV_METADATA_CONTROL_FILE", None)
++    assert PSPKVAscendBackend.get_builder_cls() is PSPKVAscendMetadataBuilder
++    # Ascend's CPU seq_lens is intentionally distinct from the common NPU view.
++    cpu = torch.tensor([135], dtype=torch.int32)
++    device = cpu.to("npu")
++    built = SimpleNamespace(seq_lens=cpu)
++    with patch.object(AscendAttentionMetadataBuilder, "build", return_value=built):
++        builder = object.__new__(PSPKVAscendMetadataBuilder)
++        result = builder.build(0, SimpleNamespace(seq_lens=device))
++        assert result.psp_kv_device_seq_lens is device
++        assert result.seq_lens is cpu
++    report = {"checks": [], "timings": []}
++    for generation in range(3):
++        for length in (3, 32, 135, 160, 257):
++            _, row = run_fixture(length, generation, 4)
++            report["checks"].append(row)
++    for generation in range(3):
++        for length in (32, 160):
++            step, row = run_fixture(length, generation, 28)
++            for enabled in (False, True):
++                os.environ["PSPKV_ASCEND_SHARE_METADATA"] = str(int(enabled))
++                row["after" if enabled else "before"] = measure(step, 5, 5)
++                if args.trace_dir and generation == 0 and length == 160:
++                    config = torch_npu.profiler._ExperimentalConfig(
++                        profiler_level=torch_npu.profiler.ProfilerLevel.Level1
++                    )
++                    with torch_npu.profiler.profile(
++                        activities=[
++                            torch_npu.profiler.ProfilerActivity.CPU,
++                            torch_npu.profiler.ProfilerActivity.NPU,
++                        ],
++                        experimental_config=config,
++                        on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
++                            str(args.trace_dir / ("after" if enabled else "before"))
++                        ),
++                    ):
++                        for _ in range(6):
++                            step()
++                        torch.npu.synchronize()
++            report["timings"].append(row)
++            args.output.write_text(json.dumps(report, indent=2))
++            print(json.dumps(row), flush=True)
++    args.output.write_text(json.dumps(report, indent=2))
++    print(
++        "PASS: builder ownership, 15 multi-layer cases and six 28-layer comparisons",
++        flush=True,
++    )
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/summarize_metadata_comparison.py
+@@ -0,0 +1,114 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Summarize adjacent, randomized before/after metadata-reuse request pairs."""
++
++import argparse
++import csv
++import json
++import math
++import random
++import statistics
++from pathlib import Path
++
++
++def percentile(values, fraction):
++    ordered = sorted(values)
++    pos = (len(ordered) - 1) * fraction
++    low, high = math.floor(pos), math.ceil(pos)
++    return ordered[low] + (ordered[high] - ordered[low]) * (pos - low)
++
++
++def paired_interval(pairs):
++    rng = random.Random(20261025)
++    samples = []
++    for _ in range(10000):
++        chosen = [pairs[rng.randrange(len(pairs))] for _ in pairs]
++        samples.append(
++            100 * (1 - sum(a for b, a in chosen) / sum(b for b, a in chosen))
++        )
++    return percentile(samples, 0.025), percentile(samples, 0.975)
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--input-dir", type=Path, required=True)
++    parser.add_argument("--output-dir", type=Path, required=True)
++    args = parser.parse_args()
++    args.output_dir.mkdir(parents=True, exist_ok=True)
++    rows, outputs = [], {}
++    baseline_path = args.input_dir / "stock-bf16-serving.json"
++    baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else None
++    for name in ("basic", "enhanced", "btkv"):
++        path = args.input_dir / f"{name}-serving.json"
++        if not path.exists():
++            continue
++        data = json.loads(path.read_text())
++        assert data["paired_metadata"]
++        outputs[name] = {}
++        for profile in ("short", "cross_page"):
++            records = [r for r in data["requests"] if r["profile"] == profile]
++            before = [r for r in records if not r["metadata_reuse"]]
++            after = [r for r in records if r["metadata_reuse"]]
++            by_pair = {}
++            for r in records:
++                by_pair.setdefault((r["round"], r["pair"]), {})[r["metadata_reuse"]] = r
++            assert all(len(pair) == 2 for pair in by_pair.values())
++            pairs = [
++                (v[False]["seconds"], v[True]["seconds"]) for v in by_pair.values()
++            ]
++            low, high = paired_interval(pairs)
++            b = statistics.median(r["seconds"] for r in before)
++            a = statistics.median(r["seconds"] for r in after)
++            reference = (
++                statistics.median(
++                    r["seconds"]
++                    for r in baseline["requests"]
++                    if r["profile"] == profile
++                )
++                if baseline
++                else None
++            )
++            equal = {r["text"] for r in before} == {r["text"] for r in after}
++            outputs[name][profile] = equal
++            rows.append(
++                {
++                    "format": name,
++                    "profile": profile,
++                    "pairs": len(pairs),
++                    "bf16_p50_s": reference,
++                    "before_p50_s": b,
++                    "after_p50_s": a,
++                    "p50_reduction_percent": 100 * (1 - a / b),
++                    "paired_mean_reduction_percent": 100
++                    * (1 - sum(a for b, a in pairs) / sum(b for b, a in pairs)),
++                    "paired_mean_bootstrap95_low": low,
++                    "paired_mean_bootstrap95_high": high,
++                    "before_p95_s": percentile([r["seconds"] for r in before], 0.95),
++                    "after_p95_s": percentile([r["seconds"] for r in after], 0.95),
++                    "before_tpot_ms": statistics.median(r["tpot_ms"] for r in before),
++                    "after_tpot_ms": statistics.median(r["tpot_ms"] for r in after),
++                    "before_ttft_ms": statistics.median(r["ttft_ms"] for r in before),
++                    "after_ttft_ms": statistics.median(r["ttft_ms"] for r in after),
++                    "output_text_equal": equal,
++                }
++            )
++    result = {
++        "rows": rows,
++        "output_text_equal": outputs,
++        "interval_scope": (
++            "Paired mean latency reduction, not the P50 reduction; "
++            "10000 paired bootstrap resamples, no cross-server/run confidence claim."
++        ),
++    }
++    (args.output_dir / "comparison.json").write_text(json.dumps(result, indent=2))
++    if rows:
++        with (args.output_dir / "comparison.csv").open("w", newline="") as stream:
++            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
++            writer.writeheader()
++            writer.writerows(rows)
++    print(json.dumps(result, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/analyze_metadata_profiles.py
+@@ -0,0 +1,114 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Compare extra model traces, excluding them from latency measurements."""
++
++import argparse
++import collections
++import csv
++import json
++from pathlib import Path
++
++
++def analyze(directory, layers):
++    source = directory / "ASCEND_PROFILER_OUTPUT"
++    rows = list(csv.DictReader((source / "kernel_details.csv").open()))
++    for row in rows:
++        row["start"] = float(row["Start Time(us)"])
++        row["end"] = row["start"] + float(row["Duration(us)"])
++    rows.sort(key=lambda r: r["start"])
++    grouped = collections.defaultdict(lambda: {"count": 0, "device_us": 0.0})
++    for row in rows:
++        group = grouped[row["Name"]]
++        group["count"] += 1
++        group["device_us"] += float(row["Duration(us)"])
++    fused = [r for r in rows if "PspkvTileFusedAttention" in r["Name"]]
++
++    def busy(start, end):
++        intervals = sorted(
++            (max(start, r["start"]), min(end, r["end"]))
++            for r in rows
++            if r["start"] < end and r["end"] > start
++        )
++        total, last = 0.0, start
++        for begin, finish in intervals:
++            if finish > last:
++                total += finish - max(last, begin)
++                last = finish
++        return total
++
++    window_us, kernel_us = 0.0, 0.0
++    assert len(fused) % layers == 0
++    for i in range(len(fused) - 1):
++        if i % layers == layers - 1:
++            continue
++        begin, end = fused[i]["start"], fused[i + 1]["start"]
++        window_us += end - begin
++        kernel_us += busy(begin, end)
++    apis = {
++        r["API Name"]: r for r in csv.DictReader((source / "api_statistic.csv").open())
++    }
++    host = collections.defaultdict(lambda: {"count": 0, "self_us": 0.0})
++    for row in csv.DictReader((source / "operator_details.csv").open()):
++        item = host[row["Name"]]
++        item["count"] += 1
++        item["self_us"] += float(row["Host Self Duration(us)"])
++    return {
++        "trace_directory": directory.name,
++        "kernel_count": len(rows),
++        "fused_calls": len(fused),
++        "sync_copies": int(apis.get("aclrtMemcpy", {}).get("Count", 0)),
++        "stream_syncs": int(apis.get("aclrtSynchronizeStream", {}).get("Count", 0)),
++        "async_copies": int(apis.get("aclrtMemcpyAsync", {}).get("Count", 0)),
++        "device_kernel_sum_us": sum(float(r["Duration(us)"]) for r in rows),
++        "decode_layer_windows_us": window_us,
++        "decode_layer_kernel_union_us": kernel_us,
++        "kernels": dict(
++            sorted(grouped.items(), key=lambda x: x[1]["device_us"], reverse=True)
++        ),
++        "host_ops": dict(
++            sorted(host.items(), key=lambda x: x[1]["self_us"], reverse=True)
++        ),
++        "apis": apis,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--input-dir", type=Path, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--layers", type=int, default=28)
++    args = parser.parse_args()
++    sessions = json.loads((args.input_dir / "basic-profile-requests.json").read_text())
++    result = {
++        "scope": (
++            "Two extra 4-token requests per mode; profiler overhead included. "
++            "Kernel interval coverage is not unprofiled whole-device utilization."
++        )
++    }
++    for session in sessions:
++        mode = "after" if session["metadata_reuse"] else "before"
++        assert len(session["trace_directories"]) == 1
++        directory = (
++            args.input_dir / "model-profiler-basic" / session["trace_directories"][0]
++        )
++        result[mode] = analyze(directory, args.layers)
++    args.output.write_text(json.dumps(result, indent=2))
++    print(
++        json.dumps(
++            {
++                mode: {
++                    key: value
++                    for key, value in stats.items()
++                    if key not in ("kernels", "host_ops", "apis")
++                }
++                for mode, stats in result.items()
++                if mode != "scope"
++            },
++            indent=2,
++        )
++    )
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/tests/v1/attention/test_psp_kv_shared_metadata.py
+@@ -0,0 +1,167 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++from ascend.shared_metadata import prepare_metadata, reuse_enabled
++
++
++def metadata(tables=None, lengths=None, dtype=torch.int32):
++    return SimpleNamespace(
++        block_tables=(
++            torch.tensor([[7, 2, 9, 1]], dtype=dtype) if tables is None else tables
++        ),
++        seq_lens=torch.tensor([135, 0, 0], dtype=dtype),
++        seq_lens_cpu=torch.tensor([135, 0, 0], dtype=torch.int32),
++    )
++
++
++def owner_for(source):
++    return SimpleNamespace(attn_metadata={f"layer{i}": source for i in range(28)})
++
++
++def prepare(owner, source, slots, lengths=(135,)):
++    return prepare_metadata(
++        owner, source.block_tables, slots, lengths, 128, torch.device("cpu")
++    )
++
++
++def test_borrows_existing_buffers_and_prepares_once_for_28_layers():
++    source = metadata()
++    owner = owner_for(source)
++    slots = torch.tensor([134], dtype=torch.int64)
++    rows = [prepare(owner, source, slots[:1]) for _ in range(28)]
++    assert all(row is rows[0] for row in rows)
++    row = rows[0]
++    assert row.lengths.data_ptr() == source.seq_lens.data_ptr()
++    assert row.tables.data_ptr() == source.block_tables.data_ptr()
++    assert row.slots.data_ptr() == slots.data_ptr()
++    assert row.get_cpu_lengths().data_ptr() == source.seq_lens_cpu.data_ptr()
++    assert row.tables.tolist() == [[7, 2]]
++    assert owner._pspkv_step_metadata.builds == 1
++    assert owner._pspkv_step_metadata.hits == 27
++
++
++def test_conversion_is_once_per_forward():
++    source = metadata(dtype=torch.int64)
++    owner = owner_for(source)
++    slots = torch.tensor([134], dtype=torch.int32)
++    row = prepare(owner, source, slots)
++    for _ in range(27):
++        assert prepare(owner, source, slots) is row
++    assert row.tables.dtype == row.lengths.dtype == torch.int32
++    assert row.slots.dtype == torch.int64
++    assert row.tables.data_ptr() != source.block_tables.data_ptr()
++    assert row.slots.data_ptr() != slots.data_ptr()
++    assert not row.borrowed_lengths
++
++
++def test_prefers_retained_device_lengths_to_plugins_cpu_field():
++    source = metadata()
++    source.seq_lens = torch.tensor([999], dtype=torch.int64)
++    source.psp_kv_device_seq_lens = torch.tensor([135], dtype=torch.int32)
++    row = prepare(owner_for(source), source, torch.tensor([134]))
++    assert row.lengths.data_ptr() == source.psp_kv_device_seq_lens.data_ptr()
++    assert row.lengths.tolist() == [135]
++
++
++def test_new_forward_does_not_reuse_equal_length_request_mappings():
++    source = metadata(dtype=torch.int64)
++    slots = torch.tensor([134], dtype=torch.int32)
++    first = prepare(owner_for(source), source, slots)
++    source.block_tables.copy_(torch.tensor([[4, 3, 6, 8]]))
++    slots.fill_(390)
++    second = prepare(owner_for(source), source, slots)
++    assert second is not first
++    assert first.tables.tolist() == [[7, 2]]
++    assert second.tables.tolist() == [[4, 3]]
++    assert first.slots.tolist() == [134]
++    assert second.slots.tolist() == [390]
++
++
++def test_separate_cache_groups_have_separate_prepared_mappings():
++    a, b = metadata(), metadata(tables=torch.tensor([[8, 6, 2, 5]]))
++    owner = SimpleNamespace(attn_metadata=[{"a": a}, {"b": b}])
++    slots = torch.tensor([134])
++    before, after = prepare(owner, a, slots), prepare(owner, b, slots)
++    assert before is not after
++    assert after.tables.tolist() == [[8, 6]]
++    assert owner._pspkv_step_metadata.builds == 2
++
++
++def test_no_forward_owner_never_caches_across_calls():
++    source = metadata()
++    slots = torch.tensor([134])
++    a, b = prepare(None, source, slots), prepare(None, source, slots)
++    assert a is not b
++    assert a.lengths.data_ptr() != b.lengths.data_ptr()
++
++
++def test_fallback_lengths_are_created_once_and_cpu_lengths_are_lazy():
++    source = SimpleNamespace(block_tables=torch.tensor([[0, 1, 2]]))
++    owner = owner_for(source)
++    slots = torch.tensor([134])
++    row = prepare(owner, source, slots)
++    assert not row.borrowed_lengths
++    assert row.lengths.tolist() == [135]
++    assert row.cpu_lengths is None
++    cpu = row.get_cpu_lengths()
++    assert row.get_cpu_lengths() is cpu
++    assert prepare(owner, source, slots) is row
++    changed = prepare(owner, source, slots, (136,))
++    assert changed.lengths.tolist() == [136]
++    assert changed is not row
++
++
++def test_does_not_trigger_a_lazy_cpu_copy_property():
++    class Source:
++        block_tables = torch.tensor([[0, 1]])
++        seq_lens = torch.tensor([135], dtype=torch.int32)
++
++        @property
++        def seq_lens_cpu(self):
++            raise AssertionError("device-to-host copy must not be triggered")
++
++    source = Source()
++    row = prepare(owner_for(source), source, torch.tensor([134]))
++    assert row.get_cpu_lengths().tolist() == [135]
++
++
++def test_noncontiguous_multi_request_tables_are_trimmed_correctly():
++    source = metadata(tables=torch.tensor([[7, 2, 9, 1], [5, 8, 3, 4]]))
++    source.seq_lens = torch.tensor([127, 129, 0], dtype=torch.int32)
++    source.seq_lens_cpu = source.seq_lens.clone()
++    row = prepare(owner_for(source), source, torch.tensor([126, 128]), (127, 129))
++    assert row.tables.tolist() == [[7, 2], [5, 8]]
++    assert row.tables.is_contiguous()
++    assert row.lengths.tolist() == [127, 129]
++
++
++@pytest.mark.parametrize("field", ["seq_lens", "seq_lens_cpu"])
++def test_rejects_builder_lengths_with_wrong_shape(field):
++    source = metadata()
++    setattr(source, field, torch.empty(0, dtype=torch.int32))
++    with pytest.raises(ValueError, match="cover the requests"):
++        prepare(owner_for(source), source, torch.tensor([134]))
++
++
++def test_control_mode_is_fixed_within_a_forward(tmp_path, monkeypatch):
++    control = tmp_path / "mode.txt"
++    monkeypatch.setenv("PSPKV_METADATA_CONTROL_FILE", str(control))
++    control.write_text("0")
++    owner = SimpleNamespace()
++    assert not reuse_enabled(owner)
++    control.write_text("1")
++    assert not reuse_enabled(owner)
++    assert reuse_enabled(SimpleNamespace())
++
++
++def test_default_mode_can_be_disabled(monkeypatch):
++    monkeypatch.delenv("PSPKV_METADATA_CONTROL_FILE", raising=False)
++    monkeypatch.delenv("PSPKV_ASCEND_SHARE_METADATA", raising=False)
++    assert reuse_enabled(None)
++    monkeypatch.setenv("PSPKV_ASCEND_SHARE_METADATA", "0")
++    assert not reuse_enabled(None)

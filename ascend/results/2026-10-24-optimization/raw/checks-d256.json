@@ -1,0 +1,555 @@
+{
+  "writes": [
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    }
+  ],
+  "attention": [
+    {
+      "format": "basic",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.0078125,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.2632848918437958,
+      "optimized_ms": 0.33396854996681213,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 6.252128630876541,
+      "optimized_ms": 0.3870837390422821,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 7.484838366508484,
+      "optimized_ms": 0.4372932016849518,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 21.28530666232109,
+      "optimized_ms": 1.0468214750289917,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 93.15257892012596,
+      "optimized_ms": 4.053927958011627,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.0078125,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 6.40169158577919,
+      "optimized_ms": 0.41056424379348755,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.2489723265171051,
+      "optimized_ms": 0.31225383281707764,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 3.517601639032364,
+      "optimized_ms": 0.7102973759174347,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 4.148148000240326,
+      "optimized_ms": 0.7995143532752991,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 14.084342867136002,
+      "optimized_ms": 1.9553862512111664,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 51.54959484934807,
+      "optimized_ms": 8.870121091604233,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 3.640703856945038,
+      "optimized_ms": 0.7537156343460083,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1
+      ],
+      "original_ms": 0.40839239954948425,
+      "optimized_ms": 0.2547129988670349,
+      "bf16_scratch_bytes": 524288
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        135
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 3.5923123359680176,
+      "optimized_ms": 0.7587485015392303,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        160
+      ],
+      "max_abs_error": 0.0009765625,
+      "precision_codes": [
+        1,
+        1
+      ],
+      "original_ms": 4.1624195873737335,
+      "optimized_ms": 0.8339881896972656,
+      "bf16_scratch_bytes": 1048576
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        512
+      ],
+      "max_abs_error": 0.00048828125,
+      "precision_codes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "original_ms": 12.877892702817917,
+      "optimized_ms": 1.9862689077854156,
+      "bf16_scratch_bytes": 2097152
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        2048
+      ],
+      "max_abs_error": 0.000244140625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 51.549606025218964,
+      "optimized_ms": 8.967623114585876,
+      "bf16_scratch_bytes": 8388608
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3,
+        135
+      ],
+      "max_abs_error": 0.00390625,
+      "precision_codes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "original_ms": 3.6317631602287292,
+      "optimized_ms": 0.7886551320552826,
+      "bf16_scratch_bytes": 2097152
+    }
+  ]
+}

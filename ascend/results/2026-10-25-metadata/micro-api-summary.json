@@ -1,0 +1,14 @@
+[
+  {
+    "mode": "before",
+    "source": "raw/results/profiler-micro/before/d542621aca1a_1_20261025083130481_ascend_pt/ASCEND_PROFILER_OUTPUT/api_statistic.csv",
+    "sync_copies": 168,
+    "stream_syncs": 168
+  },
+  {
+    "mode": "after",
+    "source": "raw/results/profiler-micro/after/d542621aca1a_1_20261025083135659_ascend_pt/ASCEND_PROFILER_OUTPUT/api_statistic.csv",
+    "sync_copies": 0,
+    "stream_syncs": 0
+  }
+]

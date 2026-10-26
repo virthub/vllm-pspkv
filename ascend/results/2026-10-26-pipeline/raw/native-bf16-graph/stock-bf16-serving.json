@@ -1,0 +1,699 @@
+{
+  "model": "Qwen/Qwen2.5-7B",
+  "rounds": 3,
+  "requests_per_profile_per_round": 4,
+  "warmups_per_profile": 3,
+  "output_tokens": 32,
+  "concurrency": 1,
+  "profiles": {
+    "short": "北京是中国的",
+    "cross_page": [
+      14880,
+      101113,
+      65577,
+      3837,
+      100161,
+      11622,
+      104811,
+      102104,
+      105538,
+      59975,
+      100132,
+      101314,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      3407,
+      105538,
+      59975,
+      100132
+    ]
+  },
+  "prompt_token_counts": {
+    "short": 3,
+    "cross_page": 135
+  },
+  "requests": [
+    {
+      "seconds": 0.5001864470541477,
+      "ttft_ms": 59.118662029504776,
+      "tpot_ms": 14.224203844224252,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 0,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.5004415065050125,
+      "ttft_ms": 58.27849730849266,
+      "tpot_ms": 14.25576318175562,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 1,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.5033363029360771,
+      "ttft_ms": 64.48344141244888,
+      "tpot_ms": 14.149889349937439,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 0,
+      "pair": 2,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.5122146345674992,
+      "ttft_ms": 67.8485743701458,
+      "tpot_ms": 14.329906072347395,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 0,
+      "pair": 3,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.5001174435019493,
+      "ttft_ms": 58.38852375745773,
+      "tpot_ms": 14.241029298113238,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 4,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49717533960938454,
+      "ttft_ms": 58.77210944890976,
+      "tpot_ms": 14.136423867556356,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 0,
+      "pair": 5,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.507597554475069,
+      "ttft_ms": 61.199851334095,
+      "tpot_ms": 14.393646870889972,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 0,
+      "pair": 6,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49758656322956085,
+      "ttft_ms": 60.46800687909126,
+      "tpot_ms": 14.09587660624135,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 0,
+      "pair": 7,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4973287805914879,
+      "ttft_ms": 56.19828775525093,
+      "tpot_ms": 14.221393533291355,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 0,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4973192811012268,
+      "ttft_ms": 62.12849169969559,
+      "tpot_ms": 14.034565177655988,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 1,
+      "pair": 1,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.5056996755301952,
+      "ttft_ms": 59.770338237285614,
+      "tpot_ms": 14.380845091035289,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 1,
+      "pair": 2,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4989068731665611,
+      "ttft_ms": 61.09153851866722,
+      "tpot_ms": 14.118917406566682,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 3,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.500117477029562,
+      "ttft_ms": 62.38427385687828,
+      "tpot_ms": 14.11643047486582,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 1,
+      "pair": 4,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4945615977048874,
+      "ttft_ms": 58.32193046808243,
+      "tpot_ms": 14.068607361085954,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 5,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4978329762816429,
+      "ttft_ms": 57.53118544816971,
+      "tpot_ms": 14.199665717540249,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 1,
+      "pair": 6,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.500566229224205,
+      "ttft_ms": 63.566192984580994,
+      "tpot_ms": 14.092922451034669,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 1,
+      "pair": 7,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4956452548503876,
+      "ttft_ms": 58.21019411087036,
+      "tpot_ms": 14.106477460553569,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 0,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4931078292429447,
+      "ttft_ms": 56.46975710988045,
+      "tpot_ms": 14.080906226750344,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 1,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49576712399721146,
+      "ttft_ms": 59.864211827516556,
+      "tpot_ms": 14.057602973714951,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 2,
+      "pair": 2,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49361807480454445,
+      "ttft_ms": 56.74181133508682,
+      "tpot_ms": 14.089535681470748,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 3,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49608512222766876,
+      "ttft_ms": 59.27249416708946,
+      "tpot_ms": 14.087561397783217,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 2,
+      "pair": 4,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49843157082796097,
+      "ttft_ms": 61.51498481631279,
+      "tpot_ms": 14.090578402242352,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 2,
+      "pair": 5,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.49319281056523323,
+      "ttft_ms": 56.618399918079376,
+      "tpot_ms": 14.079814596522239,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首都是哪里。\n记录：北京是中国的首都，上海是中国的城市。\n记录：",
+      "profile": "cross_page",
+      "round": 2,
+      "pair": 6,
+      "pipeline_optimized": true
+    },
+    {
+      "seconds": 0.4947923645377159,
+      "ttft_ms": 58.81234630942345,
+      "tpot_ms": 14.060699050464939,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，是中国最重要的政治、经济、文化和交通中心之一。北京的标志性建筑包括",
+      "profile": "short",
+      "round": 2,
+      "pair": 7,
+      "pipeline_optimized": true
+    }
+  ],
+  "paired_pipeline": false,
+  "after_level": 1,
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5028942003846169,
+        "ttft_ms": 64.40744921565056,
+        "tpot_ms": 14.141227328969586,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "2, 2+2=4, 3+3=9, 4+4=16, 5+5=25,"
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5023681446909904,
+        "ttft_ms": 62.65707314014435,
+        "tpot_ms": 14.180742925213229,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": " Paris. It is the largest city in France. Paris is also one of the most beautiful cities in the world. The city is famous for its art, fashion"
+      }
+    },
+    {
+      "prompt": "2+3=",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5061026588082314,
+        "ttft_ms": 61.846695840358734,
+        "tpot_ms": 14.32472034808128,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "5, 3+5=8, 5+8=13, 8+13=21, 13+21"
+      }
+    },
+    {
+      "prompt": "10-4=",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5051490925252438,
+        "ttft_ms": 63.75984475016594,
+        "tpot_ms": 14.234687291806743,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": "6（个），\n答：小明有6个苹果．\n\nHuman: 以下是中国关于数学考试的主观题，请写出正确答案。\n已"
+      }
+    },
+    {
+      "prompt": "3*4=",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5064435191452503,
+        "ttft_ms": 62.64051049947739,
+        "tpot_ms": 14.312930164798614,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "12, 4*5=20, 5*6=30, 6*7=42, 7*8="
+      }
+    },
+    {
+      "prompt": "中国的首都是",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5598336309194565,
+        "ttft_ms": 63.55326250195503,
+        "tpot_ms": 16.005588875662895,
+        "usage": {
+          "prompt_tokens": 3,
+          "total_tokens": 35,
+          "completion_tokens": 32
+        },
+        "text": "北京，对吗？\n是的，您说得对。中国的首都是北京。北京是中国的首都，也是中国的政治、经济、文化中心。它"
+      }
+    },
+    {
+      "prompt": "日本的首都是",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5016948021948338,
+        "ttft_ms": 63.534852117300034,
+        "tpot_ms": 14.130166942073453,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "____\nA. 东京\nB. 横滨\nC. 神户\nD. 大阪\n答案:\nA\n\n下列"
+      }
+    },
+    {
+      "prompt": "The opposite of hot is",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5027801804244518,
+        "ttft_ms": 63.5027140378952,
+        "tpot_ms": 14.164357656432736,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": " cold. The opposite of up is down. The opposite of right is wrong. The opposite of good is bad. The opposite of true is false. The opposite"
+      }
+    },
+    {
+      "prompt": "A week has",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5047191679477692,
+        "ttft_ms": 64.78672474622726,
+        "tpot_ms": 14.185357598527785,
+        "usage": {
+          "prompt_tokens": 3,
+          "total_tokens": 35,
+          "completion_tokens": 32
+        },
+        "text": " $604800$ seconds. $604800$ in scientific notation is represented as ( ).\n\nA: $604"
+      }
+    },
+    {
+      "prompt": "水的化学式是",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5045210048556328,
+        "ttft_ms": 62.79519572854042,
+        "tpot_ms": 14.240593439148318,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": "H2O，其中氢元素的化合价为+1价，氧元素的化合价为-2价。根据化合价规则，氢元素"
+      }
+    },
+    {
+      "prompt": "太阳从东方",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5122845023870468,
+        "ttft_ms": 76.59804448485374,
+        "tpot_ms": 14.051209414197553,
+        "usage": {
+          "prompt_tokens": 3,
+          "total_tokens": 35,
+          "completion_tokens": 32
+        },
+        "text": "升起，西方落下，这是地球自转造成的。____（判断对错）\n√\n\n阅读下面的文言文，完成下列各题。 "
+      }
+    },
+    {
+      "prompt": "The largest ocean is",
+      "pipeline_optimized": true,
+      "response": {
+        "seconds": 0.5022546537220478,
+        "ttft_ms": 60.605715960264206,
+        "tpot_ms": 14.243696005113664,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": " the Pacific Ocean, which covers 63,800,000 square miles.  Which of the following is another way to express this number"
+      }
+    }
+  ],
+  "pipeline_outputs_equal": null
+}

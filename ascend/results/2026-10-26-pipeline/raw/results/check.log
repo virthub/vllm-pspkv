@@ -1,0 +1,5 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+/pipeline/comparison/check_pipeline_npu.py:75: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  value_cache = torch.zeros_like(key_cache)
+{"writes": 90, "graph_replays": 21}

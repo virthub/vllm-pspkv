@@ -1,0 +1,3 @@
+[2026-10-25-16:45:55.997] [INFO] [AscendProfiler_CANNAnalyzeParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164555_748_CANNAnalyzeParser.log
+[2026-10-25-16:45:55.997] [INFO] [AscendProfiler_CANNAnalyzeParser:41] CANNAnalyzeParser start.
+[2026-10-25-16:45:57.039] [INFO] [AscendProfiler_CANNAnalyzeParser:67] CANNAnalyzeParser finish.

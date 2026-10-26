@@ -1,0 +1,3 @@
+[2026-10-25-08:31:32.957] [INFO] [AscendProfiler_CANNAnalyzeParser:97] Profiler logger initialized at: /metadata/results/profiler-micro/before/d542621aca1a_1_20261025083130481_ascend_pt/logs/profiler_20261025083132_470_CANNAnalyzeParser.log
+[2026-10-25-08:31:32.958] [INFO] [AscendProfiler_CANNAnalyzeParser:41] CANNAnalyzeParser start.
+[2026-10-25-08:31:33.998] [INFO] [AscendProfiler_CANNAnalyzeParser:67] CANNAnalyzeParser finish.

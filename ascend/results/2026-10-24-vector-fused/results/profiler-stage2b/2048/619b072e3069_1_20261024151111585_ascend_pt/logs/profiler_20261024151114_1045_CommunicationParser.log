@@ -1,0 +1,4 @@
+[2026-10-24-15:11:14.898] [INFO] [AscendProfiler_CommunicationParser:97] Profiler logger initialized at: /vector/results/profiler-stage2b/2048/619b072e3069_1_20261024151111585_ascend_pt/logs/profiler_20261024151114_1045_CommunicationParser.log
+[2026-10-24-15:11:14.898] [INFO] [AscendProfiler_CommunicationParser:66] CommunicationParser start.
+[2026-10-24-15:11:14.898] [WARNING] [AscendProfiler_CommunicationParser:69] Get step range failed, the step node list is empty.
+[2026-10-24-15:11:14.901] [INFO] [AscendProfiler_CommunicationParser:73] CommunicationParser finish.

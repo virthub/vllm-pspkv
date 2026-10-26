@@ -1,0 +1,7 @@
+{
+  "python": "3.11.15 (main, May 13 2026, 07:56:17) [GCC 11.4.0]",
+  "torch": "2.10.0+cpu",
+  "torch-npu": "2.10.0",
+  "vllm": "0.20.2+empty",
+  "vllm-ascend": "0.20.2rc1"
+}

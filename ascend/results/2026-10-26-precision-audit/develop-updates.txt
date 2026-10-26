@@ -1,0 +1,41 @@
+00b78e9 2026-10-24T11:17:46+08:00 Add fp16 tensor-core decode with pipelined async loads and chunked prefill quantization
+d764a17 2026-10-23T10:45:29+08:00 Re-enable head-dim-256 with sliding-window masking and fix PSP-KV cache sizing for lossless and hybrid models
+f61691f 2026-10-22T22:46:09+08:00 Add fp8 and fp8-query tensor-core decode paths and remove the per-step precision-table sync
+b7e76d2 2026-10-21T08:33:53+08:00 Add tensor-core split-K decode path for bf16 lossless with fp32 target precision and virthub sidecar
+494267d 2026-10-19T07:29:57+08:00 Reframe PSP-KV correctness as fp32-reference closeness with opt-in verification
+d897bd2 2026-10-16T10:33:50+08:00 Quantize decode write-back directly without stacking key and value
+da522fe 2026-10-15T08:16:44+08:00 Wire uint8 byte-buffer cache and gate PSP-KV prefill path on the backend
+39c54d2 2026-10-15T07:34:54+08:00 Parallelize PSP-KV scale estimate and quantize across token and head
+2ca2415 2026-10-14T07:25:20+08:00 Add split-H head-dimension split to PSP-KV decode kernels
+be1dc56 2026-10-13T21:57:19+08:00 Add split-K parallelism and fp4 lookup table dequant to PSP-KV decode
+
+ csrc/attention/psp_kv/basic/dequant_kernel.cu      |    3 +
+ .../psp_kv/basic/paged_attention_basic.cu          |  297 +++---
+ .../psp_kv/basic/uniform_attention_kernel.cu       |    3 +
+ csrc/attention/psp_kv/btkv/paged_attention_btkv.cu |  266 +++--
+ .../attention/psp_kv/common/quantization_utils.cuh |  316 +++---
+ .../psp_kv/common/quantize_and_scatter_kernel.cu   |  356 ++++++-
+ .../psp_kv/enhanced/paged_attention_enhanced.cu    | 1067 ++++++++++++++++++--
+ csrc/attention/psp_kv_wrapper.cu                   |  295 +++++-
+ csrc/attention/psp_kv_wrapper.h                    |    6 +-
+ scripts/benchmark_models.py                        |  113 +++
+ scripts/benchmark_psp_kv.py                        |  177 ++++
+ scripts/check_fp16_token.py                        |   19 +
+ scripts/evaluate_memory_psp_kv.py                  |  113 +++
+ scripts/run_bf16_compare.sh                        |    6 +
+ scripts/run_fp16_eval.sh                           |    8 +
+ scripts/use_existing_torch.py                      |   54 +
+ scripts/verify_fp32_closeness.py                   |   49 +
+ tests/v1/attention/psp_kv_reference.py             |   20 +-
+ tests/v1/attention/test_psp_kv_backend.py          |   13 +-
+ tests/v1/attention/test_psp_kv_cache.py            |   18 +-
+ tests/v1/attention/test_psp_kv_correctness.py      |   18 +-
+ tests/v1/attention/test_psp_kv_integration.py      |    8 +
+ tests/v1/attention/test_psp_kv_mixed_precision.py  |   12 +-
+ .../v1/attention/test_psp_kv_virthub_reconcile.py  |   35 +
+ vllm/v1/attention/backend.py                       |    8 +
+ vllm/v1/attention/backends/psp_kv_attn.py          |  198 +++-
+ vllm/v1/attention/psp_kv_virthub.py                |   58 ++
+ vllm/v1/worker/gpu_model_runner.py                 |  287 +++++-
+ vllm/v1/worker/utils.py                            |    6 +
+ 29 files changed, 3221 insertions(+), 608 deletions(-)

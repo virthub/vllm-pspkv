@@ -1,0 +1,21 @@
+[
+  "ascend/native/pspkv_fp8.asc",
+  "ascend/native/pspkv_rope.h",
+  "vllm/v1/attention/backends/psp_kv_ascend.py",
+  "vllm/v1/attention/backends/psp_kv_ascend_ops.py",
+  "ascend/format_compare_runtime.py",
+  "ascend/run_format_comparison.sh",
+  "ascend/profile_model_client.py",
+  "ascend/serve_initialized_npu.py",
+  "ascend/README.md",
+  "ascend/pipeline_runtime.py",
+  "ascend/compare_pipeline_client.py",
+  "ascend/compare_pipeline_stages.py",
+  "ascend/check_pipeline_npu.py",
+  "ascend/check_rope_pipeline_npu.py",
+  "ascend/check_workspace_npu.py",
+  "ascend/profile_decode_matmuls.py",
+  "ascend/summarize_pipeline_stages.py",
+  "tests/v1/attention/test_psp_kv_pipeline.py",
+  "ascend/analyze_metadata_profiles.py"
+]

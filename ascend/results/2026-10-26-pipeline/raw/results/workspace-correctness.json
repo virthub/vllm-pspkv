@@ -1,0 +1,70 @@
+{
+  "cases": [
+    {
+      "generation": 0,
+      "lengths": [
+        257
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 0,
+      "lengths": [
+        1536
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 0,
+      "lengths": [
+        257,
+        333
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 1,
+      "lengths": [
+        257
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 1,
+      "lengths": [
+        1536
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 1,
+      "lengths": [
+        257,
+        333
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 2,
+      "lengths": [
+        257
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 2,
+      "lengths": [
+        1536
+      ],
+      "layers": 4
+    },
+    {
+      "generation": 2,
+      "lengths": [
+        257,
+        333
+      ],
+      "layers": 4
+    }
+  ]
+}

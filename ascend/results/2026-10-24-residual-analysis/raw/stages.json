@@ -1,0 +1,581 @@
+{
+  "cases": [
+    {
+      "length": 32,
+      "format": "basic",
+      "selected_path": "scalar",
+      "bf16_scratch_bytes": 262144,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.047829002141952515,
+          "event_ms": 0.04337300062179565
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05054492503404617,
+          "event_ms": 0.04533500075340271
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.14371834695339203,
+          "event_ms": 0.1375749945640564
+        },
+        "scalar_decode": {
+          "wall_ms": 0.967441126704216,
+          "event_ms": 0.9593059539794921
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.023854151368141174,
+          "event_ms": 0.019210000336170197
+        },
+        "stack_kv": {
+          "wall_ms": 0.027251243591308594,
+          "event_ms": 0.02218700051307678
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07466934621334076,
+          "event_ms": 0.07030100226402283
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.01726597547531128,
+          "event_ms": 0.012759999930858612
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.019104592502117157,
+          "event_ms": 0.01376899927854538
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.5654124543070793,
+          "event_ms": 0.5609119892120361
+        }
+      }
+    },
+    {
+      "length": 32,
+      "format": "enhanced",
+      "selected_path": "scalar",
+      "bf16_scratch_bytes": 262144,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.06530750542879105,
+          "event_ms": 0.05812000036239624
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05464721471071243,
+          "event_ms": 0.04991599917411804
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.1427074894309044,
+          "event_ms": 0.136844003200531
+        },
+        "scalar_decode": {
+          "wall_ms": 1.040855050086975,
+          "event_ms": 1.03260498046875
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.02728048712015152,
+          "event_ms": 0.01872200071811676
+        },
+        "stack_kv": {
+          "wall_ms": 0.027484074234962463,
+          "event_ms": 0.022614000737667082
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07488615810871124,
+          "event_ms": 0.06992800235748291
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.020112842321395874,
+          "event_ms": 0.01271899938583374
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018638744950294495,
+          "event_ms": 0.013812999427318572
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.6277374923229218,
+          "event_ms": 0.6218480110168457
+        }
+      }
+    },
+    {
+      "length": 32,
+      "format": "btkv",
+      "selected_path": "scalar",
+      "bf16_scratch_bytes": 262144,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.06316863000392914,
+          "event_ms": 0.05851600170135498
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05453992635011673,
+          "event_ms": 0.04986599981784821
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.14043878763914108,
+          "event_ms": 0.13468600511550904
+        },
+        "scalar_decode": {
+          "wall_ms": 1.0107966139912605,
+          "event_ms": 1.0014789581298829
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.024304725229740143,
+          "event_ms": 0.019524000585079193
+        },
+        "stack_kv": {
+          "wall_ms": 0.028665363788604736,
+          "event_ms": 0.023378999531269075
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07146615535020828,
+          "event_ms": 0.06714599728584289
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.01771003007888794,
+          "event_ms": 0.012907999753952026
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018100067973136902,
+          "event_ms": 0.01369200050830841
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.6241694092750549,
+          "event_ms": 0.6182370185852051
+        }
+      }
+    },
+    {
+      "length": 160,
+      "format": "basic",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 524288,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.17019715160131454,
+          "event_ms": 0.16449999809265137
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05508400499820709,
+          "event_ms": 0.049413999915122984
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.19117873162031174,
+          "event_ms": 0.18610899448394774
+        },
+        "scalar_decode": {
+          "wall_ms": 3.5512756556272507,
+          "event_ms": 3.537078857421875
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.02563372254371643,
+          "event_ms": 0.019276000559329987
+        },
+        "stack_kv": {
+          "wall_ms": 0.028904713690280914,
+          "event_ms": 0.023569999635219573
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.0740591436624527,
+          "event_ms": 0.0694890022277832
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.017656199634075165,
+          "event_ms": 0.013093000650405884
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.01858919858932495,
+          "event_ms": 0.013782000541687012
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.5348760634660721,
+          "event_ms": 0.5293310165405274
+        }
+      }
+    },
+    {
+      "length": 160,
+      "format": "enhanced",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 524288,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.2171974629163742,
+          "event_ms": 0.20909700393676758
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05233697593212128,
+          "event_ms": 0.047499001026153564
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.23675691336393356,
+          "event_ms": 0.22935700416564941
+        },
+        "scalar_decode": {
+          "wall_ms": 2.0729485899209976,
+          "event_ms": 2.060782051086426
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.023779645562171936,
+          "event_ms": 0.01868499964475632
+        },
+        "stack_kv": {
+          "wall_ms": 0.02667587250471115,
+          "event_ms": 0.021689000725746154
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07239282131195068,
+          "event_ms": 0.06761599779129028
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.01700557768344879,
+          "event_ms": 0.012592999637126923
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.01832321286201477,
+          "event_ms": 0.013722999393939972
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.5103543400764465,
+          "event_ms": 0.5047709941864014
+        }
+      }
+    },
+    {
+      "length": 160,
+      "format": "btkv",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 524288,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.21366365253925323,
+          "event_ms": 0.20852899551391602
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05116946995258331,
+          "event_ms": 0.0460640013217926
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.2348022535443306,
+          "event_ms": 0.2296449899673462
+        },
+        "scalar_decode": {
+          "wall_ms": 2.061225101351738,
+          "event_ms": 2.050971031188965
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.02605672925710678,
+          "event_ms": 0.01905699968338013
+        },
+        "stack_kv": {
+          "wall_ms": 0.02771075814962387,
+          "event_ms": 0.02254299968481064
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07390882819890976,
+          "event_ms": 0.06952199935913086
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.01736953854560852,
+          "event_ms": 0.012962999939918517
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018274784088134766,
+          "event_ms": 0.013175000250339509
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.5045358091592789,
+          "event_ms": 0.4990670204162598
+        }
+      }
+    },
+    {
+      "length": 512,
+      "format": "basic",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 1048576,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.5137138068675995,
+          "event_ms": 0.5041950225830079
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05715489387512207,
+          "event_ms": 0.05094699859619141
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.5309784784913063,
+          "event_ms": 0.5250619888305664
+        },
+        "scalar_decode": {
+          "wall_ms": 11.845661886036396,
+          "event_ms": 11.831849670410156
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.024355202913284302,
+          "event_ms": 0.019321000576019286
+        },
+        "stack_kv": {
+          "wall_ms": 0.028486177325248718,
+          "event_ms": 0.023148000240325928
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07589254528284073,
+          "event_ms": 0.07098699808120727
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.017384998500347137,
+          "event_ms": 0.01256600022315979
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018900074064731598,
+          "event_ms": 0.013841000199317933
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.7502377033233643,
+          "event_ms": 0.7424620151519775
+        }
+      }
+    },
+    {
+      "length": 512,
+      "format": "enhanced",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 1048576,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.6282083690166473,
+          "event_ms": 0.6193510055541992
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05286410450935364,
+          "event_ms": 0.047225001454353335
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.6478281691670418,
+          "event_ms": 0.6402550220489502
+        },
+        "scalar_decode": {
+          "wall_ms": 6.521649658679962,
+          "event_ms": 6.5083473205566404
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.024980120360851288,
+          "event_ms": 0.01912599951028824
+        },
+        "stack_kv": {
+          "wall_ms": 0.027845799922943115,
+          "event_ms": 0.022752000391483305
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07398873567581177,
+          "event_ms": 0.06947699785232545
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.017084740102291107,
+          "event_ms": 0.012590999901294708
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.01819618046283722,
+          "event_ms": 0.013689999282360078
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.8584266528487206,
+          "event_ms": 0.8520279884338379
+        }
+      }
+    },
+    {
+      "length": 512,
+      "format": "btkv",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 1048576,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 0.627613440155983,
+          "event_ms": 0.6203239917755127
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05333647131919861,
+          "event_ms": 0.04720200002193451
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 0.6466330960392952,
+          "event_ms": 0.6405849933624268
+        },
+        "scalar_decode": {
+          "wall_ms": 6.519187614321709,
+          "event_ms": 6.510545349121093
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.023924745619297028,
+          "event_ms": 0.018895000219345093
+        },
+        "stack_kv": {
+          "wall_ms": 0.027869269251823425,
+          "event_ms": 0.022951999306678773
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07116571068763733,
+          "event_ms": 0.06672999858856202
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.01716502010822296,
+          "event_ms": 0.012623000144958495
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018251314759254456,
+          "event_ms": 0.01382099986076355
+        },
+        "actual_decode_callback": {
+          "wall_ms": 0.8621219545602798,
+          "event_ms": 0.8572420120239258
+        }
+      }
+    },
+    {
+      "length": 2048,
+      "format": "basic",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 4194304,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 1.995125412940979,
+          "event_ms": 1.9885940551757812
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05392041057348251,
+          "event_ms": 0.04692899882793426
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 2.0284485071897507,
+          "event_ms": 2.021948051452637
+        },
+        "scalar_decode": {
+          "wall_ms": 47.11321219801903,
+          "event_ms": 47.09729919433594
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.026045367121696472,
+          "event_ms": 0.0192780002951622
+        },
+        "stack_kv": {
+          "wall_ms": 0.029723159968852997,
+          "event_ms": 0.023192000389099122
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07160715758800507,
+          "event_ms": 0.06636899709701538
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.017777644097805023,
+          "event_ms": 0.012646999955177308
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018524564802646637,
+          "event_ms": 0.013425000011920929
+        },
+        "actual_decode_callback": {
+          "wall_ms": 2.250574342906475,
+          "event_ms": 2.243799018859863
+        }
+      }
+    },
+    {
+      "length": 2048,
+      "format": "enhanced",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 4194304,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 2.4618778377771378,
+          "event_ms": 2.45233097076416
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05411393940448761,
+          "event_ms": 0.045350998640060425
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 2.4964984506368637,
+          "event_ms": 2.4879669189453124
+        },
+        "scalar_decode": {
+          "wall_ms": 25.870425067842007,
+          "event_ms": 25.85694580078125
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.025288574397563934,
+          "event_ms": 0.019885000586509705
+        },
+        "stack_kv": {
+          "wall_ms": 0.0295417383313179,
+          "event_ms": 0.02415200024843216
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07329471409320831,
+          "event_ms": 0.06835200190544129
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.0172443687915802,
+          "event_ms": 0.012692999839782716
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.018164701759815216,
+          "event_ms": 0.013360999524593353
+        },
+        "actual_decode_callback": {
+          "wall_ms": 2.702341601252556,
+          "event_ms": 2.6956090927124023
+        }
+      }
+    },
+    {
+      "length": 2048,
+      "format": "btkv",
+      "selected_path": "gather_plus_paged",
+      "bf16_scratch_bytes": 4194304,
+      "stages": {
+        "gather_alloc_decode_write": {
+          "wall_ms": 2.4598076939582825,
+          "event_ms": 2.4508440017700197
+        },
+        "native_paged_on_predecoded": {
+          "wall_ms": 0.05201306194067001,
+          "event_ms": 0.04481300115585327
+        },
+        "optimized_wrapper_gather_plus_paged": {
+          "wall_ms": 2.4903789162635803,
+          "event_ms": 2.4827880859375
+        },
+        "scalar_decode": {
+          "wall_ms": 25.871865265071392,
+          "event_ms": 25.857278442382814
+        },
+        "parallel_scatter_prepacked": {
+          "wall_ms": 0.02729259431362152,
+          "event_ms": 0.020260000228881837
+        },
+        "stack_kv": {
+          "wall_ms": 0.029498711228370667,
+          "event_ms": 0.023593999445438385
+        },
+        "new_npu_length_tensor": {
+          "wall_ms": 0.07265377789735794,
+          "event_ms": 0.06798999905586242
+        },
+        "new_cpu_length_tensor": {
+          "wall_ms": 0.017363764345645905,
+          "event_ms": 0.012714000046253204
+        },
+        "scratch_alloc_only": {
+          "wall_ms": 0.01839548349380493,
+          "event_ms": 0.01349399983882904
+        },
+        "actual_decode_callback": {
+          "wall_ms": 2.7279669418931007,
+          "event_ms": 2.7173690795898438
+        }
+      }
+    }
+  ],
+  "scope": "Decompose the validated optimized path without changing its implementation."
+}

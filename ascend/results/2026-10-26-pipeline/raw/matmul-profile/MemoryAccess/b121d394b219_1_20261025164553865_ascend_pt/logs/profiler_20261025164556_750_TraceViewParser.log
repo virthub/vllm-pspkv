@@ -1,0 +1,3 @@
+[2026-10-25-16:45:56.004] [INFO] [AscendProfiler_TraceViewParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164556_750_TraceViewParser.log
+[2026-10-25-16:45:56.004] [INFO] [AscendProfiler_TraceViewParser:53] TraceViewParser start.
+[2026-10-25-16:45:56.012] [INFO] [AscendProfiler_TraceViewParser:68] TraceViewParser finish.

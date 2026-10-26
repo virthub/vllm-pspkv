@@ -1,0 +1,3 @@
+[2026-10-24-08:10:40.906] [INFO] [AscendProfiler_TraceViewParser:97] Profiler logger initialized at: /analysis/profiler/c6261ba56b36_1_20261024081038533_ascend_pt/logs/profiler_20261024081040_493_TraceViewParser.log
+[2026-10-24-08:10:40.906] [INFO] [AscendProfiler_TraceViewParser:53] TraceViewParser start.
+[2026-10-24-08:10:40.917] [INFO] [AscendProfiler_TraceViewParser:68] TraceViewParser finish.

@@ -1,0 +1,7 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,acl,aclnnInplaceZero,1714.14,168,10.203,7.42,79.89,37.437
+host,acl,aclnnStack,1557.71,168,9.272,7.14,39.9,10.047
+host,acl,aclrtGetStreamAttribute,153.14,336,0.456,0.33,3.62,0.052
+host,acl,aclrtLaunchKernelWithHostArgs,5625.82,672,8.372,3.57,37.39,14.109
+host,acl,aclrtSynchronizeDeviceWithTimeout,32.22,2,16.11,7.47,24.75,74.65
+host,node,launch,13751.07,672,20.463,4.35,550.2,656.077

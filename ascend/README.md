@@ -1,5 +1,18 @@
 # Ascend 910B3 reference path
 
+Current validation (2026-10-26): start with the
+[results index](results/README.md), the
+[fixed-FP8 pipeline report](results/2026-10-26-pipeline/REPORT.zh-CN.md), and the
+[precision audit](results/2026-10-26-precision-audit/REPORT.zh-CN.md).
+The experimental fast pipeline covers fixed FP8 with BF16 model weights and
+restricted single-request shapes. Its speedups do not automatically apply to
+dynamic precision, uniform/grouped FP4, or asymmetric K/V precision.
+Those routes remain experimental, with output-quality and integration failures
+recorded in the precision audit. The NVIDIA `develop` snapshot `00b78e9` was
+downloaded separately; its newer codecs, scaling and Tensor Core paths have not
+been merged into this branch. The sections below describe the original bring-up
+interfaces and their incremental extensions.
+
 This directory provides a bring-up route for PSP-KV FP8 and uniform FP4 reference formats
 on vLLM-Ascend `v0.20.2rc1` with the vLLM fork at `dd2cf6d`. The vLLM fork
 contains the new `psp_kv_ascend.py` backend and its pure PyTorch reference
@@ -313,6 +326,44 @@ weighted-value kernels are bit-identical to the scalar kernels, the native
 decode matches the reference path, and a static FP4 arena matches the
 reference decode.
 
+## Opt-in three-format native paged attention
+
+The Basic, Enhanced and BTKV public entry points accept optional
+`context_lens_cpu=` and `block_size=` arguments. Passing a contiguous CPU
+int32 tensor and `block_size=128` selects
+active-page BF16 scratch decoding followed by `torch_npu._npu_paged_attention`.
+It requires BF16 query/output, head dimension 128 or 256, exactly 128-token
+pages and per-head scales. Other callers retain the existing scalar route.
+The CPU and NPU length tensors must describe the same sequences. Keep the
+CPU metadata available at the caller; copying lengths back from the NPU at
+each layer introduces synchronization and defeats part of the optimization.
+
+Only pages in the current block table are decoded. The original packed K/V
+layouts and persistent FP8 arena remain unchanged; the scratch buffer is
+temporary and is **not** a full-arena BF16 shadow cache. For Qwen2.5-7B at
+135 tokens (two 128-token pages), the two BF16 buffers total 512 KiB per call.
+Scaled values are rounded to BF16 before native attention, so this route is
+not bit-identical to the FP32 scalar accumulation path. Unit FP8 values are
+exactly representable in BF16; non-unit scales still need numerical validation.
+BTKV continues to be reference-layout compatibility, without CUDA TMA.
+
+The rebuilt native library also exposes `packed_scatter_parallel`. It accepts
+contiguous BF16 `[tokens,2,KV_heads,head_dim]` input, Basic/Enhanced/BTKV layouts,
+128-aligned head/page sizes, per-head scales, and **unique** nonnegative slots
+(negative slots are skipped). Callers initialize unit FP8 scales; the writer
+does not reset scales. Whole token/head rows and transposed V dimension rows
+have disjoint cache-line ownership, including the packed FP4 byte layout.
+
+`ascend/check_optimized_formats_npu.py` compares complete written arenas with
+the original writer and tests original/native-paged attention outputs.
+The isolated model comparison enables the optimization with
+`COMPARE_OPTIMIZED=1`, supplies the rebuilt library via `NATIVE_LIBRARY`, and
+mounts updated Python wrappers via `OPS_OVERLAY`. It also keeps prefill on
+the native fused inference-attention operator. `PAGED_MIN_LENGTH=64` retains
+the scalar decode for short contexts to avoid the scratch/native-launch
+overhead; this threshold selects execution paths, not KV precision. This explicit test adapter
+does not silently replace the installed serving backend.
+
 ## Allocation-time static precision (`PSPKV_ASCEND_STATIC_PRECISION`)
 
 A calibration run freezes per-layer formats so the precision decision is
@@ -578,3 +629,127 @@ docker exec pspkv-ascend-ref-npu<idle_npu_id> \
   /workspace/pspkv-src/tests/v1/attention/test_psp_kv_ascend_policy.py \
   /workspace/pspkv-src/tests/v1/attention/test_psp_kv_ascend_copy.py -q
 ```
+
+## UB 向量解码与流式融合注意力
+
+`native/pspkv_tiled.h` 提供两条可单独测量的路径：
+
+- `gather_paged_bf16_vec`：每次处理 32-token tile，FP8 按块搬入 UB，
+  使用向量 Cast/Gather 查表解码，随后调用原生分页注意力。
+  解码表与转置索引在工作块内只加载一次。
+- `tile_fused_attention`：query、解码表、在线 softmax 状态与输出累加器
+  保留在片上，逐 tile 读取并解码 FP8，然后直接做 QK、softmax、PV。
+  不生成完整 BF16 K/V 临时缓存，也不把注意力分数写入全局内存。
+  Enhanced/BTKV 的完整 V tile 直接按原有转置布局做向量归约。
+
+融合路径是 **AIV SIMD 实现**，当前不在融合内核内调用 Cube；较长上下文仍可
+使用向量解码加原生矩阵注意力。不同层的 K/V 本身不同，融合消除的是独立
+全量解码与 BF16 临时写回，并不在层间复用同一份 K/V。
+
+在导入模块或启动服务前设置 `PSPKV_ASCEND_ATTENTION_IMPL`：
+
+| 值 | 行为 |
+| --- | --- |
+| `auto`，默认 | BF16、单序列、dim 128、128-token 页且页表最多两页时使用融合；其余保留向量解码/原有路径 |
+| `vector` | 提供 CPU 长度时使用向量解码加原生分页注意力，否则保留原标量路径 |
+| `fused` | 显式使用流式融合，供已验证 BF16/128 或 256 维输入试验 |
+| `gather` | 提供 CPU 长度时使用上一轮标量解码加原生注意力，便于前后对照 |
+
+`auto` 的长度选择依据页表形状，不从 NPU 回读实际长度；页表未裁剪时会保守地
+选择较长路径。融合路径需要新编译的动态库；旧库在自动模式下保留可用路径。
+新内核的主要性能优化针对 E4M3/E5M2，BF16/FP4 混合页面仍保留参考解码分支。
+所有新注意力对照使用 128-token 页；完整支持范围和测量边界见本轮报告。
+
+```bash
+export PSPKV_ASCEND_NATIVE_LIB=/path/to/libpspkv_final.so
+export PSPKV_ASCEND_ATTENTION_IMPL=auto
+```
+
+数值与性能检查使用同一容器中的 uv 虚拟环境：
+
+```bash
+/workspace/pspkv-native-build/.venv/bin/python \
+  /vector/check_tiled_attention_npu.py \
+  --output /vector/results/final.json --trace-dir /vector/results/profiler-final
+```
+
+融合算子的 `profile_mode=1` 返回每个 query head 的解码、QK、softmax、PV 和
+总耗时计数。910B 使用 50 MHz 系统计数器；诊断模式包含额外同步，不能把它
+当作未插桩内核的准确阶段占比。正常运行使用 `profile_mode=0`。
+
+整模型对照脚本可通过 `ATTENTION_IMPL=vector/auto/fused/gather` 指定路线。
+其单卡入口先初始化 NPU，再启动 vLLM 的 spawn worker；该入口不适合多卡部署。
+可选 `DRIVER_CONTAINER` 复用已验证容器的挂载。测试同一物理 NPU 前应停止
+已占用它的开发容器；本轮该占用曾导致驱动返回 `Resource_Busy`，不能只根据
+`npu-smi` 没有计算进程就判定新容器一定能够取得设备。
+
+性能数据与逐步分析见 [本轮报告](results/2026-10-24-vector-fused/REPORT.zh-CN.md)。
+
+## 跨层复用当前 forward 的元数据
+
+`PSPKVAscendMetadataBuilder` 保留通用元数据中已经准备好的设备长度张量。
+Ascend 原 builder 在普通 self-attention 中使用 CPU `seq_lens`；这个新增字段
+让三格式适配器直接借用设备缓冲，避免每层再次创建 NPU 长度张量。
+
+`shared_metadata.py` 在当前 `ForwardContext` 内共享长度、裁剪后的页表及
+slot mapping 的 dtype/连续化转换；按页表对象区分缓存组。缓存随 forward
+结束释放，下一个步骤绑定当时的映射。KV 数据、精度表、偏移表及缩放仍按层独立。
+不以“序列长度相同”作为跨请求复用依据。
+
+当前三格式适配器默认启用 `PSPKV_ASCEND_SHARE_METADATA=1`，设为 `0` 可复现
+修改前逐层构造的路径。该优化保持上一轮动态库和量化/注意力计算不变。
+已验证范围是 eager、Qwen2.5-7B、单请求；没有宣称验证了图重放和其他调度模式。
+
+`run_format_comparison.sh` 支持：
+
+- `BACKEND_SOURCE`：包含新 builder 的后端源码，默认使用原源码目录中的文件。
+- `PAIRED_METADATA=1`：同一已加载模型内，随机决定相邻 before/after 请求的顺序。
+- `PROFILE_MODEL=1`：Basic 延迟测试后，为开关两种模式分别采集额外请求。
+
+配对测试的 `PSPKV_METADATA_CONTROL_FILE` 只用于测试，服务端每个 forward
+读取一次并固定该步骤的模式。常规环境变量模式没有文件轮询。
+准备比较目录时还应复制 `shared_metadata.py`、`compare_metadata_client.py`。
+使用 `summarize_metadata_comparison.py` 分别统计两种模式，不能直接把配对 JSON
+的全部请求混合统计。配对均值的 bootstrap 区间和 P50 差异采用不同口径，报告中分别列出。
+
+结果、原始采样和复现步骤见[元数据复用报告](results/2026-10-25-metadata/REPORT.zh-CN.md)。
+
+## 推理提交链与 K/V 写入优化
+
+本轮三格式适配器增加直接 K/V 写入、单 token RoPE/写入融合、长上下文
+工作区复用与 decode ACL Graph。权重和 FP8 编码规则保持原样，BTKV 仍为
+参考布局兼容实现。以下路径属于独立测试适配层，没有安装到正常服务后端。
+
+- `packed_scatter_kv` 直接接收独立、可带 stride 的 K/V，省去 `stack` 和中间复制。
+- 有效输出由注意力完整覆盖，仅清零额外 padding；空输入仍返回零输出。
+- `rope_scatter_kv` 在 UB 中计算 NeoX RoPE，K 在 UB 舍入到 BF16 后直接编码入页，
+  Q 原地旋转，V 在同一个 kernel 内写入。仅支持单 token、BF16、head dim 128、
+  128-token 页及固定单位缩放 FP8。其他情况保留原路径。
+- `pipeline_runtime.py` 在 Qwen2 单 token decode 入口延后 RoPE，交给上述写入器。
+  插件已注册的 RoPE 算子持有原函数，单独重绑定其 Python 函数并不能完成接入。
+- 长输入使用 `gather_paged_bf16_vec_out`，同一 forward、同一设备流的各层复用
+  活跃页 BF16 工作区；各层独立 KV 内容仍逐层解码，不跨层复用数据。
+- 图重放读取 runner 持续更新的设备长度、slot 和完整页表，捕获后校验缓冲地址，
+  避免固定捕获时长度或页数。当前整模型图支持范围限制为 TP 1、单请求、BF16、
+  head dim 128、最大长度 256。长输入对照继续使用 eager。
+
+`PSPKV_ASCEND_PIPELINE_LEVEL=0/1/2` 分别选择原路径、直接写入/工作区复用、
+再增加支持范围内的 RoPE 融合；旧动态库缺少新增算子时保留兼容路径。
+比较启动器支持 `PIPELINE_LEVEL`、`GRAPH_MODE=full`、`MAX_MODEL_LEN`、
+`LONG_INPUT_TOKENS` 与可选 `ADDITIONAL_CONFIG`。
+
+`PIPELINE_STAGES=1 GRAPH_MODE=full` 使用 `compare_pipeline_stages.py` 在同一
+已加载模型中随机切换四种模式：0 原 eager，1 直接写入，2 再融合 RoPE，3 重放
+模式 2 的 decode 图。捕获时控制文件必须为 3；模式只在 forward 边界切换。
+BF16 使用独立进程分别测 eager/图模式，其原生图路径需要该插件版本的 `mode=3`
+初始化注意力参数；自定义 PSP-KV 图不依赖 vendor 的 CPU 注意力 task 参数更新。
+当前同进程旁路切换不适用于 vendor BF16 图，已加边界检查，避免用异常输出计时。
+这些旁路开关仅用于消融实验，不是正常服务的调度接口。
+
+使用 `summarize_pipeline_stages.py` 分模式统计延迟、配对区间及输出/logprob 变化，
+不能将四种模式的请求混合统计。应在 profiler 中确认 `PspkvRopeScatter` 实际出现，
+不能仅凭环境变量或独立算子测试认定整模型已经走融合路径。
+
+逐阶段速度、BF16 独立对照、长输入与剩余瓶颈见
+[本轮报告](results/2026-10-26-pipeline/REPORT.zh-CN.md)，
+具体代码改动见[实现说明](results/2026-10-26-pipeline/CHANGES.zh-CN.md)。

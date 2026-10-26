@@ -1,0 +1,16 @@
+{
+  "scope": "two-page BF16 shadow cache; output-quality control only",
+  "profile_output_equal_to_stock_bf16": {
+    "short": true,
+    "cross_page": true
+  },
+  "probe_output_equal_to_stock_bf16": {
+    "1+1=": true,
+    "The capital of France is": true
+  },
+  "input_diagnostic_layers": 28,
+  "max_key_abs": 418.0,
+  "max_value_abs": 70.5,
+  "key_abs_ge_248": 12,
+  "value_abs_ge_248": 0
+}

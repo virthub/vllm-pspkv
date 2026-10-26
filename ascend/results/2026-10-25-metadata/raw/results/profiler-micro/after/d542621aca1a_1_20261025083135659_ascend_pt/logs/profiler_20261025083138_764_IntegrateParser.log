@@ -1,0 +1,3 @@
+[2026-10-25-08:31:38.486] [INFO] [AscendProfiler_IntegrateParser:97] Profiler logger initialized at: /metadata/results/profiler-micro/after/d542621aca1a_1_20261025083135659_ascend_pt/logs/profiler_20261025083138_764_IntegrateParser.log
+[2026-10-25-08:31:38.486] [INFO] [AscendProfiler_IntegrateParser:33] IntegrateParser start.
+[2026-10-25-08:31:38.491] [INFO] [AscendProfiler_IntegrateParser:40] IntegrateParser finish.

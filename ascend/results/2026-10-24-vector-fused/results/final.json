@@ -1,0 +1,4115 @@
+{
+  "checks": [
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.0078125,
+      "fused_max_abs": 0.0078125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 128,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 0,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 1,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e4",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "e5",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        3
+      ],
+      "public_max_abs": 0.001953125,
+      "fused_max_abs": 0.001953125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        135
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        512
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        3,
+        135
+      ],
+      "public_max_abs": 0.00390625,
+      "fused_max_abs": 0.00390625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        31,
+        33
+      ],
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        127,
+        129
+      ],
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125
+    },
+    {
+      "dim": 256,
+      "generation": 2,
+      "pattern": "mixed",
+      "lengths": [
+        255,
+        257
+      ],
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.00048828125
+    }
+  ],
+  "timings": [
+    {
+      "length": 32,
+      "format": "basic",
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.04902109503746033,
+          "event_ms": 0.043230998516082766
+        },
+        "vector_gather": {
+          "wall_ms": 0.04175212234258652,
+          "event_ms": 0.03628399968147278
+        },
+        "native_paged": {
+          "wall_ms": 0.04827100783586502,
+          "event_ms": 0.04325000047683716
+        },
+        "public_wrapper": {
+          "wall_ms": 0.048597902059555054,
+          "event_ms": 0.04353500008583069
+        },
+        "tile_fused": {
+          "wall_ms": 0.03390125930309296,
+          "event_ms": 0.028125
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          2.8,
+          0.52,
+          0.18,
+          1.98,
+          5.94
+        ],
+        [
+          2.62,
+          0.54,
+          0.16,
+          2.02,
+          5.74
+        ],
+        [
+          2.5,
+          0.54,
+          0.18,
+          2.34,
+          5.94
+        ],
+        [
+          2.5,
+          0.52,
+          0.22,
+          2.38,
+          5.98
+        ],
+        [
+          2.62,
+          0.54,
+          0.16,
+          2.16,
+          5.86
+        ],
+        [
+          2.58,
+          0.54,
+          0.18,
+          2.18,
+          5.86
+        ],
+        [
+          2.52,
+          0.52,
+          0.18,
+          2.3,
+          6.06
+        ],
+        [
+          2.54,
+          0.52,
+          0.18,
+          2.2,
+          5.9
+        ],
+        [
+          2.58,
+          0.54,
+          0.18,
+          2.28,
+          6.0
+        ],
+        [
+          2.66,
+          0.52,
+          0.18,
+          2.32,
+          6.62
+        ],
+        [
+          2.62,
+          0.54,
+          0.16,
+          2.2,
+          5.98
+        ],
+        [
+          2.52,
+          0.54,
+          0.16,
+          2.24,
+          5.9
+        ],
+        [
+          2.4,
+          0.52,
+          0.18,
+          2.26,
+          5.88
+        ],
+        [
+          2.52,
+          0.52,
+          0.18,
+          2.3,
+          6.02
+        ],
+        [
+          2.5,
+          0.52,
+          0.18,
+          2.24,
+          5.9
+        ],
+        [
+          2.56,
+          0.54,
+          0.18,
+          2.2,
+          5.9
+        ],
+        [
+          2.52,
+          0.52,
+          0.18,
+          2.04,
+          5.66
+        ],
+        [
+          2.54,
+          0.52,
+          0.18,
+          2.3,
+          6.12
+        ],
+        [
+          2.6,
+          0.52,
+          0.22,
+          2.4,
+          6.16
+        ],
+        [
+          2.56,
+          0.52,
+          0.18,
+          2.0,
+          5.74
+        ],
+        [
+          2.42,
+          0.52,
+          0.18,
+          2.2,
+          5.7
+        ],
+        [
+          2.5,
+          0.52,
+          0.18,
+          2.18,
+          5.78
+        ],
+        [
+          2.42,
+          0.52,
+          0.18,
+          2.22,
+          5.74
+        ],
+        [
+          3.26,
+          0.52,
+          0.18,
+          2.12,
+          6.42
+        ],
+        [
+          2.58,
+          0.52,
+          0.18,
+          2.18,
+          5.88
+        ],
+        [
+          2.66,
+          0.54,
+          0.16,
+          2.2,
+          6.06
+        ],
+        [
+          2.44,
+          0.54,
+          0.16,
+          2.28,
+          5.8
+        ],
+        [
+          2.46,
+          0.54,
+          0.18,
+          2.26,
+          5.78
+        ]
+      ]
+    },
+    {
+      "length": 32,
+      "format": "enhanced",
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.06362814456224442,
+          "event_ms": 0.05842800140380859
+        },
+        "vector_gather": {
+          "wall_ms": 0.04355143755674362,
+          "event_ms": 0.03795900046825409
+        },
+        "native_paged": {
+          "wall_ms": 0.054427050054073334,
+          "event_ms": 0.04873600006103516
+        },
+        "public_wrapper": {
+          "wall_ms": 0.04210807383060455,
+          "event_ms": 0.036517000198364256
+        },
+        "tile_fused": {
+          "wall_ms": 0.03455597907304764,
+          "event_ms": 0.02906700074672699
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          4.86,
+          0.54,
+          0.16,
+          0.66,
+          6.84
+        ],
+        [
+          3.82,
+          0.52,
+          0.18,
+          0.66,
+          5.58
+        ],
+        [
+          3.74,
+          0.52,
+          0.18,
+          0.66,
+          5.64
+        ],
+        [
+          3.56,
+          0.52,
+          0.18,
+          0.68,
+          5.48
+        ],
+        [
+          3.06,
+          0.52,
+          0.18,
+          0.68,
+          4.82
+        ],
+        [
+          2.86,
+          0.54,
+          0.18,
+          0.66,
+          4.62
+        ],
+        [
+          2.78,
+          0.52,
+          0.18,
+          0.66,
+          4.56
+        ],
+        [
+          3.92,
+          0.54,
+          0.16,
+          0.68,
+          5.74
+        ],
+        [
+          3.8,
+          0.52,
+          0.18,
+          0.68,
+          5.6
+        ],
+        [
+          3.48,
+          0.54,
+          0.16,
+          0.66,
+          5.28
+        ],
+        [
+          2.76,
+          0.52,
+          0.18,
+          0.68,
+          4.5
+        ],
+        [
+          2.78,
+          0.54,
+          0.18,
+          0.7,
+          4.62
+        ],
+        [
+          2.64,
+          0.52,
+          0.18,
+          0.68,
+          4.5
+        ],
+        [
+          2.86,
+          0.52,
+          0.18,
+          0.7,
+          4.74
+        ],
+        [
+          2.8,
+          0.52,
+          0.18,
+          0.66,
+          4.68
+        ],
+        [
+          2.68,
+          0.52,
+          0.18,
+          0.7,
+          4.58
+        ],
+        [
+          3.34,
+          0.52,
+          0.18,
+          0.66,
+          5.22
+        ],
+        [
+          3.16,
+          0.52,
+          0.18,
+          0.66,
+          5.02
+        ],
+        [
+          2.74,
+          0.52,
+          0.18,
+          0.68,
+          4.7
+        ],
+        [
+          2.76,
+          0.52,
+          0.18,
+          0.7,
+          4.66
+        ],
+        [
+          2.92,
+          0.54,
+          0.16,
+          0.7,
+          4.86
+        ],
+        [
+          2.98,
+          0.54,
+          0.18,
+          0.7,
+          4.92
+        ],
+        [
+          2.96,
+          0.54,
+          0.16,
+          0.7,
+          5.04
+        ],
+        [
+          2.82,
+          0.54,
+          0.18,
+          0.7,
+          4.74
+        ],
+        [
+          3.14,
+          0.52,
+          0.18,
+          0.68,
+          5.12
+        ],
+        [
+          3.08,
+          0.54,
+          0.18,
+          0.7,
+          5.08
+        ],
+        [
+          2.84,
+          0.52,
+          0.18,
+          0.7,
+          5.02
+        ],
+        [
+          2.82,
+          0.52,
+          0.18,
+          0.68,
+          4.96
+        ]
+      ]
+    },
+    {
+      "length": 32,
+      "format": "btkv",
+      "public_max_abs": 0.0009765625,
+      "fused_max_abs": 0.0009765625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.06316527724266052,
+          "event_ms": 0.05805799961090088
+        },
+        "vector_gather": {
+          "wall_ms": 0.07474720478057861,
+          "event_ms": 0.05950999855995178
+        },
+        "native_paged": {
+          "wall_ms": 0.19776038825511932,
+          "event_ms": 0.16045399904251098
+        },
+        "public_wrapper": {
+          "wall_ms": 0.04687141627073288,
+          "event_ms": 0.03845300078392029
+        },
+        "tile_fused": {
+          "wall_ms": 0.03613494336605072,
+          "event_ms": 0.031060999631881712
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          3.54,
+          0.6,
+          0.3,
+          0.68,
+          5.5
+        ],
+        [
+          3.2,
+          0.62,
+          0.24,
+          0.68,
+          5.1
+        ],
+        [
+          3.48,
+          0.68,
+          0.16,
+          0.68,
+          5.4
+        ],
+        [
+          3.1,
+          0.62,
+          0.24,
+          0.66,
+          5.2
+        ],
+        [
+          3.46,
+          0.64,
+          0.22,
+          0.66,
+          5.38
+        ],
+        [
+          3.66,
+          0.6,
+          0.16,
+          0.68,
+          5.64
+        ],
+        [
+          3.18,
+          0.62,
+          0.2,
+          0.68,
+          5.06
+        ],
+        [
+          3.72,
+          0.68,
+          0.26,
+          0.7,
+          5.82
+        ],
+        [
+          2.82,
+          0.66,
+          0.28,
+          0.66,
+          4.78
+        ],
+        [
+          3.58,
+          0.6,
+          0.18,
+          0.68,
+          5.42
+        ],
+        [
+          3.06,
+          0.68,
+          0.26,
+          0.7,
+          5.06
+        ],
+        [
+          3.0,
+          0.72,
+          0.22,
+          0.7,
+          4.98
+        ],
+        [
+          2.92,
+          0.66,
+          0.2,
+          0.7,
+          5.0
+        ],
+        [
+          2.9,
+          0.58,
+          0.18,
+          0.7,
+          4.98
+        ],
+        [
+          2.9,
+          0.58,
+          0.18,
+          0.7,
+          4.74
+        ],
+        [
+          2.78,
+          0.64,
+          0.18,
+          0.7,
+          4.76
+        ],
+        [
+          3.06,
+          0.54,
+          0.18,
+          0.7,
+          5.12
+        ],
+        [
+          2.62,
+          0.6,
+          0.26,
+          0.68,
+          4.52
+        ],
+        [
+          3.08,
+          0.6,
+          0.18,
+          0.7,
+          5.0
+        ],
+        [
+          3.58,
+          0.62,
+          0.18,
+          0.66,
+          5.42
+        ],
+        [
+          2.92,
+          0.64,
+          0.18,
+          0.7,
+          5.0
+        ],
+        [
+          2.8,
+          0.62,
+          0.26,
+          0.7,
+          4.74
+        ],
+        [
+          3.12,
+          0.62,
+          0.18,
+          0.7,
+          5.06
+        ],
+        [
+          3.16,
+          0.64,
+          0.26,
+          0.7,
+          5.24
+        ],
+        [
+          3.26,
+          0.54,
+          0.18,
+          0.68,
+          5.3
+        ],
+        [
+          2.9,
+          0.58,
+          0.24,
+          0.7,
+          5.04
+        ],
+        [
+          2.9,
+          0.66,
+          0.18,
+          0.7,
+          5.14
+        ],
+        [
+          3.24,
+          0.58,
+          0.18,
+          0.66,
+          5.28
+        ]
+      ]
+    },
+    {
+      "length": 160,
+      "format": "basic",
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.17120018601417542,
+          "event_ms": 0.1647860050201416
+        },
+        "vector_gather": {
+          "wall_ms": 0.04506390541791916,
+          "event_ms": 0.039460998773574826
+        },
+        "native_paged": {
+          "wall_ms": 0.05296934396028519,
+          "event_ms": 0.04792200028896332
+        },
+        "public_wrapper": {
+          "wall_ms": 0.04998743534088135,
+          "event_ms": 0.04536899924278259
+        },
+        "tile_fused": {
+          "wall_ms": 0.03437567502260208,
+          "event_ms": 0.029651999473571777
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          9.96,
+          2.6,
+          0.9,
+          9.08,
+          23.46
+        ],
+        [
+          10.06,
+          2.62,
+          0.9,
+          9.34,
+          23.78
+        ],
+        [
+          9.78,
+          2.64,
+          0.88,
+          9.26,
+          23.06
+        ],
+        [
+          9.82,
+          2.62,
+          0.9,
+          9.1,
+          23.32
+        ],
+        [
+          9.2,
+          2.6,
+          0.9,
+          9.22,
+          22.4
+        ],
+        [
+          10.14,
+          2.62,
+          0.9,
+          9.02,
+          23.52
+        ],
+        [
+          9.6,
+          2.6,
+          0.9,
+          9.1,
+          22.72
+        ],
+        [
+          9.82,
+          2.64,
+          0.88,
+          9.0,
+          22.84
+        ],
+        [
+          9.3,
+          2.62,
+          0.88,
+          9.28,
+          22.54
+        ],
+        [
+          9.46,
+          2.6,
+          0.9,
+          9.26,
+          22.72
+        ],
+        [
+          9.1,
+          2.62,
+          0.9,
+          9.16,
+          22.28
+        ],
+        [
+          9.12,
+          2.6,
+          0.9,
+          9.26,
+          22.36
+        ],
+        [
+          9.08,
+          2.6,
+          0.9,
+          9.22,
+          22.3
+        ],
+        [
+          9.24,
+          2.62,
+          0.88,
+          9.3,
+          22.56
+        ],
+        [
+          9.14,
+          2.62,
+          0.88,
+          9.32,
+          22.54
+        ],
+        [
+          9.46,
+          2.66,
+          0.86,
+          9.32,
+          22.82
+        ],
+        [
+          9.28,
+          2.62,
+          0.9,
+          9.3,
+          22.64
+        ],
+        [
+          9.3,
+          2.6,
+          0.9,
+          9.28,
+          22.6
+        ],
+        [
+          9.2,
+          2.6,
+          0.9,
+          9.28,
+          22.58
+        ],
+        [
+          9.08,
+          2.6,
+          0.9,
+          9.3,
+          22.44
+        ],
+        [
+          9.16,
+          2.6,
+          0.9,
+          9.48,
+          22.74
+        ],
+        [
+          9.12,
+          2.6,
+          0.9,
+          9.4,
+          22.62
+        ],
+        [
+          9.28,
+          2.6,
+          0.9,
+          9.28,
+          22.64
+        ],
+        [
+          9.3,
+          2.6,
+          0.9,
+          9.32,
+          22.68
+        ],
+        [
+          9.36,
+          2.62,
+          0.88,
+          9.32,
+          22.82
+        ],
+        [
+          9.46,
+          2.6,
+          0.9,
+          9.22,
+          22.9
+        ],
+        [
+          9.4,
+          2.62,
+          0.9,
+          9.12,
+          22.88
+        ],
+        [
+          9.28,
+          2.6,
+          0.9,
+          9.28,
+          22.78
+        ]
+      ]
+    },
+    {
+      "length": 160,
+      "format": "enhanced",
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.2132149413228035,
+          "event_ms": 0.2081549882888794
+        },
+        "vector_gather": {
+          "wall_ms": 0.04304852336645126,
+          "event_ms": 0.03816600143909454
+        },
+        "native_paged": {
+          "wall_ms": 0.052676908671855927,
+          "event_ms": 0.04744099974632263
+        },
+        "public_wrapper": {
+          "wall_ms": 0.04146844148635864,
+          "event_ms": 0.036375001072883606
+        },
+        "tile_fused": {
+          "wall_ms": 0.03367401659488678,
+          "event_ms": 0.02881999909877777
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          11.08,
+          2.66,
+          0.88,
+          3.32,
+          18.5
+        ],
+        [
+          11.32,
+          2.66,
+          0.9,
+          3.36,
+          18.68
+        ],
+        [
+          11.04,
+          2.98,
+          0.9,
+          3.3,
+          18.72
+        ],
+        [
+          10.9,
+          2.64,
+          0.9,
+          3.32,
+          18.22
+        ],
+        [
+          10.9,
+          2.7,
+          0.86,
+          3.32,
+          18.3
+        ],
+        [
+          10.86,
+          2.62,
+          0.9,
+          3.32,
+          18.18
+        ],
+        [
+          11.14,
+          2.6,
+          0.9,
+          3.34,
+          18.48
+        ],
+        [
+          10.72,
+          2.62,
+          0.9,
+          3.34,
+          18.06
+        ],
+        [
+          11.44,
+          2.6,
+          0.9,
+          3.32,
+          18.78
+        ],
+        [
+          11.4,
+          2.64,
+          0.86,
+          3.32,
+          18.78
+        ],
+        [
+          11.12,
+          2.6,
+          0.88,
+          3.32,
+          18.42
+        ],
+        [
+          10.6,
+          2.6,
+          0.9,
+          3.32,
+          17.88
+        ],
+        [
+          11.2,
+          2.62,
+          0.88,
+          3.36,
+          18.54
+        ],
+        [
+          10.76,
+          2.6,
+          0.9,
+          3.34,
+          18.1
+        ],
+        [
+          10.66,
+          2.6,
+          0.9,
+          3.36,
+          18.0
+        ],
+        [
+          10.7,
+          2.6,
+          0.9,
+          3.34,
+          18.0
+        ],
+        [
+          11.1,
+          2.66,
+          0.9,
+          3.32,
+          18.5
+        ],
+        [
+          11.44,
+          2.66,
+          0.88,
+          3.34,
+          18.84
+        ],
+        [
+          11.3,
+          2.66,
+          0.9,
+          3.3,
+          18.8
+        ],
+        [
+          11.62,
+          2.7,
+          0.88,
+          3.3,
+          19.12
+        ],
+        [
+          11.48,
+          2.68,
+          0.9,
+          3.32,
+          19.12
+        ],
+        [
+          10.96,
+          2.68,
+          0.88,
+          3.34,
+          18.62
+        ],
+        [
+          11.14,
+          2.66,
+          0.9,
+          3.34,
+          18.82
+        ],
+        [
+          10.54,
+          2.66,
+          0.9,
+          3.32,
+          17.96
+        ],
+        [
+          11.02,
+          2.7,
+          0.88,
+          3.36,
+          18.62
+        ],
+        [
+          10.68,
+          2.64,
+          0.9,
+          3.34,
+          18.18
+        ],
+        [
+          10.68,
+          2.66,
+          0.88,
+          3.32,
+          18.26
+        ],
+        [
+          11.44,
+          2.7,
+          0.9,
+          3.36,
+          19.16
+        ]
+      ]
+    },
+    {
+      "length": 160,
+      "format": "btkv",
+      "public_max_abs": 0.00048828125,
+      "fused_max_abs": 0.00048828125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.21421238780021667,
+          "event_ms": 0.20908401012420655
+        },
+        "vector_gather": {
+          "wall_ms": 0.042930059134960175,
+          "event_ms": 0.038477000594139096
+        },
+        "native_paged": {
+          "wall_ms": 0.0518113374710083,
+          "event_ms": 0.04634299874305725
+        },
+        "public_wrapper": {
+          "wall_ms": 0.04152804613113403,
+          "event_ms": 0.0361950010061264
+        },
+        "tile_fused": {
+          "wall_ms": 0.033776089549064636,
+          "event_ms": 0.029308998584747316
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          11.48,
+          2.64,
+          0.9,
+          3.32,
+          18.84
+        ],
+        [
+          11.52,
+          2.7,
+          0.88,
+          3.34,
+          19.0
+        ],
+        [
+          12.3,
+          2.64,
+          0.9,
+          3.3,
+          19.68
+        ],
+        [
+          11.64,
+          2.64,
+          0.9,
+          3.34,
+          18.98
+        ],
+        [
+          11.8,
+          2.68,
+          0.9,
+          3.34,
+          19.16
+        ],
+        [
+          11.06,
+          2.72,
+          0.9,
+          3.3,
+          18.5
+        ],
+        [
+          11.5,
+          2.62,
+          0.88,
+          3.34,
+          18.86
+        ],
+        [
+          11.48,
+          2.7,
+          0.9,
+          3.34,
+          18.9
+        ],
+        [
+          10.68,
+          2.86,
+          0.9,
+          3.34,
+          18.26
+        ],
+        [
+          10.98,
+          2.66,
+          0.9,
+          3.32,
+          18.34
+        ],
+        [
+          10.76,
+          2.68,
+          0.86,
+          3.38,
+          18.16
+        ],
+        [
+          10.62,
+          2.66,
+          0.9,
+          3.34,
+          18.02
+        ],
+        [
+          10.76,
+          2.88,
+          0.88,
+          3.34,
+          18.38
+        ],
+        [
+          10.68,
+          2.8,
+          0.9,
+          3.36,
+          18.24
+        ],
+        [
+          11.16,
+          2.9,
+          0.9,
+          3.32,
+          18.86
+        ],
+        [
+          10.42,
+          2.88,
+          0.9,
+          3.32,
+          18.16
+        ],
+        [
+          11.28,
+          2.78,
+          0.9,
+          3.32,
+          18.94
+        ],
+        [
+          11.3,
+          2.72,
+          0.9,
+          3.32,
+          18.84
+        ],
+        [
+          11.06,
+          2.7,
+          0.88,
+          3.32,
+          18.72
+        ],
+        [
+          10.32,
+          2.74,
+          0.88,
+          3.32,
+          17.8
+        ],
+        [
+          10.42,
+          2.82,
+          0.86,
+          3.32,
+          18.06
+        ],
+        [
+          10.58,
+          2.86,
+          0.9,
+          3.38,
+          18.22
+        ],
+        [
+          10.82,
+          2.66,
+          0.88,
+          3.34,
+          18.32
+        ],
+        [
+          11.14,
+          2.7,
+          0.88,
+          3.34,
+          18.78
+        ],
+        [
+          11.08,
+          2.74,
+          0.88,
+          3.32,
+          18.78
+        ],
+        [
+          10.88,
+          2.66,
+          0.9,
+          3.3,
+          18.46
+        ],
+        [
+          11.5,
+          2.82,
+          0.9,
+          3.32,
+          19.3
+        ],
+        [
+          10.86,
+          2.72,
+          0.88,
+          3.34,
+          18.54
+        ]
+      ]
+    },
+    {
+      "length": 512,
+      "format": "basic",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.5079276859760284,
+          "event_ms": 0.5033339977264404
+        },
+        "vector_gather": {
+          "wall_ms": 0.04241541028022766,
+          "event_ms": 0.03787299990653992
+        },
+        "native_paged": {
+          "wall_ms": 0.05352087318897247,
+          "event_ms": 0.04824599921703339
+        },
+        "public_wrapper": {
+          "wall_ms": 0.15191342681646347,
+          "event_ms": 0.14730000495910645
+        },
+        "tile_fused": {
+          "wall_ms": 0.07492657750844955,
+          "event_ms": 0.07013999819755554
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          28.56,
+          8.32,
+          2.88,
+          28.94,
+          69.44
+        ],
+        [
+          28.74,
+          8.4,
+          2.8,
+          29.0,
+          69.78
+        ],
+        [
+          27.82,
+          8.42,
+          2.8,
+          28.96,
+          68.82
+        ],
+        [
+          28.66,
+          8.34,
+          2.86,
+          29.04,
+          69.86
+        ],
+        [
+          27.92,
+          8.34,
+          2.86,
+          29.06,
+          69.16
+        ],
+        [
+          27.66,
+          8.36,
+          2.84,
+          28.92,
+          68.66
+        ],
+        [
+          28.6,
+          8.32,
+          2.88,
+          28.9,
+          69.56
+        ],
+        [
+          28.4,
+          8.38,
+          2.82,
+          28.9,
+          69.36
+        ],
+        [
+          27.46,
+          8.36,
+          2.84,
+          28.92,
+          68.42
+        ],
+        [
+          27.38,
+          8.32,
+          2.88,
+          28.92,
+          68.38
+        ],
+        [
+          27.5,
+          8.34,
+          2.86,
+          28.94,
+          68.52
+        ],
+        [
+          27.66,
+          8.36,
+          2.82,
+          29.0,
+          68.74
+        ],
+        [
+          27.72,
+          8.32,
+          2.86,
+          28.96,
+          68.78
+        ],
+        [
+          27.84,
+          8.34,
+          2.84,
+          29.1,
+          69.06
+        ],
+        [
+          27.92,
+          8.36,
+          2.82,
+          29.1,
+          69.18
+        ],
+        [
+          27.46,
+          8.32,
+          2.88,
+          28.94,
+          68.46
+        ],
+        [
+          27.7,
+          8.34,
+          3.1,
+          28.98,
+          69.1
+        ],
+        [
+          27.42,
+          8.32,
+          2.88,
+          29.0,
+          68.52
+        ],
+        [
+          27.64,
+          8.34,
+          2.86,
+          29.04,
+          68.84
+        ],
+        [
+          27.84,
+          8.4,
+          2.82,
+          29.06,
+          69.06
+        ],
+        [
+          27.58,
+          8.32,
+          3.02,
+          29.12,
+          69.14
+        ],
+        [
+          27.62,
+          8.38,
+          2.82,
+          29.1,
+          68.84
+        ],
+        [
+          27.74,
+          8.32,
+          2.86,
+          29.06,
+          69.08
+        ],
+        [
+          27.48,
+          8.36,
+          2.8,
+          29.1,
+          68.86
+        ],
+        [
+          27.7,
+          8.34,
+          2.84,
+          29.0,
+          69.08
+        ],
+        [
+          27.46,
+          8.4,
+          2.8,
+          29.12,
+          68.92
+        ],
+        [
+          27.64,
+          8.34,
+          2.86,
+          29.08,
+          69.02
+        ],
+        [
+          27.56,
+          8.36,
+          2.84,
+          29.12,
+          69.02
+        ]
+      ]
+    },
+    {
+      "length": 512,
+      "format": "enhanced",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.6249496713280678,
+          "event_ms": 0.6191009998321533
+        },
+        "vector_gather": {
+          "wall_ms": 0.042730942368507385,
+          "event_ms": 0.03801200091838837
+        },
+        "native_paged": {
+          "wall_ms": 0.05252603441476822,
+          "event_ms": 0.04745100140571594
+        },
+        "public_wrapper": {
+          "wall_ms": 0.1429302617907524,
+          "event_ms": 0.13739500045776368
+        },
+        "tile_fused": {
+          "wall_ms": 0.06305668503046036,
+          "event_ms": 0.058666002750396726
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          33.08,
+          8.42,
+          2.84,
+          10.64,
+          56.7
+        ],
+        [
+          33.68,
+          8.62,
+          2.84,
+          10.68,
+          57.58
+        ],
+        [
+          33.08,
+          8.42,
+          2.82,
+          10.68,
+          56.86
+        ],
+        [
+          34.74,
+          8.56,
+          2.8,
+          10.62,
+          58.5
+        ],
+        [
+          34.46,
+          8.52,
+          2.88,
+          10.6,
+          57.82
+        ],
+        [
+          33.14,
+          8.54,
+          2.88,
+          10.68,
+          57.04
+        ],
+        [
+          33.16,
+          8.44,
+          2.84,
+          10.62,
+          55.92
+        ],
+        [
+          32.44,
+          8.56,
+          2.88,
+          10.6,
+          55.42
+        ],
+        [
+          33.3,
+          8.42,
+          2.86,
+          10.6,
+          56.1
+        ],
+        [
+          34.38,
+          8.48,
+          2.82,
+          10.62,
+          57.16
+        ],
+        [
+          34.08,
+          8.44,
+          2.84,
+          10.6,
+          56.82
+        ],
+        [
+          34.0,
+          8.42,
+          2.86,
+          10.64,
+          56.8
+        ],
+        [
+          32.88,
+          8.5,
+          2.88,
+          10.64,
+          55.78
+        ],
+        [
+          33.34,
+          8.64,
+          2.84,
+          10.7,
+          56.34
+        ],
+        [
+          32.84,
+          8.38,
+          2.86,
+          10.72,
+          55.66
+        ],
+        [
+          33.42,
+          8.4,
+          2.86,
+          10.64,
+          56.26
+        ],
+        [
+          34.44,
+          8.4,
+          2.86,
+          10.66,
+          57.4
+        ],
+        [
+          33.08,
+          8.38,
+          2.88,
+          10.68,
+          56.02
+        ],
+        [
+          34.6,
+          8.38,
+          2.88,
+          10.66,
+          57.4
+        ],
+        [
+          33.74,
+          8.4,
+          2.88,
+          10.62,
+          56.64
+        ],
+        [
+          33.72,
+          8.36,
+          2.86,
+          10.64,
+          56.62
+        ],
+        [
+          32.64,
+          8.36,
+          2.88,
+          10.72,
+          55.56
+        ],
+        [
+          34.74,
+          8.42,
+          2.84,
+          10.64,
+          57.62
+        ],
+        [
+          33.28,
+          8.38,
+          3.1,
+          10.62,
+          56.68
+        ],
+        [
+          32.9,
+          8.42,
+          2.84,
+          10.72,
+          55.78
+        ],
+        [
+          33.1,
+          8.44,
+          2.82,
+          10.68,
+          56.16
+        ],
+        [
+          33.6,
+          8.46,
+          2.82,
+          10.64,
+          56.66
+        ],
+        [
+          33.38,
+          8.38,
+          2.86,
+          10.64,
+          56.36
+        ]
+      ]
+    },
+    {
+      "length": 512,
+      "format": "btkv",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.000244140625,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 0.6243947893381119,
+          "event_ms": 0.6187379837036133
+        },
+        "vector_gather": {
+          "wall_ms": 0.045352429151535034,
+          "event_ms": 0.039862999320030214
+        },
+        "native_paged": {
+          "wall_ms": 0.051061250269412994,
+          "event_ms": 0.04585599899291992
+        },
+        "public_wrapper": {
+          "wall_ms": 0.14444589614868164,
+          "event_ms": 0.13941999673843383
+        },
+        "tile_fused": {
+          "wall_ms": 0.06296709179878235,
+          "event_ms": 0.058632999658584595
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          33.94,
+          8.42,
+          2.8,
+          10.66,
+          56.7
+        ],
+        [
+          33.6,
+          8.5,
+          2.86,
+          10.62,
+          56.46
+        ],
+        [
+          32.58,
+          8.42,
+          2.86,
+          10.66,
+          55.46
+        ],
+        [
+          33.54,
+          8.44,
+          2.84,
+          10.66,
+          56.36
+        ],
+        [
+          33.8,
+          8.48,
+          2.86,
+          10.64,
+          56.7
+        ],
+        [
+          33.74,
+          8.48,
+          2.84,
+          10.6,
+          56.54
+        ],
+        [
+          32.86,
+          8.38,
+          2.86,
+          10.66,
+          55.58
+        ],
+        [
+          33.02,
+          8.42,
+          2.86,
+          10.64,
+          55.9
+        ],
+        [
+          33.72,
+          8.5,
+          2.84,
+          10.62,
+          56.66
+        ],
+        [
+          33.34,
+          8.44,
+          2.84,
+          10.7,
+          56.16
+        ],
+        [
+          32.78,
+          8.54,
+          2.86,
+          10.56,
+          55.64
+        ],
+        [
+          32.34,
+          8.38,
+          2.86,
+          10.62,
+          55.06
+        ],
+        [
+          32.74,
+          8.4,
+          2.88,
+          10.72,
+          55.54
+        ],
+        [
+          33.4,
+          8.42,
+          2.84,
+          10.66,
+          56.14
+        ],
+        [
+          32.8,
+          8.4,
+          2.82,
+          10.64,
+          55.54
+        ],
+        [
+          32.66,
+          8.44,
+          2.84,
+          10.64,
+          55.42
+        ],
+        [
+          32.58,
+          8.36,
+          2.88,
+          10.66,
+          55.42
+        ],
+        [
+          33.18,
+          8.46,
+          2.84,
+          10.68,
+          56.12
+        ],
+        [
+          32.86,
+          8.4,
+          2.86,
+          10.66,
+          55.68
+        ],
+        [
+          33.06,
+          8.4,
+          2.84,
+          10.66,
+          55.92
+        ],
+        [
+          33.36,
+          8.38,
+          2.86,
+          10.58,
+          56.16
+        ],
+        [
+          32.38,
+          8.38,
+          2.84,
+          10.64,
+          55.3
+        ],
+        [
+          33.72,
+          8.38,
+          2.82,
+          10.62,
+          56.66
+        ],
+        [
+          32.62,
+          8.38,
+          2.86,
+          10.6,
+          55.54
+        ],
+        [
+          32.96,
+          8.44,
+          2.82,
+          10.62,
+          56.08
+        ],
+        [
+          32.94,
+          8.42,
+          2.84,
+          10.62,
+          55.92
+        ],
+        [
+          33.2,
+          8.42,
+          2.88,
+          10.64,
+          56.24
+        ],
+        [
+          33.86,
+          8.44,
+          2.82,
+          10.68,
+          56.88
+        ]
+      ]
+    },
+    {
+      "length": 2048,
+      "format": "basic",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.0001220703125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 1.9942307844758034,
+          "event_ms": 1.9883859634399415
+        },
+        "vector_gather": {
+          "wall_ms": 0.04285108298063278,
+          "event_ms": 0.03777999877929687
+        },
+        "native_paged": {
+          "wall_ms": 0.052737630903720856,
+          "event_ms": 0.04715999960899353
+        },
+        "public_wrapper": {
+          "wall_ms": 0.15983209013938904,
+          "event_ms": 0.15472400188446045
+        },
+        "tile_fused": {
+          "wall_ms": 0.26863589882850647,
+          "event_ms": 0.2619250059127808
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          109.7,
+          33.38,
+          11.36,
+          115.6,
+          272.38
+        ],
+        [
+          109.68,
+          33.32,
+          11.5,
+          115.7,
+          273.14
+        ],
+        [
+          109.58,
+          33.36,
+          11.44,
+          115.62,
+          272.46
+        ],
+        [
+          109.3,
+          33.32,
+          11.46,
+          115.4,
+          272.08
+        ],
+        [
+          108.78,
+          33.32,
+          11.48,
+          115.58,
+          271.56
+        ],
+        [
+          108.82,
+          33.4,
+          11.34,
+          115.6,
+          271.52
+        ],
+        [
+          109.32,
+          33.34,
+          11.44,
+          115.82,
+          272.32
+        ],
+        [
+          108.26,
+          33.36,
+          11.44,
+          115.66,
+          271.14
+        ],
+        [
+          108.2,
+          33.4,
+          11.34,
+          115.8,
+          271.18
+        ],
+        [
+          109.0,
+          33.4,
+          11.4,
+          115.56,
+          271.62
+        ],
+        [
+          108.54,
+          33.32,
+          11.4,
+          115.68,
+          271.28
+        ],
+        [
+          107.78,
+          33.38,
+          11.4,
+          115.74,
+          270.66
+        ],
+        [
+          107.94,
+          33.34,
+          11.42,
+          115.64,
+          270.66
+        ],
+        [
+          107.8,
+          33.36,
+          11.42,
+          115.64,
+          270.58
+        ],
+        [
+          107.44,
+          33.3,
+          11.5,
+          115.6,
+          270.24
+        ],
+        [
+          109.36,
+          33.34,
+          11.44,
+          115.42,
+          272.08
+        ],
+        [
+          109.22,
+          33.34,
+          11.44,
+          115.5,
+          272.0
+        ],
+        [
+          108.78,
+          33.3,
+          11.5,
+          115.8,
+          271.92
+        ],
+        [
+          109.4,
+          33.46,
+          11.38,
+          115.6,
+          272.38
+        ],
+        [
+          109.4,
+          33.3,
+          11.52,
+          115.48,
+          272.18
+        ],
+        [
+          109.68,
+          33.38,
+          11.38,
+          115.54,
+          272.48
+        ],
+        [
+          109.42,
+          33.36,
+          11.42,
+          115.66,
+          272.34
+        ],
+        [
+          109.08,
+          33.32,
+          11.46,
+          115.52,
+          271.94
+        ],
+        [
+          108.92,
+          33.38,
+          11.38,
+          115.68,
+          271.94
+        ],
+        [
+          108.72,
+          33.32,
+          11.44,
+          115.76,
+          271.78
+        ],
+        [
+          108.72,
+          33.42,
+          11.34,
+          115.78,
+          271.78
+        ],
+        [
+          108.8,
+          33.42,
+          11.4,
+          115.78,
+          271.84
+        ],
+        [
+          108.98,
+          33.36,
+          11.38,
+          115.66,
+          272.14
+        ]
+      ]
+    },
+    {
+      "length": 2048,
+      "format": "enhanced",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.0001220703125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 2.464595064520836,
+          "event_ms": 2.4556880950927735
+        },
+        "vector_gather": {
+          "wall_ms": 0.04297439008951187,
+          "event_ms": 0.038023000955581664
+        },
+        "native_paged": {
+          "wall_ms": 0.05415529012680054,
+          "event_ms": 0.04900200068950653
+        },
+        "public_wrapper": {
+          "wall_ms": 0.1393316313624382,
+          "event_ms": 0.1346269965171814
+        },
+        "tile_fused": {
+          "wall_ms": 0.21582189947366714,
+          "event_ms": 0.21110999584197998
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          132.98,
+          33.5,
+          11.38,
+          42.5,
+          222.68
+        ],
+        [
+          132.26,
+          33.38,
+          11.38,
+          42.54,
+          221.86
+        ],
+        [
+          130.72,
+          33.46,
+          11.46,
+          42.58,
+          220.54
+        ],
+        [
+          130.92,
+          33.44,
+          11.42,
+          42.48,
+          220.62
+        ],
+        [
+          131.04,
+          33.48,
+          11.4,
+          42.58,
+          220.88
+        ],
+        [
+          131.16,
+          33.48,
+          11.42,
+          42.56,
+          220.96
+        ],
+        [
+          131.04,
+          33.44,
+          11.4,
+          42.52,
+          220.8
+        ],
+        [
+          129.9,
+          33.42,
+          11.44,
+          42.56,
+          219.62
+        ],
+        [
+          130.56,
+          33.34,
+          11.46,
+          42.46,
+          220.24
+        ],
+        [
+          129.88,
+          33.42,
+          11.4,
+          42.46,
+          219.58
+        ],
+        [
+          129.98,
+          33.4,
+          11.32,
+          42.54,
+          219.7
+        ],
+        [
+          131.16,
+          33.46,
+          11.42,
+          42.54,
+          220.98
+        ],
+        [
+          131.88,
+          33.38,
+          11.42,
+          42.48,
+          221.42
+        ],
+        [
+          131.2,
+          33.36,
+          11.42,
+          42.44,
+          220.88
+        ],
+        [
+          130.82,
+          33.48,
+          11.32,
+          42.48,
+          220.6
+        ],
+        [
+          129.86,
+          33.46,
+          11.34,
+          42.44,
+          219.62
+        ],
+        [
+          130.1,
+          33.46,
+          11.38,
+          42.64,
+          219.94
+        ],
+        [
+          130.14,
+          33.54,
+          11.38,
+          42.46,
+          219.94
+        ],
+        [
+          131.04,
+          33.44,
+          11.36,
+          42.56,
+          220.98
+        ],
+        [
+          131.8,
+          33.42,
+          11.38,
+          42.46,
+          221.72
+        ],
+        [
+          131.06,
+          33.44,
+          11.32,
+          42.62,
+          220.94
+        ],
+        [
+          130.76,
+          33.48,
+          11.42,
+          42.62,
+          220.9
+        ],
+        [
+          131.14,
+          33.4,
+          11.44,
+          42.54,
+          221.08
+        ],
+        [
+          131.0,
+          33.42,
+          11.42,
+          42.52,
+          220.96
+        ],
+        [
+          131.8,
+          33.42,
+          11.42,
+          42.54,
+          221.62
+        ],
+        [
+          132.74,
+          33.42,
+          11.44,
+          42.48,
+          222.66
+        ],
+        [
+          132.72,
+          33.6,
+          11.38,
+          42.56,
+          222.86
+        ],
+        [
+          131.92,
+          33.38,
+          11.48,
+          42.52,
+          221.9
+        ]
+      ]
+    },
+    {
+      "length": 2048,
+      "format": "btkv",
+      "public_max_abs": 0.0,
+      "fused_max_abs": 0.0001220703125,
+      "stages": {
+        "scalar_gather": {
+          "wall_ms": 2.4526910856366158,
+          "event_ms": 2.446653938293457
+        },
+        "vector_gather": {
+          "wall_ms": 0.04437435418367386,
+          "event_ms": 0.038550999760627744
+        },
+        "native_paged": {
+          "wall_ms": 0.05497299134731293,
+          "event_ms": 0.04957599937915802
+        },
+        "public_wrapper": {
+          "wall_ms": 0.1451101154088974,
+          "event_ms": 0.13912099599838257
+        },
+        "tile_fused": {
+          "wall_ms": 0.2162700518965721,
+          "event_ms": 0.21034400463104247
+        }
+      },
+      "instrumented_fused_per_head_us": [
+        [
+          131.3,
+          33.38,
+          11.44,
+          42.44,
+          221.04
+        ],
+        [
+          132.02,
+          33.6,
+          11.4,
+          42.44,
+          221.88
+        ],
+        [
+          131.18,
+          33.38,
+          11.5,
+          42.48,
+          221.0
+        ],
+        [
+          131.52,
+          33.36,
+          11.44,
+          42.46,
+          221.12
+        ],
+        [
+          132.0,
+          33.46,
+          11.42,
+          42.42,
+          221.64
+        ],
+        [
+          130.76,
+          33.74,
+          11.24,
+          42.58,
+          220.54
+        ],
+        [
+          131.76,
+          33.56,
+          11.36,
+          42.44,
+          221.5
+        ],
+        [
+          131.3,
+          33.36,
+          11.48,
+          42.44,
+          221.08
+        ],
+        [
+          130.04,
+          33.58,
+          11.48,
+          42.48,
+          219.96
+        ],
+        [
+          130.28,
+          33.38,
+          11.44,
+          42.5,
+          220.02
+        ],
+        [
+          130.46,
+          33.38,
+          11.46,
+          42.54,
+          220.16
+        ],
+        [
+          129.8,
+          33.44,
+          11.4,
+          42.56,
+          219.56
+        ],
+        [
+          131.16,
+          33.44,
+          11.36,
+          42.48,
+          220.86
+        ],
+        [
+          132.0,
+          33.64,
+          11.34,
+          42.54,
+          221.86
+        ],
+        [
+          132.22,
+          33.42,
+          11.44,
+          42.6,
+          222.1
+        ],
+        [
+          130.4,
+          33.44,
+          11.36,
+          42.46,
+          220.12
+        ],
+        [
+          131.8,
+          33.36,
+          11.48,
+          42.58,
+          221.68
+        ],
+        [
+          131.4,
+          33.52,
+          11.38,
+          42.58,
+          221.2
+        ],
+        [
+          130.2,
+          33.44,
+          11.38,
+          42.56,
+          220.18
+        ],
+        [
+          134.34,
+          33.5,
+          11.36,
+          42.6,
+          224.16
+        ],
+        [
+          131.96,
+          33.42,
+          11.38,
+          42.48,
+          221.8
+        ],
+        [
+          129.0,
+          33.38,
+          11.44,
+          42.56,
+          218.96
+        ],
+        [
+          130.18,
+          33.42,
+          11.48,
+          42.42,
+          220.12
+        ],
+        [
+          128.84,
+          33.44,
+          11.38,
+          42.38,
+          218.7
+        ],
+        [
+          129.7,
+          33.42,
+          11.46,
+          42.54,
+          219.62
+        ],
+        [
+          129.14,
+          33.44,
+          11.4,
+          42.52,
+          218.86
+        ],
+        [
+          129.58,
+          33.46,
+          11.4,
+          42.48,
+          219.64
+        ],
+        [
+          130.22,
+          33.5,
+          11.38,
+          42.54,
+          220.34
+        ]
+      ]
+    }
+  ],
+  "all_codes": [
+    {
+      "dim": 128,
+      "code": 1,
+      "generation": 0
+    },
+    {
+      "dim": 128,
+      "code": 1,
+      "generation": 1
+    },
+    {
+      "dim": 128,
+      "code": 1,
+      "generation": 2
+    },
+    {
+      "dim": 128,
+      "code": 2,
+      "generation": 0
+    },
+    {
+      "dim": 128,
+      "code": 2,
+      "generation": 1
+    },
+    {
+      "dim": 128,
+      "code": 2,
+      "generation": 2
+    },
+    {
+      "dim": 256,
+      "code": 1,
+      "generation": 0
+    },
+    {
+      "dim": 256,
+      "code": 1,
+      "generation": 1
+    },
+    {
+      "dim": 256,
+      "code": 1,
+      "generation": 2
+    },
+    {
+      "dim": 256,
+      "code": 2,
+      "generation": 0
+    },
+    {
+      "dim": 256,
+      "code": 2,
+      "generation": 1
+    },
+    {
+      "dim": 256,
+      "code": 2,
+      "generation": 2
+    }
+  ],
+  "attention_impl": "auto",
+  "torch": "2.10.0+cpu",
+  "library_sha256": "8980346ea75b271574f5e01ea03c5c641b202b1fb3855c86c1627162df35c358"
+}

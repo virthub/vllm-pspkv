@@ -1,0 +1,9 @@
+Device_id,OP Type,Core Type,Count,Total Time(us),Min Time(us),Avg Time(us),Max Time(us),Ratio(%)
+0,_Z24PspkvPackedWeightedValuePhS_S_S_S_S_S_S_jjjjjjjjj,AI_VECTOR_CORE,3,6839.256,2264.284,2279.752,2296.268,46.617
+0,_Z20PspkvPackedScoresVecPhS_S_S_S_S_S_S_S_S_S_jjjjjjjjjfj,AI_VECTOR_CORE,3,2637.616,878.88,879.205,879.376,17.978
+0,_Z27PspkvPackedWeightedValueVecPhS_S_S_S_S_S_S_S_S_S_jjjjjjjjjj,AI_VECTOR_CORE,3,2499.168,832.736,833.056,833.396,17.034
+0,_Z17PspkvPackedScoresPhS_S_S_S_S_S_S_jjjjjjjjjf,AI_VECTOR_CORE,3,2455.408,818.156,818.469,818.996,16.736
+0,_Z18PspkvPackedScatterPhS_S_S_S_S_S_jjjjjjjj,AI_VECTOR_CORE,3,134.104,44.5,44.701,44.924,0.914
+0,SoftmaxV2,AI_VECTOR_CORE,6,49.66,6.86,8.276,9.82,0.338
+0,PagedAttentionMaskNdKernel,MIX_AIC,3,46.82,15.58,15.606,15.64,0.319
+0,Cast,AI_VECTOR_CORE,6,9.26,1.38,1.543,1.7,0.063

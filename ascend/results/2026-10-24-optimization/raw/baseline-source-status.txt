@@ -1,0 +1,23 @@
+ M README.md
+ M tests/v1/attention/psp_kv_reference.py
+ M tests/v1/attention/test_psp_kv_correctness.py
+ M tests/v1/attention/test_psp_kv_mixed_precision.py
+ M vllm/model_executor/layers/attention/attention.py
+ M vllm/v1/core/single_type_kv_cache_manager.py
+ M vllm/v1/kv_cache_interface.py
+?? ascend/
+?? psp_kv_ascend_reference.py
+?? test_psp_kv_ascend_reference.py
+?? tests/v1/attention/test_psp_kv_ascend_arena.py
+?? tests/v1/attention/test_psp_kv_ascend_copy.py
+?? tests/v1/attention/test_psp_kv_ascend_packed.py
+?? tests/v1/attention/test_psp_kv_ascend_policy.py
+?? tests/v1/attention/test_psp_kv_ascend_reference.py
+?? vllm/v1/attention/backends/psp_kv_ascend.py
+?? vllm/v1/attention/backends/psp_kv_ascend_arena.py
+?? vllm/v1/attention/backends/psp_kv_ascend_diagnostics.py
+?? vllm/v1/attention/backends/psp_kv_ascend_native.py
+?? vllm/v1/attention/backends/psp_kv_ascend_ops.py
+?? vllm/v1/attention/backends/psp_kv_ascend_packed.py
+?? vllm/v1/attention/backends/psp_kv_ascend_policy.py
+?? vllm/v1/attention/backends/psp_kv_ascend_reference.py

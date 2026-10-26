@@ -1,0 +1,57 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+BEGIN check_fp8_reference_npu.py
+INFO 10-26 05:06:37 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-26 05:06:37 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-26 05:06:37 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-26 05:06:37 [__init__.py:238] Platform plugin ascend is activated
+INFO 10-26 05:06:44 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 10-26 05:06:44 [nixl_utils.py:34] NIXL is not available
+WARNING 10-26 05:06:44 [nixl_utils.py:44] NIXL agent config is not available
+/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_reference.py:26: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  sign = (bits >> 31) & 1
+NPU FP8 codecs, adaptive transitions and backend block copy match CPU
+END check_fp8_reference_npu.py: {'passed': True}
+BEGIN check_packed_reference_npu.py
+Traceback (most recent call last):
+  File "/audit/npu_audit.py", line 24, in <module>
+    runpy.run_path(f"/workspace/pspkv-src/ascend/{name}", run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+END check_packed_reference_npu.py: {'passed': False, 'error': 'AssertionError()'}
+BEGIN check_variable_npu.py
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 261, in <module>
+    main()
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 249, in main
+    run_uniform_fp4_small_values(torch.device("npu:0")),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pspkv-src/ascend/check_packed_reference_npu.py", line 187, in run_uniform_fp4_small_values
+    assert scales.item() == 0.25
+           ^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+NPU variable-width arena, compaction and attention match CPU
+END check_variable_npu.py: {'passed': True}
+BEGIN check_variable_native_npu.py
+Traceback (most recent call last):
+  File "/audit/npu_audit.py", line 24, in <module>
+    runpy.run_path(f"/workspace/pspkv-src/ascend/{name}", run_name="__main__")
+  File "<frozen runpy>", line 291, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 241, in <module>
+    main()
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 203, in main
+    fused_out = run_decode(fused_arena, 2 * BLOCK, native=True, native_fused=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pspkv-src/ascend/check_variable_native_npu.py", line 165, in run_decode
+    reference_variable_attention(
+  File "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_arena.py", line 1034, in reference_variable_attention
+    operator(
+TypeError: PSPKVAscendPackedOps.psp_attention_scaled_basic_fused() got an unexpected keyword argument 'value_precision_table'
+  formats {3: 2}
+  vectorized kernels match scalar kernels (256 tokens)
+  native variable decode matches the reference path
+END check_variable_native_npu.py: {'passed': False, 'error': 'TypeError("PSPKVAscendPackedOps.psp_attention_scaled_basic_fused() got an unexpected keyword argument \'value_precision_table\'")'}
+SCALE_DIAGNOSTIC cpu {'log2': [-4.584962368011475, -2.0], 'ceil': [-4.0, -2.0], 'scale': [0.0625, 0.25]}
+SCALE_DIAGNOSTIC npu:0 {'log2': [-4.584962368011475, -2.0], 'ceil': [-4.0, -2.0], 'scale': [0.0624999962747097, 0.2499999850988388]}

@@ -1,0 +1,3 @@
+[2026-10-24-15:11:08.791] [INFO] [AscendProfiler_IntegrateParser:97] Profiler logger initialized at: /vector/results/profiler-stage2b/160/619b072e3069_1_20261024151106108_ascend_pt/logs/profiler_20261024151108_760_IntegrateParser.log
+[2026-10-24-15:11:08.792] [INFO] [AscendProfiler_IntegrateParser:33] IntegrateParser start.
+[2026-10-24-15:11:08.796] [INFO] [AscendProfiler_IntegrateParser:40] IntegrateParser finish.

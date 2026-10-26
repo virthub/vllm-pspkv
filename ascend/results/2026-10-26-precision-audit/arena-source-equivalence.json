@@ -1,0 +1,6 @@
+{
+  "local_sha256": "ffd9cced7e28b16141e2e2cd4cc40950d9ee10a62ff828321c2d95d1f18d488f",
+  "server_sha256": "06ecebca7c7e41367c591af5d85345a3172441d6decb4ddf17a0618a24c319a2",
+  "python_AST_identical": true,
+  "difference": "Formatting and string literal wrapping only"
+}

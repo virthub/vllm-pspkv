@@ -1,0 +1,85 @@
+{
+  "case": "asymmetric-k8v4",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 16,
+  "scope": "single-request eager smoke audit; no performance significance claim",
+  "requests": [
+    {
+      "seconds": 3.8786660954356194,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，下列景点不属于北京的的的城市是____。\n\nA.",
+      "profile": "short",
+      "repeat": 0
+    },
+    {
+      "seconds": 4.214078765362501,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human的\nHuman: 中国\n中国请我如何",
+      "profile": "cross_page",
+      "repeat": 0
+    },
+    {
+      "seconds": 3.5380026660859585,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，下列景点不属于北京的的的城市是____。\n\nA.",
+      "profile": "short",
+      "repeat": 1
+    },
+    {
+      "seconds": 4.027886006981134,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human的\nHuman: 中国\n中国请我如何",
+      "profile": "cross_page",
+      "repeat": 1
+    }
+  ],
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "response": {
+        "seconds": 3.7555524297058582,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 20,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": "2\nA. 1+1=.10\n..."
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "response": {
+        "seconds": 3.666966125369072,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 21,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": " Paris.Human: Olimpia 201000"
+      }
+    }
+  ],
+  "complete": true
+}

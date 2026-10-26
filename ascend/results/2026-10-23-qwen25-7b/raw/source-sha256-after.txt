@@ -1,0 +1,4 @@
+c0752021f9c3fd8e2a02475d5a7086fb3b1d27fd2d6c26ca6ce3959b260acd11  ascend/native/pspkv_fp8.asc
+1e2edd8bdbe5233f61d131edc10a9cffce1730d4b473423f55f54a9250d225ea  vllm/v1/attention/backends/psp_kv_ascend_ops.py
+26d8f014df61bab3e42259254ac546c00e3cedb3cfdc7e066762099b07f73cbc  tests/v1/attention/psp_kv_reference.py
+72f17c1718609e04e3fad08404d832ab7fb2553fc42520fc31b06f1de1428ed1  /root/zhang/pspkv-native-build/libpspkv_ascend_native.so

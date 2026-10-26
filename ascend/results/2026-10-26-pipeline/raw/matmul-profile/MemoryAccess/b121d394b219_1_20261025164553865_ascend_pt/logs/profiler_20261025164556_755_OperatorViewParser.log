@@ -1,0 +1,3 @@
+[2026-10-25-16:45:56.025] [INFO] [AscendProfiler_OperatorViewParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164556_755_OperatorViewParser.log
+[2026-10-25-16:45:56.025] [INFO] [AscendProfiler_OperatorViewParser:30] OperatorViewParser start.
+[2026-10-25-16:45:56.028] [INFO] [AscendProfiler_OperatorViewParser:39] OperatorViewParser finish.

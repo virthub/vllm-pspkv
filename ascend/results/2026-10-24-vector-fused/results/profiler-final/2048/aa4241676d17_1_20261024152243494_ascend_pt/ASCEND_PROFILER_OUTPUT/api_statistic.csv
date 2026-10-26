@@ -1,0 +1,7 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,acl,PagedAttentionOperation::Execute,289.77,6,48.295,31.72,104.5,645.201
+host,acl,PagedAttentionOperation::Setup,247.82,6,41.303,19.27,115.07,1116.168
+host,acl,aclmdlRICaptureGetInfo,6.04,12,0.503,0.23,1.19,0.081
+host,acl,aclrtLaunchKernelWithHostArgs,131.05,12,10.921,9.03,18.17,5.445
+host,acl,aclrtSynchronizeDeviceWithTimeout,4375.24,2,2187.62,6.88,4368.36,4755626.948
+host,node,launch,519.39,18,28.855,15.75,66.95,130.347

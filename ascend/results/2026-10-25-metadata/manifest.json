@@ -1,0 +1,21 @@
+{
+  "native_library_sha256": "8980346ea75b271574f5e01ea03c5c641b202b1fb3855c86c1627162df35c358",
+  "native_library_changed": false,
+  "model_physical_npu": 4,
+  "micro_physical_npu": 2,
+  "pairs_per_format_per_profile": 12,
+  "timed_model_requests": 168,
+  "source_sha256": {
+    "vllm/v1/attention/backends/psp_kv_ascend.py": "e43d13f3ceca1452a154a95956063c8243a718dfc637e133eb1f1c90b619315e",
+    "ascend/shared_metadata.py": "1c0e9d22a577f49c2de5ca1ebf940d92319f8c17ccb8c7ff939cd491f640fd56",
+    "ascend/format_compare_runtime.py": "599d915e09fa9c9a48773b019cdbb8893ea4e2da462759c9d46901b4be25df3b",
+    "ascend/compare_metadata_client.py": "824a682688b31e9360d89bf8c7a1cd098322c038d84501c15bd4f50c37a808b2",
+    "ascend/profile_model_client.py": "4544251cd5126abb9d95fa64f14f74a74261c0c72bf7c897cd9bbafa5bfa3d55",
+    "ascend/run_format_comparison.sh": "b2d9093053337cd1b028cfc75d8b222c22959248ac9c0d737d227dbbbea23ad1",
+    "ascend/check_shared_metadata_npu.py": "99a021375fab32c46246f2913023156576a90bec3a709576d4c6a350a3a62afb",
+    "ascend/summarize_metadata_comparison.py": "0cda53602bf9e5890563ba6d573d77199f63d8c01d1255a0a552bf84423e9795",
+    "ascend/analyze_metadata_profiles.py": "51b4ff1cbbe5519c003042468a501bef9a1b100e36bf7e6584000ac2842b1c00",
+    "tests/v1/attention/test_psp_kv_shared_metadata.py": "a09dd231a9a6ad808fb8658febeaa61cc0c78f97a005f31bc3b8cab68d85f6ec",
+    "ascend/README.md": "fa7e2a722c5cf490ee45aa516389d900e937a5fd1c3476bb1bdbe457194ddc9f"
+  }
+}

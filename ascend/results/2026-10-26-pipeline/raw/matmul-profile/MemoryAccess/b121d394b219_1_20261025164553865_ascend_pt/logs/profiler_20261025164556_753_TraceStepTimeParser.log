@@ -1,0 +1,4 @@
+[2026-10-25-16:45:56.017] [INFO] [AscendProfiler_TraceStepTimeParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/MemoryAccess/b121d394b219_1_20261025164553865_ascend_pt/logs/profiler_20261025164556_753_TraceStepTimeParser.log
+[2026-10-25-16:45:56.017] [INFO] [AscendProfiler_TraceStepTimeParser:169] TraceStepTimeParser start.
+[2026-10-25-16:45:56.018] [WARNING] [AscendProfiler_TraceStepTimeParser:69] Get step range failed, the step node list is empty.
+[2026-10-25-16:45:56.021] [INFO] [AscendProfiler_TraceStepTimeParser:177] TraceStepTimeParser finish.

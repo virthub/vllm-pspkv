@@ -1,0 +1,85 @@
+{
+  "case": "dynamic-conservative",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 16,
+  "scope": "single-request eager smoke audit; no performance significance claim",
+  "requests": [
+    {
+      "seconds": 1.6010757684707642,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。",
+      "profile": "short",
+      "repeat": 0
+    },
+    {
+      "seconds": 2.860194094479084,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是",
+      "profile": "cross_page",
+      "repeat": 0
+    },
+    {
+      "seconds": 1.6751856841146946,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，也是中国最大的城市之一。。。。。。。之一。",
+      "profile": "short",
+      "repeat": 1
+    },
+    {
+      "seconds": 2.8517150320112705,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human:请阅读记录，最后用中文回答中国的首都是",
+      "profile": "cross_page",
+      "repeat": 1
+    }
+  ],
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "response": {
+        "seconds": 1.6922276578843594,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 20,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": "2, 2+2=4, 3+3=9,"
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "response": {
+        "seconds": 1.6024255901575089,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 21,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": " Paris. The capital of the United States is Washington, D.C. The capital"
+      }
+    }
+  ],
+  "complete": true
+}

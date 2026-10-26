@@ -1,0 +1,492 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "rounds": 3,
+  "requests_per_profile_per_round": 4,
+  "warmups_per_profile": 2,
+  "output_tokens": 32,
+  "concurrency": 1,
+  "profiles": {
+    "short": "北京是中国的",
+    "cross_page": [
+      14880,
+      101113,
+      65577,
+      3837,
+      100161,
+      11622,
+      104811,
+      102104,
+      105538,
+      59975,
+      100132,
+      101314,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      8997,
+      65577,
+      5122,
+      68990,
+      105196,
+      9370,
+      106114,
+      3837,
+      100633,
+      105196,
+      105961,
+      3407,
+      105538,
+      59975,
+      100132
+    ]
+  },
+  "requests": [
+    {
+      "seconds": 3.0994974561035633,
+      "ttft_ms": 413.9122739434242,
+      "tpot_ms": 86.62800262531927,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 0
+    },
+    {
+      "seconds": 3.103279948234558,
+      "ttft_ms": 413.2411740720272,
+      "tpot_ms": 86.77161076376515,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 0
+    },
+    {
+      "seconds": 2.0160356983542442,
+      "ttft_ms": 126.6816295683384,
+      "tpot_ms": 60.9425860306909,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 0
+    },
+    {
+      "seconds": 1.9574513733386993,
+      "ttft_ms": 134.10931453108788,
+      "tpot_ms": 58.813009170755265,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 0
+    },
+    {
+      "seconds": 3.220402281731367,
+      "ttft_ms": 415.16073048114777,
+      "tpot_ms": 90.48781940533269,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 0
+    },
+    {
+      "seconds": 3.1082321107387543,
+      "ttft_ms": 416.58642515540123,
+      "tpot_ms": 86.82334531218775,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 0
+    },
+    {
+      "seconds": 1.8836721777915955,
+      "ttft_ms": 130.54518401622772,
+      "tpot_ms": 56.548206916739865,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 0
+    },
+    {
+      "seconds": 1.9247300326824188,
+      "ttft_ms": 128.77802923321724,
+      "tpot_ms": 57.93037842358312,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 0
+    },
+    {
+      "seconds": 3.0513920560479164,
+      "ttft_ms": 413.15413266420364,
+      "tpot_ms": 85.10091936876697,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 1
+    },
+    {
+      "seconds": 2.0179684199392796,
+      "ttft_ms": 131.78027421236038,
+      "tpot_ms": 60.840388579714684,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 1
+    },
+    {
+      "seconds": 2.131513115018606,
+      "ttft_ms": 144.82074975967407,
+      "tpot_ms": 64.08285950460741,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 1
+    },
+    {
+      "seconds": 3.1078786589205265,
+      "ttft_ms": 412.7485603094101,
+      "tpot_ms": 86.93612270778225,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 1
+    },
+    {
+      "seconds": 2.081592421978712,
+      "ttft_ms": 136.38785853981972,
+      "tpot_ms": 62.74470110093394,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 1
+    },
+    {
+      "seconds": 3.1701699942350388,
+      "ttft_ms": 426.2562394142151,
+      "tpot_ms": 88.50962212008815,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 1
+    },
+    {
+      "seconds": 3.0916738063097,
+      "ttft_ms": 413.11487182974815,
+      "tpot_ms": 86.40143311312121,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 1
+    },
+    {
+      "seconds": 2.0180863849818707,
+      "ttft_ms": 135.05586609244347,
+      "tpot_ms": 60.73828738543295,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 1
+    },
+    {
+      "seconds": 3.092216733843088,
+      "ttft_ms": 415.4284931719303,
+      "tpot_ms": 86.34379421991687,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 2
+    },
+    {
+      "seconds": 3.1149434335529804,
+      "ttft_ms": 413.6582873761654,
+      "tpot_ms": 87.13426044391048,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 2
+    },
+    {
+      "seconds": 2.008713163435459,
+      "ttft_ms": 139.03883472085,
+      "tpot_ms": 60.30856457448775,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 2
+    },
+    {
+      "seconds": 3.0704296976327896,
+      "ttft_ms": 413.454607129097,
+      "tpot_ms": 85.70432674980933,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 2
+    },
+    {
+      "seconds": 1.953052956610918,
+      "ttft_ms": 132.84047320485115,
+      "tpot_ms": 58.71312848983273,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 2
+    },
+    {
+      "seconds": 1.9646779112517834,
+      "ttft_ms": 130.62739744782448,
+      "tpot_ms": 59.15826270657201,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 2
+    },
+    {
+      "seconds": 3.1005818247795105,
+      "ttft_ms": 413.9029085636139,
+      "tpot_ms": 86.66333472055774,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 167,
+        "completion_tokens": 32
+      },
+      "text": "______。\n答案：______。\n\n答案：北京。\n\n答案：上海。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n答案：北京。\n\n",
+      "profile": "cross_page",
+      "round": 2
+    },
+    {
+      "seconds": 1.9492164216935635,
+      "ttft_ms": 128.24570015072823,
+      "tpot_ms": 58.73767803272894,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 35,
+        "completion_tokens": 32
+      },
+      "text": "首都，也是中国最大的城市。北京作为中国的首都，具有重要的政治、经济、文化、社会和国际地位。北京的地理位置位于中国北方，",
+      "profile": "short",
+      "round": 2
+    }
+  ],
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "response": {
+        "seconds": 1.9797741435468197,
+        "ttft_ms": 134.8794512450695,
+        "tpot_ms": 59.50846535063559,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 36,
+          "completion_tokens": 32
+        },
+        "text": "2, 1+1=2, 1+1=2, 1+1=2, 1+1=2, 1"
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "response": {
+        "seconds": 1.9414932169020176,
+        "ttft_ms": 135.43616607785225,
+        "tpot_ms": 58.25637461196992,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 37,
+          "completion_tokens": 32
+        },
+        "text": " Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of China is Beijing. The capital of Japan is Tokyo. The capital"
+      }
+    }
+  ]
+}

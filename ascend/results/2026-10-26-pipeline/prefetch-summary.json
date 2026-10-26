@@ -1,0 +1,30 @@
+{
+  "scope": "Exploratory separate-process test on NPU 3, direct-write graph candidate before actual RoPE entry integration; not included in final four-stage conclusions. No stable gain established; disabled by default.",
+  "quality_probe_texts_equal": true,
+  "latency": [
+    {
+      "prefetch": "off",
+      "profile": "short",
+      "p50_seconds": 0.47822837717831135,
+      "samples": 12
+    },
+    {
+      "prefetch": "off",
+      "profile": "cross_page",
+      "p50_seconds": 0.4936199542135,
+      "samples": 12
+    },
+    {
+      "prefetch": "on",
+      "profile": "short",
+      "p50_seconds": 0.500079020857811,
+      "samples": 12
+    },
+    {
+      "prefetch": "on",
+      "profile": "cross_page",
+      "p50_seconds": 0.5108565464615822,
+      "samples": 12
+    }
+  ]
+}

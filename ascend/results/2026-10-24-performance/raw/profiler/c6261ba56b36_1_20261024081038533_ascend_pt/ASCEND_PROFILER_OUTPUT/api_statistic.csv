@@ -1,0 +1,13 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,acl,PagedAttentionOperation::Execute,191.32,3,63.773,40.66,107.4,952.77
+host,acl,PagedAttentionOperation::Setup,204.12,3,68.04,38.66,124.03,1568.719
+host,acl,aclmdlRICaptureGetInfo,4.63,6,0.772,0.28,2.05,0.375
+host,acl,aclnnInplaceCopy,167.61,12,13.968,8.28,36.87,53.745
+host,acl,aclnnInplaceCopyGetWorkspaceSize,157.57,6,26.262,17.97,59.07,217.163
+host,acl,aclnnSoftmax,113.57,6,18.928,9.88,44.27,133.829
+host,acl,aclrtGetResInCurrentThread,9.48,12,0.79,0.25,2.58,0.449
+host,acl,aclrtGetStreamAttribute,9.77,18,0.543,0.32,1.83,0.113
+host,acl,aclrtLaunchKernelWithHostArgs,232.69,27,8.618,4.67,20.73,11.173
+host,acl,aclrtMemcpyAsync,59.68,6,9.947,7.12,21.68,27.731
+host,acl,aclrtSynchronizeDeviceWithTimeout,11053.26,2,5526.63,6.74,11046.52,30469185.612
+host,node,launch,656,30,21.867,5.67,83.24,267.191

@@ -4,7 +4,8 @@ default_install_hook_types:
 default_stages:
   - pre-commit # Run locally
   - manual # Run in CI
-exclude: 'vllm/third_party/.*'
+# Result source snapshots are immutable evidence; lint their active originals.
+exclude: 'vllm/third_party/.*|^ascend/results/.*\.(py|sh|asc|h|cu|cuh)$|^ascend/results/.*/before/'
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.14.0
@@ -17,6 +18,8 @@ repos:
   hooks:
   - id: typos
     args: [--force-exclude]
+    # Captured vendor diagnostics/configuration must retain their exact text.
+    exclude: '^ascend/results/.*\.(log|json|csv|txt|tsv|patch)$'
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v21.1.2
   hooks:

@@ -1,0 +1,82 @@
+{
+  "method": "unit scales; BF16 query/output; shuffled physical pages; same logical Q/K/V and physical precision table",
+  "timing": "each sample is a mean over repeated calls, not a request percentile",
+  "rounds": 2,
+  "iterations": 5,
+  "warmups": 3,
+  "torch": "2.10.0+cpu",
+  "cases": [
+    {
+      "workload": "gqa_128",
+      "context_lengths": [
+        128
+      ],
+      "query_heads": 16,
+      "kv_heads": 8,
+      "head_dim": 128,
+      "block_size": 16,
+      "precision": "mixed_all",
+      "physical_precision_codes": [
+        0,
+        1,
+        2,
+        3,
+        0,
+        1,
+        2,
+        3,
+        0,
+        1
+      ],
+      "formats": {
+        "basic": {
+          "reference_max_abs_error": 0.0,
+          "dense_bf16_relative_l2_error": 0.16429083022683244,
+          "cache_bytes": 393216,
+          "wall_ms_samples": [
+            2.660287171602249,
+            2.566128224134445
+          ],
+          "device_ms_samples": [
+            2.558304023742676,
+            2.544524002075195
+          ],
+          "wall_ms_median": 2.613207697868347,
+          "device_ms_median": 2.5514140129089355
+        },
+        "enhanced": {
+          "reference_max_abs_error": 0.0,
+          "dense_bf16_relative_l2_error": 0.16429083022683244,
+          "cache_bytes": 393216,
+          "wall_ms_samples": [
+            1.5601366758346558,
+            1.5591196715831757
+          ],
+          "device_ms_samples": [
+            1.5406240463256835,
+            1.541316032409668
+          ],
+          "wall_ms_median": 1.5596281737089157,
+          "device_ms_median": 1.5409700393676757
+        },
+        "btkv": {
+          "reference_max_abs_error": 0.0,
+          "dense_bf16_relative_l2_error": 0.16429083022683244,
+          "cache_bytes": 393216,
+          "wall_ms_samples": [
+            1.5576310455799103,
+            1.5559248626232147
+          ],
+          "device_ms_samples": [
+            1.5372360229492188,
+            1.5368680000305175
+          ],
+          "wall_ms_median": 1.5567779541015625,
+          "device_ms_median": 1.5370520114898683
+        }
+      },
+      "basic_enhanced_bit_equal": true,
+      "enhanced_btkv_bit_equal": true
+    }
+  ]
+}

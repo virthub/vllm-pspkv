@@ -1,0 +1,1378 @@
+--- a/ascend/native/pspkv_fp8.asc
++++ b/ascend/native/pspkv_fp8.asc
+@@ -1,9 +1,9 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ 
+-// Correctness-first Ascend C implementation of PSP-KV's BF16 -> FP8 cache
+-// write and mixed E4M3/E5M2 cache attention. These are scalar kernels;
+-// a tiled/vectorized implementation is still needed for throughput.
++// Ascend C PSP-KV codecs, reference kernels, tiled UB dequantization and
++// streaming SIMD attention. Scalar fallbacks preserve the wider mixed-format
++// contract; the FP8 tile paths avoid per-element scalar codec operations.
+ 
+ #include <ATen/ATen.h>
+ #include <c10/core/DeviceGuard.h>
+@@ -11,6 +11,7 @@
+ #include "torch_npu/csrc/core/npu/NPUStream.h"
+ #include "kernel_operator.h"
+ 
++#include <algorithm>
+ #include <cstdint>
+ #include <limits>
+ #include <tuple>
+@@ -247,6 +248,8 @@
+ 
+ // One logical element per loop iteration; the index arithmetic is explicit so
+ // the kernel can be checked against vLLM's slot_mapping and physical block IDs.
++#include "pspkv_tiled.h"
++
+ __global__ __vector__ void PspkvQuantizeScatterBF16(
+     GM_ADDR key, GM_ADDR value, GM_ADDR slots, GM_ADDR formats,
+     GM_ADDR key_cache, GM_ADDR value_cache,
+@@ -744,7 +747,8 @@
+ 
+ // Gather only pages named by the live block table, never the entire arena.
+ // Output is the native paged-attention layout [pages, block, KV head, dim].
+-// Whole 256-element BF16 chunks are owned by one worker and copied via UB.
++// Whole head rows are owned by one worker and copied via UB. Metadata and
++// layout arithmetic are hoisted out of the element loop; tail rows use SIMD.
+ __global__ __vector__ void PspkvGatherPagedBF16(
+     GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR block_tables,
+     GM_ADDR context_lens, GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales,
+@@ -794,13 +798,13 @@
+                 const float decoded = is_key
+                     ? ReadPacked(keys, base, element, code, 0, scale)
+                     : ReadPacked(values, base, element, code, 0, scale);
+-            union { float f; uint32_t u; } bits;
+-            bits.f = decoded;
+-            // Round-to-nearest-even, matching torch's FP32->BF16 conversion.
+-            const uint32_t rounded = bits.u + 0x7fffU + ((bits.u >> 16) & 1U);
+-            local.SetValue(dim, static_cast<uint16_t>(
+-                (bits.u & 0x7fffffffU) > 0x7f800000U
+-                    ? (bits.u >> 16) | 0x40U : rounded >> 16));
++                union { float f; uint32_t u; } bits;
++                bits.f = decoded;
++                // Match torch's FP32->BF16 round-to-nearest-even.
++                const uint32_t rounded = bits.u + 0x7fffU + ((bits.u >> 16) & 1U);
++                local.SetValue(dim, static_cast<uint16_t>(
++                    (bits.u & 0x7fffffffU) > 0x7f800000U
++                        ? (bits.u >> 16) | 0x40U : rounded >> 16));
+             }
+         }
+         pipe_barrier(PIPE_ALL);
+@@ -2017,9 +2021,108 @@
+     return {key, value};
+ }
+ 
++void check_tile_tables(const at::Tensor& cache, const at::Tensor& e4,
++                       const at::Tensor& e5, const at::Tensor& permutation,
++                       int64_t dim) {
++    for (const auto& tensor : {e4, e5}) {
++        TORCH_CHECK(tensor.device() == cache.device() && tensor.scalar_type() == at::kFloat
++            && tensor.is_contiguous() && tensor.numel() == 256, "tile LUT must contain 256 NPU floats");
++    }
++    TORCH_CHECK(permutation.device() == cache.device() && permutation.scalar_type() == at::kInt
++        && permutation.is_contiguous() && permutation.numel() == PSPKV_TILE * dim,
++        "tile transpose map must contain 32 * dim NPU int32 byte offsets");
++}
++
++std::tuple<at::Tensor, at::Tensor> gather_paged_bf16_vec(
++    const at::Tensor& key_cache, const at::Tensor& value_cache,
++    const at::Tensor& tables, const at::Tensor& lengths, const at::Tensor& formats,
++    const at::Tensor& offsets, const at::Tensor& scales, const at::Tensor& e4,
++    const at::Tensor& e5, const at::Tensor& permutation, int64_t generation,
++    int64_t heads, int64_t dim, int64_t block_size) {
++    check_packed_inputs(key_cache, tables, lengths, formats, offsets, scales,
++                        generation, heads, dim, block_size);
++    check_tile_tables(key_cache, e4, e5, permutation, dim);
++    TORCH_CHECK(value_cache.device() == key_cache.device() && value_cache.dim() == 1
++        && value_cache.scalar_type() == at::kByte && value_cache.is_contiguous()
++        && value_cache.numel() <= std::numeric_limits<uint32_t>::max(),
++        "vector gather needs a contiguous NPU V byte arena");
++    TORCH_CHECK(generation >= 0 && generation <= 2 && heads > 0
++        && (dim == 128 || dim == 256) && block_size % 128 == 0
++        && (generation == 0 || scales.dim() == 2), "unsupported vector gather geometry");
++    const int64_t pages = tables.size(0) * tables.size(1);
++    TORCH_CHECK(pages * block_size * heads * dim <= std::numeric_limits<uint32_t>::max(),
++        "vector gather scratch exceeds indexing limits");
++    const c10::DeviceGuard guard(key_cache.device());
++    auto key = at::empty({pages, block_size, heads, dim}, key_cache.options().dtype(at::kBFloat16));
++    auto value = at::empty_like(key);
++    auto stream = c10_npu::getCurrentNPUStream().stream(true);
++    PspkvGatherPagedBF16Vec<<<40, nullptr, stream>>>(
++        (GM_ADDR)key_cache.const_data_ptr(), (GM_ADDR)value_cache.const_data_ptr(),
++        (GM_ADDR)tables.const_data_ptr(), (GM_ADDR)lengths.const_data_ptr(),
++        (GM_ADDR)formats.const_data_ptr(), (GM_ADDR)offsets.const_data_ptr(),
++        (GM_ADDR)scales.const_data_ptr(), (GM_ADDR)e4.const_data_ptr(),
++        (GM_ADDR)e5.const_data_ptr(), (GM_ADDR)permutation.const_data_ptr(),
++        (GM_ADDR)key.mutable_data_ptr(), (GM_ADDR)value.mutable_data_ptr(),
++        tables.size(0), tables.size(1), heads, dim, block_size, generation);
++    return {key, value};
++}
++
++at::Tensor tile_fused_attention(
++    const at::Tensor& query, const at::Tensor& key_cache, const at::Tensor& value_cache,
++    const at::Tensor& tables, const at::Tensor& lengths, const at::Tensor& formats,
++    const at::Tensor& offsets, const at::Tensor& scales, const at::Tensor& e4,
++    const at::Tensor& e5, const at::Tensor& permutation, int64_t generation,
++    int64_t kv_heads, int64_t block_size, double softmax_scale, at::Tensor& output,
++    int64_t profile_mode) {
++    TORCH_CHECK(query.dim() == 3 && query.size(0) == tables.size(0)
++        && query.device() == key_cache.device() && query.scalar_type() == at::kBFloat16
++        && query.is_contiguous() && output.sizes() == query.sizes()
++        && output.scalar_type() == query.scalar_type() && output.device() == query.device()
++        && output.is_contiguous(), "tile-fused attention needs contiguous BF16 Q/O");
++    const int64_t dim = query.size(2), heads = query.size(1);
++    check_packed_inputs(key_cache, tables, lengths, formats, offsets, scales,
++                        generation, kv_heads, dim, block_size);
++    check_tile_tables(key_cache, e4, e5, permutation, dim);
++    TORCH_CHECK(value_cache.device() == query.device() && value_cache.scalar_type() == at::kByte
++        && value_cache.dim() == 1 && value_cache.is_contiguous()
++        && value_cache.numel() <= std::numeric_limits<uint32_t>::max(), "invalid fused V arena");
++    TORCH_CHECK(generation >= 0 && generation <= 2 && heads > 0 && heads % kv_heads == 0
++        && (dim == 128 || dim == 256) && block_size % 128 == 0
++        && profile_mode >= 0 && profile_mode <= 1,
++        "unsupported tile-fused geometry or profiling mode");
++    const c10::DeviceGuard guard(query.device());
++    auto stats = at::empty({profile_mode ? query.size(0) * heads : 0, 8},
++                           query.options().dtype(at::kLong));
++    auto stream = c10_npu::getCurrentNPUStream().stream(true);
++    const uint32_t cores = static_cast<uint32_t>(std::min<int64_t>(40, query.size(0) * heads));
++#define PSPKV_FUSED_ARGS \
++        (GM_ADDR)query.const_data_ptr(), (GM_ADDR)key_cache.const_data_ptr(), \
++        (GM_ADDR)value_cache.const_data_ptr(), (GM_ADDR)tables.const_data_ptr(), \
++        (GM_ADDR)lengths.const_data_ptr(), (GM_ADDR)formats.const_data_ptr(), \
++        (GM_ADDR)offsets.const_data_ptr(), (GM_ADDR)scales.const_data_ptr(), \
++        (GM_ADDR)e4.const_data_ptr(), (GM_ADDR)e5.const_data_ptr(), \
++        (GM_ADDR)permutation.const_data_ptr(), (GM_ADDR)output.mutable_data_ptr(), \
++        (GM_ADDR)stats.mutable_data_ptr(), query.size(0), heads, kv_heads, dim, \
++        block_size, tables.size(1), generation, static_cast<float>(softmax_scale)
++    if (profile_mode) {
++        PspkvTileFusedAttention<true><<<cores, nullptr, stream>>>(PSPKV_FUSED_ARGS);
++    } else {
++        PspkvTileFusedAttention<false><<<cores, nullptr, stream>>>(PSPKV_FUSED_ARGS);
++    }
++#undef PSPKV_FUSED_ARGS
++    return stats;
++}
++
+ }  // namespace psp_kv_ascend_native
+ 
+ TORCH_LIBRARY(psp_kv_ascend_native, m) {
++    m.def("tile_fused_attention(Tensor query, Tensor key_cache, Tensor value_cache, "
++          "Tensor tables, Tensor lengths, Tensor formats, Tensor offsets, Tensor scales, "
++          "Tensor e4, Tensor e5, Tensor permutation, int generation, int kv_heads, "
++          "int block_size, float softmax_scale, Tensor(a!) output, int profile_mode) -> Tensor");
++    m.def("gather_paged_bf16_vec(Tensor key_cache, Tensor value_cache, Tensor tables, Tensor lengths, "
++          "Tensor formats, Tensor offsets, Tensor scales, Tensor e4, Tensor e5, Tensor permutation, "
++          "int generation, int heads, int dim, int block_size) -> (Tensor, Tensor)");
+     m.def("packed_scatter_parallel(Tensor prefill, Tensor(a!) key_cache, Tensor(b!) value_cache, "
+           "Tensor slots, Tensor formats, Tensor offsets, Tensor scales, int block_size, int generation) -> ()");
+     m.def("gather_paged_bf16(Tensor key_cache, Tensor value_cache, Tensor tables, Tensor lengths, "
+@@ -2065,6 +2168,8 @@
+           "Tensor block_tables, Tensor context_lens, int target_dtype) -> Tensor");
+ }
+ TORCH_LIBRARY_IMPL(psp_kv_ascend_native, PrivateUse1, m) {
++    m.impl("tile_fused_attention", TORCH_FN(psp_kv_ascend_native::tile_fused_attention));
++    m.impl("gather_paged_bf16_vec", TORCH_FN(psp_kv_ascend_native::gather_paged_bf16_vec));
+     m.impl("packed_scatter_parallel", TORCH_FN(psp_kv_ascend_native::packed_scatter_parallel));
+     m.impl("gather_paged_bf16", TORCH_FN(psp_kv_ascend_native::gather_paged_bf16));
+     m.impl("quantize_scatter_bf16", TORCH_FN(psp_kv_ascend_native::quantize_scatter_bf16));
+--- a/vllm/v1/attention/backends/psp_kv_ascend_ops.py
++++ b/vllm/v1/attention/backends/psp_kv_ascend_ops.py
+@@ -8,6 +8,7 @@
+ the native kernels implement the reference's observable cache contract.
+ """
+ 
++import os
+ from functools import lru_cache
+ 
+ import torch
+@@ -20,6 +21,18 @@
+     torch.float8_e4m3fn: 2,
+     torch.float8_e5m2: 3,
+ }
++
++_ATTENTION_IMPL = os.environ.get("PSPKV_ASCEND_ATTENTION_IMPL", "auto")
++if _ATTENTION_IMPL not in ("gather", "vector", "fused", "auto"):
++    raise ValueError(
++        "PSPKV_ASCEND_ATTENTION_IMPL must be auto, gather, vector or fused"
++    )
++
++
++@lru_cache(maxsize=32)
++def _tile_permutation(device: torch.device, dimension: int) -> torch.Tensor:
++    indices = torch.arange(32 * dimension, dtype=torch.int32)
++    return ((indices % dimension * 32 + indices // dimension) * 4).to(device)
+ 
+ 
+ @lru_cache(maxsize=32)
+@@ -200,6 +213,38 @@
+                 raise ValueError("Enhanced/BTKV need a per-head scale table")
+             scale_table = torch.empty(0, device=query.device, dtype=torch.float32)
+         ops = load_native_fp8_ops()
++        use_fused = _ATTENTION_IMPL == "fused" or (
++            _ATTENTION_IMPL == "auto"
++            and query.dtype == torch.bfloat16
++            and query.shape[0] == 1
++            and block_size == 128
++            and head_size == 128
++            and generation in (0, 1, 2)
++            and block_tables.shape[1] <= 2
++            and hasattr(ops, "tile_fused_attention")
++        )
++        if use_fused:
++            e4, e5, _ = packed_lookup_tables(query.device)
++            ops.tile_fused_attention(
++                query,
++                key_cache,
++                value_cache,
++                block_tables,
++                context_lens,
++                precision_table,
++                block_offsets,
++                scale_table,
++                e4,
++                e5,
++                _tile_permutation(query.device, head_size),
++                generation,
++                num_kv_heads,
++                block_size,
++                softmax_scale,
++                out,
++                0,
++            )
++            return
+         if context_lens_cpu is not None:
+             if (
+                 query.dtype != torch.bfloat16
+@@ -219,7 +264,13 @@
+ 
+             # Only active pages are materialized; there is no persistent BF16
+             # copy of the compressed arena. The original layouts stay intact.
+-            key, value = ops.gather_paged_bf16(
++            gather = ops.gather_paged_bf16
++            table_args = []
++            if _ATTENTION_IMPL != "gather" and hasattr(ops, "gather_paged_bf16_vec"):
++                gather = ops.gather_paged_bf16_vec
++                e4, e5, _ = packed_lookup_tables(query.device)
++                table_args = [e4, e5, _tile_permutation(query.device, head_size)]
++            key, value = gather(
+                 key_cache,
+                 value_cache,
+                 block_tables,
+@@ -227,6 +278,7 @@
+                 precision_table,
+                 block_offsets,
+                 scale_table,
++                *table_args,
+                 generation,
+                 num_kv_heads,
+                 head_size,
+--- a/ascend/format_compare_runtime.py
++++ b/ascend/format_compare_runtime.py
+@@ -0,0 +1,269 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Test-only adapter for running original packed formats in a live model.
++
++The comparison launcher overlays the backend module in its own containers.
++It replaces only that module's fixed-FP8 reference_attention callback.
++Original public Basic/Enhanced/BTKV methods are called for single-token
++decode, with their common attention block size changed from 16 to 128.
++Default comparisons use the same native writer, unit FP8 scales and eager
++prefill. Optional BF16 output-quality controls use two logical shadow pages
++because the live plugin only allocates FP8 arenas. Their advertised engine
++capacity and latency must not be interpreted as BF16 resource benchmarks.
++This adapter is not installed into the normal serving backend.
++"""
++
++import json
++import math
++import os
++from functools import lru_cache
++
++import torch
++
++from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
++from vllm.v1.attention.backends.psp_kv_ascend_ops import PSPKVAscendPackedOps
++
++NAMES = ("basic", "enhanced", "btkv")
++STATES = {}
++SHADOW_CACHES = {}
++
++
++@lru_cache(maxsize=2)
++def _causal_mask(device):
++    return torch.ones((2048, 2048), dtype=torch.bool).triu(1).to(device)
++
++
++class ServingOps(PSPKVAscendPackedOps):
++    """Preserve public methods and select the live plugin's 128-token pages."""
++
++    @staticmethod
++    def _attention(*args, **kwargs):
++        kwargs["block_size"] = 128
++        return PSPKVAscendPackedOps._attention(*args, **kwargs)
++
++
++def comparison_attention(
++    query,
++    key,
++    value,
++    k_cache,
++    v_cache,
++    slot_mapping,
++    block_tables,
++    query_ends,
++    seq_lens,
++    output,
++    scale,
++    **kwargs,
++):
++    name = os.environ["PSPKV_COMPARE_FORMAT"]
++    generation = NAMES.index(name)
++    precision = os.environ.get("PSPKV_COMPARE_PRECISION", "e4m3")
++    code = {"bf16": 0, "e4m3": 1, "e5m2": 2}[precision]
++    optimized = os.environ.get("PSPKV_COMPARE_OPTIMIZED", "0") == "1"
++    paged_min_length = int(os.environ.get("PSPKV_COMPARE_PAGED_MIN_LENGTH", "0"))
++    assert len(query_ends) == len(seq_lens) == 1
++    assert k_cache.shape == v_cache.shape and k_cache.shape[1] == 128
++    assert k_cache.dtype == v_cache.dtype == torch.uint8
++    assert query.dtype == key.dtype == value.dtype == torch.bfloat16
++    block_size, kv_heads, dimension = k_cache.shape[1:]
++    actual = len(slot_mapping)
++    result = output.view(-1, query.shape[1], dimension)
++    result.zero_()
++    if not actual:
++        return output
++    assert query_ends[-1] == actual
++    num_queries = query_ends[0]
++    prefix_length = seq_lens[0] - num_queries
++    identity = (k_cache.data_ptr(), v_cache.data_ptr())
++    if identity not in STATES:
++        # The engine only accepts FP8 arenas. This small BF16 shadow is an
++        # output-quality control for one sequence <=256 tokens, not a capacity
++        # or speed benchmark. Remap its two pages to logical slots below.
++        num_blocks = 2 if code == 0 else k_cache.shape[0]
++        page_bytes = block_size * kv_heads * dimension * (2 if code == 0 else 1)
++        if code == 0:
++            SHADOW_CACHES[identity] = tuple(
++                torch.empty(
++                    num_blocks * page_bytes, dtype=torch.uint8, device=query.device
++                )
++                for _ in range(2)
++            )
++        codes = torch.full((num_blocks,), code, dtype=torch.uint8, device=query.device)
++        offsets = (
++            torch.arange(num_blocks, dtype=torch.int64, device=query.device)
++            * page_bytes
++        ).to(torch.int32)
++        scales = torch.ones((num_blocks, kv_heads), device=query.device)
++        descriptors = (
++            torch.zeros((num_blocks, 16), dtype=torch.int64, device=query.device)
++            if generation == 2
++            else torch.empty(0, dtype=torch.int64, device=query.device)
++        )
++        STATES[identity] = (codes, offsets, scales, descriptors)
++        print(
++            "PSPKV_FORMAT_COMPARISON "
++            + json.dumps(
++                {
++                    "format": name,
++                    "attention_impl": os.environ.get(
++                        "PSPKV_ASCEND_ATTENTION_IMPL", "auto"
++                    ),
++                    "precision": precision,
++                    "block_size": block_size,
++                    "physical_blocks": num_blocks,
++                    "unit_scales": True,
++                    "bf16_shadow_control": code == 0,
++                    "native_writer": (
++                        "packed_scatter_parallel"
++                        if optimized and code in (1, 2)
++                        else "packed_scatter"
++                    ),
++                    "optimized": optimized,
++                    "paged_min_length": paged_min_length,
++                    "attention_path": (
++                        "tile_fused_or_vector_paged"
++                        if os.environ.get("PSPKV_ASCEND_ATTENTION_IMPL", "auto")
++                        in ("auto", "fused")
++                        else "length_dispatch_scalar_or_native_paged"
++                        if optimized and paged_min_length
++                        else (
++                            "active_bf16_scratch_then_native_paged"
++                            if optimized
++                            else "scalar_packed_attention"
++                        )
++                    ),
++                    "decode_entry": "psp_attention_" + name,
++                    "metadata_bytes": sum(
++                        t.numel() * t.element_size() for t in STATES[identity]
++                    ),
++                }
++            ),
++            flush=True,
++        )
++        if os.environ.get("PSPKV_COMPARE_DIAGNOSTICS") == "1":
++            print(
++                "PSPKV_FORMAT_INPUT "
++                + json.dumps(
++                    {
++                        "format": name,
++                        "precision": precision,
++                        "tokens": actual,
++                        "key_max_abs": key[:actual].abs().max().item(),
++                        "value_max_abs": value[:actual].abs().max().item(),
++                        "key_abs_ge_248": (key[:actual].abs() >= 248).sum().item(),
++                        "value_abs_ge_248": (value[:actual].abs() >= 248).sum().item(),
++                    }
++                ),
++                flush=True,
++            )
++    codes, offsets, scales, descriptors = STATES[identity]
++    if code == 0:
++        assert seq_lens[0] <= 256
++        k_cache, v_cache = SHADOW_CACHES[identity]
++        slot_mapping = torch.arange(
++            prefix_length, prefix_length + actual, device=query.device
++        )
++    native = load_native_fp8_ops()
++    source = torch.stack((key[:actual], value[:actual]), dim=1).contiguous()
++    slots = slot_mapping.to(torch.int64).contiguous()
++    if optimized and code in (1, 2):
++        native.packed_scatter_parallel(
++            source,
++            k_cache.view(-1),
++            v_cache.view(-1),
++            slots,
++            codes,
++            offsets,
++            scales,
++            block_size,
++            generation,
++        )
++    else:
++        native.packed_scatter(
++            source,
++            k_cache.view(-1),
++            v_cache.view(-1),
++            slots,
++            codes,
++            offsets,
++            scales,
++            actual,
++            block_size,
++            generation,
++            False,
++        )
++    if num_queries == 1:
++        tables = (
++            block_tables[:1, : math.ceil(seq_lens[0] / block_size)]
++            .to(torch.int32)
++            .contiguous()
++        )
++        if code == 0:
++            tables = torch.arange(
++                math.ceil(seq_lens[0] / block_size),
++                dtype=torch.int32,
++                device=query.device,
++            ).unsqueeze(0)
++        lengths = torch.tensor(seq_lens, dtype=torch.int32, device=query.device)
++        args = [
++            query[:1].contiguous(),
++            k_cache.view(-1),
++            v_cache.view(-1),
++            tables,
++            lengths,
++            codes,
++            offsets,
++        ]
++        if generation:
++            args.append(scales)
++        if generation == 2:
++            args.append(descriptors)
++        args.extend((scale, kv_heads, dimension, result[:1]))
++        extra = (
++            {
++                "context_lens_cpu": torch.tensor(
++                    seq_lens, dtype=torch.int32, device="cpu"
++                )
++            }
++            if optimized and code in (1, 2) and seq_lens[0] >= paged_min_length
++            else {}
++        )
++        getattr(ServingOps(), "psp_attention_" + name)(*args, **extra)
++        return output
++    if prefix_length:
++        raise NotImplementedError("comparison adapter requires unchunked prefill")
++    if optimized:
++        import torch_npu
++
++        result[:actual].copy_(
++            torch_npu.npu_fused_infer_attention_score(
++                query=query[:actual].contiguous(),
++                key=key[:actual].contiguous(),
++                value=value[:actual].contiguous(),
++                num_heads=query.shape[1],
++                num_key_value_heads=kv_heads,
++                input_layout="TND",
++                actual_seq_lengths=[actual],
++                actual_seq_lengths_kv=[actual],
++                atten_mask=_causal_mask(query.device),
++                sparse_mode=3,
++                scale=scale,
++            )[0]
++        )
++        return output
++    groups = query.shape[1] // kv_heads
++    keys = key[:actual].float().repeat_interleave(groups, dim=1).transpose(0, 1)
++    values = value[:actual].float().repeat_interleave(groups, dim=1).transpose(0, 1)
++    scores = (
++        torch.bmm(query[:actual].float().transpose(0, 1), keys.transpose(1, 2)) * scale
++    )
++    positions = torch.arange(actual, device=query.device)
++    scores.masked_fill_(positions[None, :] > positions[:, None], float("-inf"))
++    result[:actual].copy_(
++        torch.bmm(torch.softmax(scores, dim=-1), values)
++        .transpose(0, 1)
++        .to(output.dtype)
++    )
++    return output
+--- /dev/null
++++ b/ascend/native/pspkv_tiled.h
+@@ -0,0 +1,446 @@
++// SPDX-License-Identifier: Apache-2.0
++// SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++#pragma once
++
++// Included after the reference codecs in pspkv_fp8.asc. All working storage is
++// private to one AIV. Tables and the transpose map are loaded once, not per
++// row.
++constexpr uint32_t PSPKV_TILE = 32;
++
++class PspkvTileDecoder {
++ public:
++  __aicore__ inline void Init(AscendC::TPipe& pipe, uint32_t dim, GM_ADDR e4,
++                              GM_ADDR e5, GM_ADDR permutation) {
++    dimension = dim;
++    count = PSPKV_TILE * dim;
++    pipe.InitBuffer(inputBuffer, count);
++    pipe.InitBuffer(halfBuffer, count * 2);
++    pipe.InitBuffer(indexBuffer, count * 4);
++    pipe.InitBuffer(decodedBuffer, count * 4);
++    pipe.InitBuffer(transposedBuffer, count * 4);
++    pipe.InitBuffer(permutationBuffer, count * 4);
++    pipe.InitBuffer(tableBuffer, 512 * 4);
++    pipe.InitBuffer(outputBuffer, count * 2);
++    bytes = inputBuffer.Get<uint8_t>();
++    halves = halfBuffer.Get<half>();
++    indices = indexBuffer.Get<int32_t>();
++    decoded = decodedBuffer.Get<float>();
++    transposed = transposedBuffer.Get<float>();
++    permutationLocal = permutationBuffer.Get<uint32_t>();
++    table = tableBuffer.Get<float>();
++    bf16 = outputBuffer.Get<bfloat16_t>();
++    AscendC::GlobalTensor<float> e4Global, e5Global;
++    AscendC::GlobalTensor<uint32_t> permutationGlobal;
++    e4Global.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(e4));
++    e5Global.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(e5));
++    permutationGlobal.SetGlobalBuffer(
++        reinterpret_cast<__gm__ uint32_t*>(permutation));
++    AscendC::DataCopy(table, e4Global, 256);
++    AscendC::DataCopy(table[256], e5Global, 256);
++    AscendC::DataCopy(permutationLocal, permutationGlobal, count);
++    pipe_barrier(PIPE_ALL);
++  }
++
++  __aicore__ inline AscendC::LocalTensor<float> Load(
++      AscendC::GlobalTensor<uint8_t>& source, uint32_t base, uint8_t code,
++      float scale, uint32_t token, uint32_t block_size, bool transpose,
++      bool token_major = true) {
++    if (code != 1 && code != 2) {
++      // Preserve mixed BF16/FP4 contracts; the FP8 hot path below contains
++      // no per-element scalar loads, conversions or stores.
++      auto result = transpose && token_major ? transposed : decoded;
++      for (uint32_t row = 0; row < PSPKV_TILE; ++row) {
++        for (uint32_t dim = 0; dim < dimension; ++dim) {
++          const uint32_t element = transpose ? dim * block_size + token + row
++                                             : (token + row) * dimension + dim;
++          result.SetValue(transpose && !token_major ? dim * PSPKV_TILE + row
++                                                    : row * dimension + dim,
++                          ReadPacked(source, base, element, code, 0, scale));
++        }
++      }
++      pipe_barrier(PIPE_ALL);
++      return result;
++    }
++    if (transpose) {
++      AscendC::DataCopyParams copy{
++          static_cast<uint16_t>(dimension), 1,
++          static_cast<uint16_t>((block_size - PSPKV_TILE) / 32), 0};
++      AscendC::DataCopy(bytes, source[base + token], copy);
++    } else {
++      AscendC::DataCopy(bytes, source[base + token * dimension], count);
++    }
++    pipe_barrier(PIPE_ALL);
++    // 910B has no native FP8 cast. Byte -> integer offsets -> FP32 UB LUT
++    // is entirely vectorized and also preserves subnormals and signed zero.
++    AscendC::Cast(halves, bytes, AscendC::RoundMode::CAST_NONE, count);
++    pipe_barrier(PIPE_V);
++    AscendC::Cast(indices, halves, AscendC::RoundMode::CAST_RINT, count);
++    pipe_barrier(PIPE_V);
++    auto offsets = indices.ReinterpretCast<uint32_t>();
++    AscendC::ShiftLeft(offsets, offsets, static_cast<uint32_t>(2), count);
++    pipe_barrier(PIPE_V);
++    AscendC::Gather(decoded, table, offsets, code == 2 ? 1024 : 0, count);
++    pipe_barrier(PIPE_V);
++    if (scale != 1.0f) {
++      AscendC::Muls(decoded, decoded, scale, count);
++      pipe_barrier(PIPE_V);
++    }
++    if (transpose && token_major) {
++      AscendC::Gather(transposed, decoded, permutationLocal, 0, count);
++      pipe_barrier(PIPE_V);
++      return transposed;
++    }
++    return decoded;
++  }
++
++  __aicore__ inline AscendC::LocalTensor<bfloat16_t> Round(
++      AscendC::LocalTensor<float> values) {
++    AscendC::Cast(bf16, values, AscendC::RoundMode::CAST_RINT, count);
++    pipe_barrier(PIPE_V);
++    return bf16;
++  }
++
++  __aicore__ inline void RoundInPlace(AscendC::LocalTensor<float> values) {
++    Round(values);
++    AscendC::Cast(values, bf16, AscendC::RoundMode::CAST_NONE, count);
++    pipe_barrier(PIPE_V);
++  }
++
++  __aicore__ inline AscendC::LocalTensor<float> DotProducts(
++      AscendC::LocalTensor<float> query, AscendC::LocalTensor<float> keys,
++      AscendC::LocalTensor<float> partials) {
++    // The lookup indices are dead after Load. Reuse their UB allocation
++    // for a broadcast query/product rather than reserving another matrix.
++    auto product = indices.ReinterpretCast<float>();
++    for (uint32_t dim = 0; dim < dimension; dim += 64) {
++      AscendC::Copy(product[dim], query[dim], 64, PSPKV_TILE,
++                    {1, 1, static_cast<uint16_t>(dimension / 8), 0});
++    }
++    pipe_barrier(PIPE_V);
++    AscendC::Mul(product, keys, product, count);
++    pipe_barrier(PIPE_V);
++    AscendC::WholeReduceSum(partials, product, 64, count / 64, 1, 1, 8);
++    pipe_barrier(PIPE_V);
++    return partials;
++  }
++
++  __aicore__ inline void WeightedSum(AscendC::LocalTensor<float> values,
++                                     AscendC::LocalTensor<float> probabilities,
++                                     AscendC::LocalTensor<float> accumulator,
++                                     float alpha, bool transpose) {
++    auto offsets = indices.ReinterpretCast<uint32_t>();
++    AscendC::CreateVecIndex(indices, static_cast<int32_t>(0), count);
++    pipe_barrier(PIPE_V);
++    AscendC::ShiftRight(offsets, offsets,
++                        static_cast<uint32_t>(dimension == 128 ? 7 : 8), count);
++    pipe_barrier(PIPE_V);
++    AscendC::ShiftLeft(offsets, offsets, static_cast<uint32_t>(2), count);
++    pipe_barrier(PIPE_V);
++    auto weights = transpose ? decoded : transposed;
++    AscendC::Gather(weights, probabilities, offsets, 0, count);
++    pipe_barrier(PIPE_V);
++    AscendC::Mul(values, values, weights, count);
++    pipe_barrier(PIPE_V);
++    // Tree reduction across tile rows, retaining all dimensions in SIMD.
++    for (uint32_t remaining = count / 2; remaining >= dimension;
++         remaining /= 2) {
++      AscendC::Add(values, values, values[remaining], remaining);
++      pipe_barrier(PIPE_V);
++    }
++    AscendC::Muls(accumulator, accumulator, alpha, dimension);
++    pipe_barrier(PIPE_V);
++    AscendC::Add(accumulator, accumulator, values, dimension);
++    pipe_barrier(PIPE_V);
++  }
++
++  __aicore__ inline void WeightedSumTransposed(
++      AscendC::LocalTensor<float> values,
++      AscendC::LocalTensor<float> probabilities,
++      AscendC::LocalTensor<float> accumulator, float alpha) {
++    // Keep Enhanced/BTKV V in its existing [dimension, token] layout in UB.
++    // Broadcast probabilities, then reduce each contiguous token row directly.
++    for (uint32_t dim = 0; dim < dimension; dim += 128) {
++      const uint32_t repeats = dimension - dim < 128 ? dimension - dim : 128;
++      AscendC::Mul(values[dim * PSPKV_TILE], values[dim * PSPKV_TILE],
++                   probabilities, PSPKV_TILE, repeats, {1, 1, 1, 4, 4, 0});
++      pipe_barrier(PIPE_V);
++      AscendC::WholeReduceSum(transposed[dim], values[dim * PSPKV_TILE],
++                              PSPKV_TILE, repeats, 1, 1, 4);
++    }
++    pipe_barrier(PIPE_V);
++    AscendC::Muls(accumulator, accumulator, alpha, dimension);
++    pipe_barrier(PIPE_V);
++    AscendC::Add(accumulator, accumulator, transposed, dimension);
++    pipe_barrier(PIPE_V);
++  }
++
++  uint32_t dimension, count;
++  AscendC::LocalTensor<bfloat16_t> bf16;
++
++ private:
++  AscendC::TBuf<AscendC::TPosition::VECCALC> inputBuffer, halfBuffer,
++      indexBuffer, decodedBuffer, transposedBuffer, permutationBuffer,
++      tableBuffer, outputBuffer;
++  AscendC::LocalTensor<uint8_t> bytes;
++  AscendC::LocalTensor<half> halves;
++  AscendC::LocalTensor<int32_t> indices;
++  AscendC::LocalTensor<uint32_t> permutationLocal;
++  AscendC::LocalTensor<float> decoded, transposed, table;
++};
++
++__global__ __vector__ void PspkvGatherPagedBF16Vec(
++    GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR block_tables,
++    GM_ADDR context_lens, GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales,
++    GM_ADDR e4, GM_ADDR e5, GM_ADDR permutation, GM_ADDR key_output,
++    GM_ADDR value_output, uint32_t seqs, uint32_t max_blocks, uint32_t heads,
++    uint32_t dimension, uint32_t block_size, uint32_t generation) {
++  AscendC::GlobalTensor<uint8_t> keys, values, codes;
++  AscendC::GlobalTensor<int32_t> tables, lengths, byte_offsets;
++  AscendC::GlobalTensor<float> per_head_scales;
++  AscendC::GlobalTensor<bfloat16_t> key_out, value_out;
++  keys.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(key_cache));
++  values.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_cache));
++  codes.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(formats));
++  tables.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(block_tables));
++  lengths.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(context_lens));
++  byte_offsets.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(offsets));
++  per_head_scales.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(scales));
++  key_out.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(key_output));
++  value_out.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(value_output));
++  AscendC::TPipe pipe;
++  PspkvTileDecoder decoder;
++  decoder.Init(pipe, dimension, e4, e5, permutation);
++  const uint32_t chunks = block_size / PSPKV_TILE;
++  const uint32_t tasks = seqs * max_blocks * heads * chunks;
++  for (uint32_t task = AscendC::GetBlockIdx(); task < 2 * tasks;
++       task += AscendC::GetBlockNum()) {
++    const bool is_key = task < tasks;
++    uint32_t index = task % tasks;
++    const uint32_t token = index % chunks * PSPKV_TILE;
++    index /= chunks;
++    const uint32_t head = index % heads;
++    index /= heads;
++    const uint32_t logical_block = index % max_blocks;
++    const uint32_t seq = index / max_blocks;
++    const uint32_t length = lengths.GetValue(seq);
++    const uint32_t start = logical_block * block_size + token;
++    auto local = decoder.bf16;
++    if (start >= length) {
++      AscendC::Duplicate(local.ReinterpretCast<uint16_t>(),
++                         static_cast<uint16_t>(0), decoder.count);
++    } else {
++      const uint32_t physical =
++          tables.GetValue(seq * max_blocks + logical_block);
++      const uint8_t code = codes.GetValue(physical);
++      const uint32_t base =
++          byte_offsets.GetValue(physical) +
++          head * PackedBytesPerHead(code, block_size, dimension, 0);
++      const float scale =
++          code == 0 || generation == 0
++              ? 1.0f
++              : per_head_scales.GetValue(physical * heads + head);
++      local = decoder.Round(decoder.Load(is_key ? keys : values, base, code,
++                                         scale, token, block_size,
++                                         !is_key && generation != 0));
++      if (start + PSPKV_TILE > length) {
++        AscendC::Duplicate(
++            local[(length - start) * dimension].ReinterpretCast<uint16_t>(),
++            static_cast<uint16_t>(0),
++            (start + PSPKV_TILE - length) * dimension);
++      }
++    }
++    pipe_barrier(PIPE_ALL);
++    const uint32_t destination =
++        ((seq * max_blocks + logical_block) * block_size + token) * heads *
++            dimension +
++        head * dimension;
++    AscendC::DataCopyParams copy{
++        PSPKV_TILE, static_cast<uint16_t>(dimension * 2 / 32), 0,
++        static_cast<uint16_t>((heads - 1) * dimension * 2 / 32)};
++    AscendC::DataCopy((is_key ? key_out : value_out)[destination], local, copy);
++    pipe_barrier(PIPE_ALL);
++  }
++}
++
++template <bool Profile>
++__global__ __vector__ void PspkvTileFusedAttention(
++    GM_ADDR query, GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR block_tables,
++    GM_ADDR context_lens, GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales,
++    GM_ADDR e4, GM_ADDR e5, GM_ADDR permutation, GM_ADDR output,
++    GM_ADDR statistics, uint32_t seqs, uint32_t heads, uint32_t kv_heads,
++    uint32_t dimension, uint32_t block_size, uint32_t max_blocks,
++    uint32_t generation, float softmax_scale) {
++  AscendC::GlobalTensor<uint8_t> keys, values, codes;
++  AscendC::GlobalTensor<int32_t> tables, lengths, byte_offsets;
++  AscendC::GlobalTensor<float> per_head_scales;
++  AscendC::GlobalTensor<bfloat16_t> q, out;
++  AscendC::GlobalTensor<int64_t> stats;
++  keys.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(key_cache));
++  values.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(value_cache));
++  codes.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t*>(formats));
++  tables.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(block_tables));
++  lengths.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(context_lens));
++  byte_offsets.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(offsets));
++  per_head_scales.SetGlobalBuffer(reinterpret_cast<__gm__ float*>(scales));
++  q.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(query));
++  out.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t*>(output));
++  if constexpr (Profile)
++    stats.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t*>(statistics));
++  AscendC::TPipe pipe;
++  PspkvTileDecoder decoder;
++  decoder.Init(pipe, dimension, e4, e5, permutation);
++  AscendC::TBuf<AscendC::TPosition::VECCALC> queryBuffer, queryFloatBuffer,
++      accumulatorBuffer, partialBuffer, scoreBuffer, temporaryBuffer,
++      reductionBuffer, offsetBuffer;
++  pipe.InitBuffer(queryBuffer, dimension * 2);
++  pipe.InitBuffer(queryFloatBuffer, dimension * 4);
++  pipe.InitBuffer(accumulatorBuffer, dimension * 4);
++  pipe.InitBuffer(partialBuffer, PSPKV_TILE * dimension / 64 * 4);
++  pipe.InitBuffer(scoreBuffer, PSPKV_TILE * 4);
++  pipe.InitBuffer(temporaryBuffer, PSPKV_TILE * 4);
++  pipe.InitBuffer(reductionBuffer, 64);
++  pipe.InitBuffer(offsetBuffer, PSPKV_TILE * 4);
++  auto qLocal = queryBuffer.Get<bfloat16_t>();
++  auto qFloat = queryFloatBuffer.Get<float>();
++  auto accumulator = accumulatorBuffer.Get<float>();
++  auto partials = partialBuffer.Get<float>();
++  auto scores = scoreBuffer.Get<float>();
++  auto temporary = temporaryBuffer.Get<float>();
++  auto reductions = reductionBuffer.Get<float>();
++  auto partialOffsets = offsetBuffer.Get<uint32_t>();
++  for (uint32_t i = 0; i < PSPKV_TILE; ++i) {
++    partialOffsets.SetValue(i, i * (dimension / 64) * 4);
++  }
++  pipe_barrier(PIPE_ALL);
++  for (uint32_t row = AscendC::GetBlockIdx(); row < seqs * heads;
++       row += AscendC::GetBlockNum()) {
++    const uint32_t seq = row / heads;
++    const uint32_t kv_head = (row % heads) / (heads / kv_heads);
++    const uint32_t length = lengths.GetValue(seq);
++    int64_t decode_cycles = 0, qk_cycles = 0, softmax_cycles = 0, pv_cycles = 0;
++    int64_t begin = 0, stamp = 0;
++    if constexpr (Profile) begin = AscendC::GetSystemCycle();
++    AscendC::DataCopy(qLocal, q[row * dimension], dimension);
++    pipe_barrier(PIPE_ALL);
++    AscendC::Cast(qFloat, qLocal, AscendC::RoundMode::CAST_NONE, dimension);
++    AscendC::Duplicate(accumulator, 0.0f, dimension);
++    pipe_barrier(PIPE_V);
++    float maximum = -3.402823466e38f, denominator = 0.0f;
++    for (uint32_t start = 0; start < length; start += PSPKV_TILE) {
++      if constexpr (Profile) {
++        pipe_barrier(PIPE_ALL);
++        stamp = AscendC::GetSystemCycle();
++      }
++      const uint32_t physical =
++          tables.GetValue(seq * max_blocks + start / block_size);
++      const uint8_t code = codes.GetValue(physical);
++      const uint32_t base =
++          byte_offsets.GetValue(physical) +
++          kv_head * PackedBytesPerHead(code, block_size, dimension, 0);
++      const float scale =
++          code == 0 || generation == 0
++              ? 1.0f
++              : per_head_scales.GetValue(physical * kv_heads + kv_head);
++      const uint32_t valid =
++          length - start < PSPKV_TILE ? length - start : PSPKV_TILE;
++      auto key = decoder.Load(keys, base, code, scale, start % block_size,
++                              block_size, false);
++      // Unscaled E4M3/E5M2 (and BF16/FP4 fallback values) are exactly
++      // representable in BF16. Only a non-unit scale needs BF16 rounding to
++      // match the materialized/native attention path.
++      if (scale != 1.0f) decoder.RoundInPlace(key);
++      if constexpr (Profile) {
++        pipe_barrier(PIPE_ALL);
++        auto now = AscendC::GetSystemCycle();
++        decode_cycles += now - stamp;
++        stamp = now;
++      }
++      decoder.DotProducts(qFloat, key, partials);
++      AscendC::Duplicate(scores, -3.402823466e38f, PSPKV_TILE);
++      pipe_barrier(PIPE_V);
++      AscendC::Gather(scores, partials, partialOffsets, 0, valid);
++      pipe_barrier(PIPE_V);
++      for (uint32_t part = 1; part < dimension / 64; ++part) {
++        AscendC::Gather(temporary, partials, partialOffsets, part * 4, valid);
++        pipe_barrier(PIPE_V);
++        AscendC::Add(scores, scores, temporary, valid);
++        pipe_barrier(PIPE_V);
++      }
++      AscendC::Muls(scores, scores, softmax_scale, valid);
++      pipe_barrier(PIPE_V);
++      if constexpr (Profile) {
++        pipe_barrier(PIPE_ALL);
++        auto now = AscendC::GetSystemCycle();
++        qk_cycles += now - stamp;
++        stamp = now;
++      }
++      AscendC::WholeReduceMax(reductions, scores, PSPKV_TILE, 1, 1, 1, 8,
++                              AscendC::ReduceOrder::ORDER_ONLY_VALUE);
++      pipe_barrier(PIPE_ALL);
++      const float tile_max = reductions.GetValue(0);
++      const float next_max = tile_max > maximum ? tile_max : maximum;
++      reductions.SetValue(8, maximum - next_max);
++      pipe_barrier(PIPE_ALL);
++      AscendC::Adds(scores, scores, -next_max, PSPKV_TILE);
++      pipe_barrier(PIPE_V);
++      AscendC::Exp(scores, scores, PSPKV_TILE);
++      AscendC::Exp(reductions[8], reductions[8], 1);
++      pipe_barrier(PIPE_V);
++      AscendC::WholeReduceSum(reductions, scores, PSPKV_TILE, 1, 1, 1, 8);
++      pipe_barrier(PIPE_ALL);
++      const float alpha = reductions.GetValue(8);
++      denominator = denominator * alpha + reductions.GetValue(0);
++      maximum = next_max;
++      if constexpr (Profile) {
++        auto now = AscendC::GetSystemCycle();
++        softmax_cycles += now - stamp;
++        stamp = now;
++      }
++      const bool direct_v = generation != 0 && valid == PSPKV_TILE;
++      auto value = decoder.Load(values, base, code, scale, start % block_size,
++                                block_size, generation != 0, !direct_v);
++      if (scale != 1.0f) decoder.RoundInPlace(value);
++      if constexpr (Profile) {
++        pipe_barrier(PIPE_ALL);
++        auto now = AscendC::GetSystemCycle();
++        decode_cycles += now - stamp;
++        stamp = now;
++      }
++      // Explicitly zero padding: an unwritten cache byte can decode to
++      // NaN/Inf, and multiplying it by a zero probability is not a mask.
++      if (valid < PSPKV_TILE) {
++        AscendC::Duplicate(value[valid * dimension], 0.0f,
++                           (PSPKV_TILE - valid) * dimension);
++        pipe_barrier(PIPE_V);
++      }
++      if (direct_v)
++        decoder.WeightedSumTransposed(value, scores, accumulator, alpha);
++      else
++        decoder.WeightedSum(value, scores, accumulator, alpha, generation != 0);
++      if constexpr (Profile) {
++        pipe_barrier(PIPE_ALL);
++        pv_cycles += AscendC::GetSystemCycle() - stamp;
++      }
++    }
++    AscendC::Muls(accumulator, accumulator,
++                  denominator == 0.0f ? 0.0f : 1.0f / denominator, dimension);
++    pipe_barrier(PIPE_V);
++    AscendC::Cast(qLocal, accumulator, AscendC::RoundMode::CAST_RINT,
++                  dimension);
++    pipe_barrier(PIPE_ALL);
++    AscendC::DataCopy(out[row * dimension], qLocal, dimension);
++    pipe_barrier(PIPE_ALL);
++    if constexpr (Profile) {
++      // One full cache line per head prevents scalar GM write races.
++      stats.SetValue(row * 8, decode_cycles);
++      stats.SetValue(row * 8 + 1, qk_cycles);
++      stats.SetValue(row * 8 + 2, softmax_cycles);
++      stats.SetValue(row * 8 + 3, pv_cycles);
++      stats.SetValue(row * 8 + 4, AscendC::GetSystemCycle() - begin);
++      stats.SetValue(row * 8 + 5, 0);
++      stats.SetValue(row * 8 + 6, 0);
++      stats.SetValue(row * 8 + 7, 0);
++    }
++  }
++}
+--- /dev/null
++++ b/ascend/check_tiled_attention_npu.py
+@@ -0,0 +1,302 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Validate and profile UB vector decode and optional tile-fused attention."""
++
++# Closures are consumed within the current test case.
++# ruff: noqa: B023
++
++import argparse
++import hashlib
++import json
++import math
++import os
++from pathlib import Path
++
++import torch
++import torch_npu
++from analyze_attention_performance import measure
++
++from tests.v1.attention.psp_kv_reference import pack_kv_cache
++from vllm.v1.attention.backends.psp_kv_ascend_native import load_native_fp8_ops
++from vllm.v1.attention.backends.psp_kv_ascend_ops import (
++    _ATTENTION_IMPL,
++    PSPKVAscendPackedOps,
++    _tile_permutation,
++    packed_lookup_tables,
++)
++
++
++def fixture(lengths, generation, dim=128, pattern="e4", nonunit=False):
++    block, heads, kv_heads = 128, 28, 4
++    pages = math.ceil(max(lengths) / block)
++    count = pages * len(lengths)
++    codes = torch.tensor(
++        [
++            (i % 4 if pattern == "mixed" else 2 if pattern == "e5" else 1)
++            for i in range(count)
++        ],
++        dtype=torch.uint8,
++    )
++    key = (torch.randn(count, kv_heads, block, dim) * 0.3).clamp(-1.5, 1.5).bfloat16()
++    value = (torch.randn_like(key.float()) * 0.3).clamp(-1.5, 1.5).bfloat16()
++    k, v, offsets = pack_kv_cache(key, value, generation, codes, torch.bfloat16)
++    tables = torch.randperm(count).to(torch.int32).view(len(lengths), pages)
++    lens_cpu = torch.tensor(lengths, dtype=torch.int32)
++    scales = (
++        torch.rand(count, kv_heads) + 0.5 if nonunit else torch.ones(count, kv_heads)
++    )
++    k, v, tables, lens, codes, offsets, scales = [
++        t.to("npu") for t in (k, v, tables, lens_cpu, codes, offsets, scales)
++    ]
++    query = torch.randn(len(lengths), heads, dim).bfloat16().to("npu")
++    e4, e5, _ = packed_lookup_tables(query.device)
++    permutation = _tile_permutation(query.device, dim)
++    native = load_native_fp8_ops()
++    common = (k, v, tables, lens, codes, offsets, scales)
++    geometry = (generation, kv_heads, dim, block)
++
++    def scalar_gather():
++        return native.gather_paged_bf16(*common, *geometry)
++
++    def vector_gather():
++        return native.gather_paged_bf16_vec(*common, e4, e5, permutation, *geometry)
++
++    dense_k, dense_v = scalar_gather()
++    vector_k, vector_v = vector_gather()
++    torch.npu.synchronize()
++    torch.testing.assert_close(
++        vector_k.cpu(), dense_k.cpu(), atol=0, rtol=0, equal_nan=True
++    )
++    torch.testing.assert_close(
++        vector_v.cpu(), dense_v.cpu(), atol=0, rtol=0, equal_nan=True
++    )
++    output = torch.empty_like(query)
++    scale = 1 / math.sqrt(dim)
++
++    # Keep the canonical scratch table outside the measured closure.
++    canonical = torch.arange(count, device="npu", dtype=torch.int32).view(
++        len(lengths), pages
++    )
++
++    def native_paged():
++        torch_npu._npu_paged_attention(
++            query=query,
++            key_cache=dense_k,
++            value_cache=dense_v,
++            num_kv_heads=kv_heads,
++            num_heads=heads,
++            scale_value=scale,
++            block_table=canonical,
++            context_lens=lens_cpu,
++            out=output,
++        )
++
++    ops = PSPKVAscendPackedOps()
++
++    def wrapper():
++        ops._attention(
++            generation,
++            query,
++            k,
++            v,
++            tables,
++            lens,
++            codes,
++            offsets,
++            scales if generation else None,
++            scale,
++            kv_heads,
++            dim,
++            output,
++            block_size=block,
++            context_lens_cpu=lens_cpu,
++        )
++
++    native_paged()
++    torch.npu.synchronize()
++    expected = output.cpu().clone()
++    wrapper()
++    torch.npu.synchronize()
++    torch.testing.assert_close(output.cpu(), expected, atol=1e-2, rtol=1e-2)
++    errors = {
++        "public_max_abs": (output.cpu().float() - expected.float()).abs().max().item()
++    }
++    calls = {
++        "scalar_gather": scalar_gather,
++        "vector_gather": vector_gather,
++        "native_paged": native_paged,
++        "public_wrapper": wrapper,
++    }
++    if hasattr(native, "tile_fused_attention"):
++
++        def fused():
++            native.tile_fused_attention(
++                query,
++                *common,
++                e4,
++                e5,
++                permutation,
++                generation,
++                kv_heads,
++                block,
++                scale,
++                output,
++                0,
++            )
++
++        fused()
++        torch.npu.synchronize()
++        torch.testing.assert_close(output.cpu(), expected, atol=1e-2, rtol=1e-2)
++        errors["fused_max_abs"] = (
++            (output.cpu().float() - expected.float()).abs().max().item()
++        )
++        calls["tile_fused"] = fused
++
++    def profile_fused():
++        return native.tile_fused_attention(
++            query,
++            *common,
++            e4,
++            e5,
++            permutation,
++            generation,
++            kv_heads,
++            block,
++            scale,
++            output,
++            1,
++        )
++
++    return calls, profile_fused if "tile_fused" in calls else None, errors
++
++
++def check_all_codes():
++    native = load_native_fp8_ops()
++    rows = []
++    for dim in (128, 256):
++        for code in (1, 2):
++            for generation in range(3):
++                size = 128 * 4 * dim
++                cache = (torch.arange(size) % 256).byte().to("npu")
++                table = torch.zeros(1, 1, dtype=torch.int32, device="npu")
++                lengths = torch.tensor([128], dtype=torch.int32, device="npu")
++                codes = torch.tensor([code], dtype=torch.uint8, device="npu")
++                offsets = torch.zeros(1, dtype=torch.int32, device="npu")
++                scales = torch.full((1, 4), 1.25, device="npu")
++                e4, e5, _ = packed_lookup_tables(cache.device)
++                args = (cache, cache, table, lengths, codes, offsets, scales)
++                old = native.gather_paged_bf16(*args, generation, 4, dim, 128)
++                new = native.gather_paged_bf16_vec(
++                    *args,
++                    e4,
++                    e5,
++                    _tile_permutation(cache.device, dim),
++                    generation,
++                    4,
++                    dim,
++                    128,
++                )
++                for before, after in zip(old, new):
++                    before, after = before.cpu(), after.cpu()
++                    mask = ~torch.isnan(before)
++                    assert torch.equal(
++                        before.view(torch.int16)[mask], after.view(torch.int16)[mask]
++                    )
++                    assert torch.equal(torch.isnan(before), torch.isnan(after))
++                rows.append({"dim": dim, "code": code, "generation": generation})
++    return rows
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--trace-dir", type=Path)
++    parser.add_argument("--quick", action="store_true")
++    args = parser.parse_args()
++    torch.set_num_threads(2)
++    torch.manual_seed(20261025)
++    torch.npu.set_device(0)
++    report = {
++        "checks": [],
++        "timings": [],
++        "all_codes": check_all_codes(),
++        "attention_impl": _ATTENTION_IMPL,
++        "torch": str(torch.__version__),
++        "library_sha256": hashlib.sha256(
++            Path(os.environ["PSPKV_ASCEND_NATIVE_LIB"]).read_bytes()
++        ).hexdigest(),
++    }
++    for dim in (128,) if args.quick else (128, 256):
++        for generation in range(3):
++            for pattern in ("e4",) if args.quick else ("e4", "e5", "mixed"):
++                for lengths in (
++                    [3],
++                    [135],
++                    [512],
++                    [3, 135],
++                    [31, 33],
++                    [127, 129],
++                    [255, 257],
++                ):
++                    _, _, errors = fixture(
++                        lengths, generation, dim, pattern, nonunit=generation != 0
++                    )
++                    report["checks"].append(
++                        {
++                            "dim": dim,
++                            "generation": generation,
++                            "pattern": pattern,
++                            "lengths": lengths,
++                            **errors,
++                        }
++                    )
++    for length in (32, 160, 512, 2048):
++        for generation in range(3):
++            calls, profile_fused, errors = fixture([length], generation)
++            row = {
++                "length": length,
++                "format": ("basic", "enhanced", "btkv")[generation],
++                **errors,
++                "stages": {name: measure(fn, 20, 5) for name, fn in calls.items()},
++            }
++            report["timings"].append(row)
++            if profile_fused is not None:
++                cycles = profile_fused().cpu()
++                # 910B system counter is 50 MHz. Profiling adds barriers and
++                # excludes one-time LUT/transpose-map initialization.
++                row["instrumented_fused_per_head_us"] = (
++                    cycles[:, :5].double() / 50
++                ).tolist()
++            args.output.write_text(json.dumps(report, indent=2))
++            print(json.dumps(row), flush=True)
++            if args.trace_dir and generation == 0 and length in (32, 160, 2048):
++                config = torch_npu.profiler._ExperimentalConfig(
++                    profiler_level=torch_npu.profiler.ProfilerLevel.Level1,
++                    aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
++                )
++                with torch_npu.profiler.profile(
++                    activities=[
++                        torch_npu.profiler.ProfilerActivity.CPU,
++                        torch_npu.profiler.ProfilerActivity.NPU,
++                    ],
++                    on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
++                        str(args.trace_dir / str(length))
++                    ),
++                    experimental_config=config,
++                ):
++                    for _ in range(3):
++                        for name, fn in calls.items():
++                            with torch.autograd.profiler.record_function(name):
++                                fn()
++                    torch.npu.synchronize()
++    args.output.write_text(json.dumps(report, indent=2))
++    print(
++        f"PASS: {len(report['checks'])} numerical cases, "
++        f"{len(report['timings'])} timed cases",
++        flush=True,
++    )
++
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
++++ b/ascend/serve_initialized_npu.py
+@@ -0,0 +1,19 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Test-container entry point: initialize NPU before ATB loads in spawn workers.
++
++This file is also executed as __mp_main__ by Python's spawn bootstrap. Keep
++device initialization at module scope so child workers follow the same order.
++Only use this entry point for the single-device comparison containers.
++"""
++
++import torch
++import torch_npu  # noqa: F401
++
++torch.npu.set_device(0)
++
++if __name__ == "__main__":
++    from vllm.entrypoints.cli.main import main
++
++    main()
+--- /dev/null
++++ b/ascend/profile_model_client.py
+@@ -0,0 +1,55 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Capture two extra requests after latency measurement; never mix samples."""
++
++import argparse
++import json
++import urllib.request
++from pathlib import Path
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--port", type=int, required=True)
++    parser.add_argument("--input", type=Path, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    measured = json.loads(args.input.read_text())
++    base = f"http://127.0.0.1:{args.port}"
++
++    def post(path, payload):
++        request = urllib.request.Request(
++            base + path,
++            data=json.dumps(payload).encode(),
++            headers={"Content-Type": "application/json"},
++        )
++        with urllib.request.urlopen(request, timeout=180) as response:
++            return response.read()
++
++    results = []
++    post("/start_profile", {})
++    try:
++        for profile in ("cross_page", "short"):
++            response = json.loads(
++                post(
++                    "/v1/completions",
++                    {
++                        "model": measured["model"],
++                        "prompt": measured["profiles"][profile],
++                        "max_tokens": 4,
++                        "temperature": 0,
++                        "seed": 123,
++                        "ignore_eos": True,
++                    },
++                )
++            )
++            assert response["usage"]["completion_tokens"] == 4
++            results.append({"profile": profile, "response": response})
++    finally:
++        post("/stop_profile", {})
++    args.output.write_text(json.dumps(results, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()

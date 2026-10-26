@@ -1,0 +1,5 @@
+[2026-10-24-15:22:40.746] [INFO] [AscendProfiler_KernelViewParser:97] Profiler logger initialized at: /vector/results/profiler-final/160/aa4241676d17_1_20261024152237903_ascend_pt/logs/profiler_20261024152240_760_KernelViewParser.log
+[2026-10-24-15:22:40.746] [INFO] [AscendProfiler_KernelViewParser:38] KernelViewParser start.
+[2026-10-24-15:22:40.746] [WARNING] [AscendProfiler_KernelViewParser:69] Get step range failed, the step node list is empty.
+[2026-10-24-15:22:40.746] [WARNING] [AscendProfiler_KernelViewParser:82] Kernel view get step range failed, the step range is empty.
+[2026-10-24-15:22:40.749] [INFO] [AscendProfiler_KernelViewParser:46] KernelViewParser finish.

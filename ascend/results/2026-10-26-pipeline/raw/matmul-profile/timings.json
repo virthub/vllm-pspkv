@@ -1,0 +1,110 @@
+[
+  {
+    "projection": "qkv",
+    "tokens": 1,
+    "inner": 3584,
+    "outer": 4608,
+    "host_loop_ms": 0.028558261692523956,
+    "useful_flops": 33030144,
+    "weight_bytes": 33030144
+  },
+  {
+    "projection": "qkv",
+    "tokens": 16,
+    "inner": 3584,
+    "outer": 4608,
+    "host_loop_ms": 0.022975169122219086,
+    "useful_flops": 528482304,
+    "weight_bytes": 33030144
+  },
+  {
+    "projection": "qkv",
+    "tokens": 135,
+    "inner": 3584,
+    "outer": 4608,
+    "host_loop_ms": 0.0367727130651474,
+    "useful_flops": 4459069440,
+    "weight_bytes": 33030144
+  },
+  {
+    "projection": "o_proj",
+    "tokens": 1,
+    "inner": 3584,
+    "outer": 3584,
+    "host_loop_ms": 0.0229664146900177,
+    "useful_flops": 25690112,
+    "weight_bytes": 25690112
+  },
+  {
+    "projection": "o_proj",
+    "tokens": 16,
+    "inner": 3584,
+    "outer": 3584,
+    "host_loop_ms": 0.024156831204891205,
+    "useful_flops": 411041792,
+    "weight_bytes": 25690112
+  },
+  {
+    "projection": "o_proj",
+    "tokens": 135,
+    "inner": 3584,
+    "outer": 3584,
+    "host_loop_ms": 0.02950616180896759,
+    "useful_flops": 3468165120,
+    "weight_bytes": 25690112
+  },
+  {
+    "projection": "gate_up",
+    "tokens": 1,
+    "inner": 3584,
+    "outer": 37888,
+    "host_loop_ms": 0.2149716019630432,
+    "useful_flops": 271581184,
+    "weight_bytes": 271581184
+  },
+  {
+    "projection": "gate_up",
+    "tokens": 16,
+    "inner": 3584,
+    "outer": 37888,
+    "host_loop_ms": 0.22748969495296478,
+    "useful_flops": 4345298944,
+    "weight_bytes": 271581184
+  },
+  {
+    "projection": "gate_up",
+    "tokens": 135,
+    "inner": 3584,
+    "outer": 37888,
+    "host_loop_ms": 0.37166252732276917,
+    "useful_flops": 36663459840,
+    "weight_bytes": 271581184
+  },
+  {
+    "projection": "down",
+    "tokens": 1,
+    "inner": 18944,
+    "outer": 3584,
+    "host_loop_ms": 0.11080317199230194,
+    "useful_flops": 135790592,
+    "weight_bytes": 135790592
+  },
+  {
+    "projection": "down",
+    "tokens": 16,
+    "inner": 18944,
+    "outer": 3584,
+    "host_loop_ms": 0.06584357470273972,
+    "useful_flops": 2172649472,
+    "weight_bytes": 135790592
+  },
+  {
+    "projection": "down",
+    "tokens": 135,
+    "inner": 18944,
+    "outer": 3584,
+    "host_loop_ms": 0.12678876519203186,
+    "useful_flops": 18331729920,
+    "weight_bytes": 135790592
+  }
+]

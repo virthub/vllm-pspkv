@@ -1,0 +1,101 @@
+{
+  "scope": "Independent warmed repeated projections, not whole model utilization. Pipeline activity fractions can overlap; cached weights affect measurements. All 12 expected matmuls are present in both traces.",
+  "rows": [
+    {
+      "shape": "\"1,3584;4608,3584\"",
+      "pipe_run_duration_us": 45.86,
+      "mac_ratio": 0.075,
+      "mte2_ratio": 0.936,
+      "memory_run_duration_us": 35.78,
+      "gm_read_kb": 32403.5
+    },
+    {
+      "shape": "\"16,3584;4608,3584\"",
+      "pipe_run_duration_us": 14.62,
+      "mac_ratio": 0.242,
+      "mte2_ratio": 0.746,
+      "memory_run_duration_us": 14.58,
+      "gm_read_kb": 35847.5
+    },
+    {
+      "shape": "\"135,3584;4608,3584\"",
+      "pipe_run_duration_us": 34.12,
+      "mac_ratio": 0.652,
+      "mte2_ratio": 0.884,
+      "memory_run_duration_us": 34.3,
+      "gm_read_kb": 98538.75
+    },
+    {
+      "shape": "\"1,3584;3584,3584\"",
+      "pipe_run_duration_us": 35.344,
+      "mac_ratio": 0.098,
+      "mte2_ratio": 0.933,
+      "memory_run_duration_us": 28.98,
+      "gm_read_kb": 25228.125
+    },
+    {
+      "shape": "\"16,3584;3584,3584\"",
+      "pipe_run_duration_us": 12.856,
+      "mac_ratio": 0.279,
+      "mte2_ratio": 0.746,
+      "memory_run_duration_us": 12.936,
+      "gm_read_kb": 27671.125
+    },
+    {
+      "shape": "\"135,3584;3584,3584\"",
+      "pipe_run_duration_us": 27.92,
+      "mac_ratio": 0.596,
+      "mte2_ratio": 0.844,
+      "memory_run_duration_us": 27.62,
+      "gm_read_kb": 78533.5
+    },
+    {
+      "shape": "\"1,3584;37888,3584\"",
+      "pipe_run_duration_us": 262.744,
+      "mac_ratio": 0.105,
+      "mte2_ratio": 0.986,
+      "memory_run_duration_us": 229.064,
+      "gm_read_kb": 265356.125
+    },
+    {
+      "shape": "\"16,3584;37888,3584\"",
+      "pipe_run_duration_us": 220.624,
+      "mac_ratio": 0.127,
+      "mte2_ratio": 0.988,
+      "memory_run_duration_us": 221.844,
+      "gm_read_kb": 274519.125
+    },
+    {
+      "shape": "\"135,3584;37888,3584\"",
+      "pipe_run_duration_us": 335.828,
+      "mac_ratio": 0.505,
+      "mte2_ratio": 0.982,
+      "memory_run_duration_us": 330.148,
+      "gm_read_kb": 813939.5
+    },
+    {
+      "shape": "\"1,18944;3584,18944\"",
+      "pipe_run_duration_us": 146.94,
+      "mac_ratio": 0.173,
+      "mte2_ratio": 0.888,
+      "memory_run_duration_us": 145.744,
+      "gm_read_kb": 134021.125
+    },
+    {
+      "shape": "\"16,18944;3584,18944\"",
+      "pipe_run_duration_us": 63.604,
+      "mac_ratio": 0.423,
+      "mte2_ratio": 0.928,
+      "memory_run_duration_us": 63.26,
+      "gm_read_kb": 157479.125
+    },
+    {
+      "shape": "\"135,18944;3584,18944\"",
+      "pipe_run_duration_us": 127.124,
+      "mac_ratio": 0.667,
+      "mte2_ratio": 0.956,
+      "memory_run_duration_us": 128.824,
+      "gm_read_kb": 415073.5
+    }
+  ]
+}

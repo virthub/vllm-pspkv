@@ -1,0 +1,74 @@
+[
+  {
+    "format": "basic",
+    "profile": "short",
+    "bf16_s": 1.6029646545648575,
+    "vector_s": 1.7414816599339247,
+    "fused_s": 1.728556064888835,
+    "vs_vector_percent": -0.7422182697910285,
+    "vs_bf16_percent": 7.834945703033647,
+    "vector_tpot_ms": 52.5021840848269,
+    "fused_tpot_ms": 51.075457805587405,
+    "bf16_tpot_ms": 48.1290016323328
+  },
+  {
+    "format": "basic",
+    "profile": "cross_page",
+    "bf16_s": 1.577443666756153,
+    "vector_s": 1.7398756444454193,
+    "fused_s": 1.6702498644590378,
+    "vs_vector_percent": -4.001767609579621,
+    "vs_bf16_percent": 5.883328809689337,
+    "vector_tpot_ms": 52.570966643191156,
+    "fused_tpot_ms": 50.32572955373794,
+    "bf16_tpot_ms": 47.57012510972638
+  },
+  {
+    "format": "enhanced",
+    "profile": "short",
+    "bf16_s": 1.6029646545648575,
+    "vector_s": 1.7990226820111275,
+    "fused_s": 1.6581092029809952,
+    "vs_vector_percent": -7.832779455154237,
+    "vs_bf16_percent": 3.4401599722800658,
+    "vector_tpot_ms": 53.930115916075245,
+    "fused_tpot_ms": 49.76776374443885,
+    "bf16_tpot_ms": 48.1290016323328
+  },
+  {
+    "format": "enhanced",
+    "profile": "cross_page",
+    "bf16_s": 1.577443666756153,
+    "vector_s": 1.7964363116770983,
+    "fused_s": 1.6577942837029696,
+    "vs_vector_percent": -7.717614427683039,
+    "vs_bf16_percent": 5.093723385510751,
+    "vector_tpot_ms": 54.34982851147652,
+    "fused_tpot_ms": 49.855684140516864,
+    "bf16_tpot_ms": 47.57012510972638
+  },
+  {
+    "format": "btkv",
+    "profile": "short",
+    "bf16_s": 1.6029646545648575,
+    "vector_s": 1.7871142905205488,
+    "fused_s": 1.6264152340590954,
+    "vs_vector_percent": -8.992097333329763,
+    "vs_bf16_percent": 1.46295050408356,
+    "vector_tpot_ms": 53.8728176465919,
+    "fused_tpot_ms": 48.98847933978804,
+    "bf16_tpot_ms": 48.1290016323328
+  },
+  {
+    "format": "btkv",
+    "profile": "cross_page",
+    "bf16_s": 1.577443666756153,
+    "vector_s": 1.7176657114177942,
+    "fused_s": 1.6625605430454016,
+    "vs_vector_percent": -3.2081427722573386,
+    "vs_bf16_percent": 5.395874228858033,
+    "vector_tpot_ms": 51.78349657404807,
+    "fused_tpot_ms": 49.80752851453519,
+    "bf16_tpot_ms": 47.57012510972638
+  }
+]

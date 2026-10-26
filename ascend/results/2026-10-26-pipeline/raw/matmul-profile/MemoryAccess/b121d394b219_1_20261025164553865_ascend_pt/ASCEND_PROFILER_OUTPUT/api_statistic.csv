@@ -1,0 +1,9 @@
+Device_id,Level,API Name,Time(us),Count,Avg(us),Min(us),Max(us),Variance
+host,runtime,DeviceSynchronize,374.65,2,187.325,6.39,368.26,32737.474
+host,runtime,LaunchKernelV2,99.52,12,8.293,3.68,30.24,65.438
+host,runtime,StreamSyncTaskFinish,0,1,0,0,0,0
+host,acl,aclnnMatmul,250.21,12,20.851,9.69,84.81,465.15
+host,acl,aclrtGetStreamAttribute,9.91,12,0.826,0.44,2.2,0.393
+host,acl,aclrtLaunchKernelWithHostArgs,131.67,12,10.972,5.09,39.43,106.421
+host,acl,aclrtSynchronizeDeviceWithTimeout,383.06,2,191.53,9,374.06,33317.201
+host,node,launch,167,12,13.917,6.08,56.72,212.552

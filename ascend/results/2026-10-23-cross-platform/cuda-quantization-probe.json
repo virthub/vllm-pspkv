@@ -1,0 +1,117 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "architecture": "compute_89",
+  "source_revision": "f613ce1",
+  "scope": "original CUDA quantization header; E4M3 encode/decode probe",
+  "kernels": {
+    "basic": {
+      "source": "csrc/attention/psp_kv/basic/paged_attention_basic.cu",
+      "source_sha256": "ac24fe3589e792c55b21f5e50a5412c62910440651c4ea12b39cdd5d69c3a279",
+      "header_sha256": "e8038ed9d04b8be74fd01c97848b63ff4563ba3a0a1afca02099798c5ed18086",
+      "compiler_options": [
+        "--std=c++17",
+        "--gpu-architecture=compute_89",
+        "--include-path=/tmp/pspkv-cuda-reference/.venv/lib/python3.12/site-packages/nvidia/cuda_runtime/include"
+      ]
+    }
+  },
+  "cases": [],
+  "quantization_probe": [
+    {
+      "input": 0.0,
+      "original_cuda_byte": 0,
+      "original_cuda_decoded": 0.0,
+      "torch_e4m3fn_decoded": 0.0
+    },
+    {
+      "input": 1.0,
+      "original_cuda_byte": 56,
+      "original_cuda_decoded": 1.0,
+      "torch_e4m3fn_decoded": 1.0
+    },
+    {
+      "input": 240.0,
+      "original_cuda_byte": 119,
+      "original_cuda_decoded": 240.0,
+      "torch_e4m3fn_decoded": 240.0
+    },
+    {
+      "input": 248.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 256.0
+    },
+    {
+      "input": 256.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 256.0
+    },
+    {
+      "input": 272.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 256.0
+    },
+    {
+      "input": 288.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 288.0
+    },
+    {
+      "input": 320.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 320.0
+    },
+    {
+      "input": 352.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 352.0
+    },
+    {
+      "input": 384.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 384.0
+    },
+    {
+      "input": 416.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 416.0
+    },
+    {
+      "input": 418.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 416.0
+    },
+    {
+      "input": 432.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 448.0
+    },
+    {
+      "input": 448.0,
+      "original_cuda_byte": 120,
+      "original_cuda_decoded": 256.0,
+      "torch_e4m3fn_decoded": 448.0
+    },
+    {
+      "input": -418.0,
+      "original_cuda_byte": 248,
+      "original_cuda_decoded": -256.0,
+      "torch_e4m3fn_decoded": -416.0
+    },
+    {
+      "input": -448.0,
+      "original_cuda_byte": 248,
+      "original_cuda_decoded": -256.0,
+      "torch_e4m3fn_decoded": -448.0
+    }
+  ]
+}

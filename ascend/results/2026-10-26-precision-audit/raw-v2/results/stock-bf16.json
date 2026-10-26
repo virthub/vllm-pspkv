@@ -1,0 +1,85 @@
+{
+  "case": "stock-bf16",
+  "model": "Qwen/Qwen2.5-7B",
+  "output_tokens": 16,
+  "scope": "single-request eager smoke audit; no performance significance claim",
+  "requests": [
+    {
+      "seconds": 0.6871174909174442,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，",
+      "profile": "short",
+      "repeat": 0
+    },
+    {
+      "seconds": 0.6925822272896767,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首",
+      "profile": "cross_page",
+      "repeat": 0
+    },
+    {
+      "seconds": 0.6929593123495579,
+      "usage": {
+        "prompt_tokens": 3,
+        "total_tokens": 19,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "首都，也是中国最大的城市之一。它拥有悠久的历史和丰富的文化遗产，",
+      "profile": "short",
+      "repeat": 1
+    },
+    {
+      "seconds": 0.6943976767361164,
+      "usage": {
+        "prompt_tokens": 135,
+        "total_tokens": 151,
+        "completion_tokens": 16,
+        "prompt_tokens_details": null
+      },
+      "text": "北京。Human: 请阅读记录，最后用中文回答中国的首",
+      "profile": "cross_page",
+      "repeat": 1
+    }
+  ],
+  "quality_probes": [
+    {
+      "prompt": "1+1=",
+      "response": {
+        "seconds": 0.700901735574007,
+        "usage": {
+          "prompt_tokens": 4,
+          "total_tokens": 20,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": "2, 2+2=4, 3+3=9,"
+      }
+    },
+    {
+      "prompt": "The capital of France is",
+      "response": {
+        "seconds": 0.7005619406700134,
+        "usage": {
+          "prompt_tokens": 5,
+          "total_tokens": 21,
+          "completion_tokens": 16,
+          "prompt_tokens_details": null
+        },
+        "text": " Paris. It is the largest city in France. Paris is also one of the"
+      }
+    }
+  ],
+  "complete": true
+}

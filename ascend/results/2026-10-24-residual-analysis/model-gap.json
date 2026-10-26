@@ -1,0 +1,50 @@
+[
+  {
+    "format": "basic",
+    "profile": "short",
+    "extra_latency_ms": 286.38395108282566,
+    "extra_ttft_ms": 10.35032793879509,
+    "extra_tpot_ms": 8.653789277999635,
+    "per_layer_extra_tpot_ms_estimate": 0.3090639027857013
+  },
+  {
+    "format": "basic",
+    "profile": "cross_page",
+    "extra_latency_ms": 211.97938919067383,
+    "extra_ttft_ms": 7.901199162006378,
+    "extra_tpot_ms": 6.37559106032694,
+    "per_layer_extra_tpot_ms_estimate": 0.22769968072596214
+  },
+  {
+    "format": "enhanced",
+    "profile": "short",
+    "extra_latency_ms": 259.42627154290676,
+    "extra_ttft_ms": 10.511057451367378,
+    "extra_tpot_ms": 7.89455552735636,
+    "per_layer_extra_tpot_ms_estimate": 0.2819484116912986
+  },
+  {
+    "format": "enhanced",
+    "profile": "cross_page",
+    "extra_latency_ms": 228.96108776330948,
+    "extra_ttft_ms": 10.762086138129234,
+    "extra_tpot_ms": 7.008100829778172,
+    "per_layer_extra_tpot_ms_estimate": 0.25028931534922044
+  },
+  {
+    "format": "btkv",
+    "profile": "short",
+    "extra_latency_ms": 235.79107224941254,
+    "extra_ttft_ms": 11.677190661430359,
+    "extra_tpot_ms": 7.270028514246789,
+    "per_layer_extra_tpot_ms_estimate": 0.2596438755088139
+  },
+  {
+    "format": "btkv",
+    "profile": "cross_page",
+    "extra_latency_ms": 168.1852862238884,
+    "extra_ttft_ms": 7.857246324419975,
+    "extra_tpot_ms": 5.30983940247566,
+    "per_layer_extra_tpot_ms_estimate": 0.18963712151698786
+  }
+]

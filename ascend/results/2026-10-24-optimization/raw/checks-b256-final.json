@@ -1,0 +1,378 @@
+{
+  "writes": [
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "basic",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "enhanced",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        1
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        2
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 3,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 135,
+      "byte_equal": true
+    },
+    {
+      "format": "btkv",
+      "pattern": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "tokens": 257,
+      "byte_equal": true
+    }
+  ],
+  "attention": [
+    {
+      "format": "basic",
+      "lengths": [
+        3
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        160
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        512
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        2048
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "basic",
+      "lengths": [
+        3,
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        160
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        512
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        2048
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "enhanced",
+      "lengths": [
+        3,
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        160
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        512
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        2048
+      ],
+      "unsupported_page_size_rejected": true
+    },
+    {
+      "format": "btkv",
+      "lengths": [
+        3,
+        135
+      ],
+      "unsupported_page_size_rejected": true
+    }
+  ]
+}

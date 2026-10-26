@@ -1,0 +1,23 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+/optimization/ascend/check_optimized_formats_npu.py:137: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  before, after = torch.empty_like(query), torch.empty_like(query)
+{"format": "basic", "lengths": [3], "max_abs_error": 0.00390625, "original_ms": 0.24226605892181396, "optimized_ms": 0.16595833003520966, "bf16_scratch_bytes": 262144}
+{"format": "basic", "lengths": [135], "max_abs_error": 0.0009765625, "original_ms": 1.97853185236454, "optimized_ms": 0.3621004521846771, "bf16_scratch_bytes": 524288}
+{"format": "basic", "lengths": [160], "max_abs_error": 0.0009765625, "original_ms": 3.109934739768505, "optimized_ms": 0.38140919059515, "bf16_scratch_bytes": 524288}
+{"format": "basic", "lengths": [512], "max_abs_error": 0.00048828125, "original_ms": 11.876947246491909, "optimized_ms": 0.9224537760019302, "bf16_scratch_bytes": 1048576}
+{"format": "basic", "lengths": [2048], "max_abs_error": 0.000244140625, "original_ms": 47.12928161025047, "optimized_ms": 3.5849304869771004, "bf16_scratch_bytes": 4194304}
+{"format": "basic", "lengths": [3, 135], "max_abs_error": 0.0078125, "original_ms": 2.007605880498886, "optimized_ms": 0.5794575437903404, "bf16_scratch_bytes": 1048576}
+{"format": "enhanced", "lengths": [3], "max_abs_error": 0.0078125, "original_ms": 0.1983093097805977, "optimized_ms": 0.159338116645813, "bf16_scratch_bytes": 262144}
+{"format": "enhanced", "lengths": [135], "max_abs_error": 0.0009765625, "original_ms": 1.7366539686918259, "optimized_ms": 0.575547106564045, "bf16_scratch_bytes": 524288}
+{"format": "enhanced", "lengths": [160], "max_abs_error": 0.0009765625, "original_ms": 2.052057348191738, "optimized_ms": 0.5915699526667595, "bf16_scratch_bytes": 524288}
+{"format": "enhanced", "lengths": [512], "max_abs_error": 0.00048828125, "original_ms": 6.477008201181889, "optimized_ms": 1.5961891040205956, "bf16_scratch_bytes": 1048576}
+{"format": "enhanced", "lengths": [2048], "max_abs_error": 0.000244140625, "original_ms": 25.875474512577057, "optimized_ms": 6.413582153618336, "bf16_scratch_bytes": 4194304}
+{"format": "enhanced", "lengths": [3, 135], "max_abs_error": 0.0078125, "original_ms": 1.7965834587812424, "optimized_ms": 0.759500078856945, "bf16_scratch_bytes": 1048576}
+{"format": "btkv", "lengths": [3], "max_abs_error": 0.00390625, "original_ms": 0.20109601318836212, "optimized_ms": 0.15929397195577621, "bf16_scratch_bytes": 262144}
+{"format": "btkv", "lengths": [135], "max_abs_error": 0.00048828125, "original_ms": 1.7415117472410202, "optimized_ms": 0.5462231114506721, "bf16_scratch_bytes": 524288}
+{"format": "btkv", "lengths": [160], "max_abs_error": 0.0009765625, "original_ms": 2.0601660013198853, "optimized_ms": 0.5907544866204262, "bf16_scratch_bytes": 524288}
+{"format": "btkv", "lengths": [512], "max_abs_error": 0.00048828125, "original_ms": 7.347314432263374, "optimized_ms": 1.6086332499980927, "bf16_scratch_bytes": 1048576}
+{"format": "btkv", "lengths": [2048], "max_abs_error": 0.000244140625, "original_ms": 29.064219444990158, "optimized_ms": 6.71148132532835, "bf16_scratch_bytes": 4194304}
+{"format": "btkv", "lengths": [3, 135], "max_abs_error": 0.00390625, "original_ms": 2.498743310570717, "optimized_ms": 0.7978865876793861, "bf16_scratch_bytes": 1048576}
+PASS: 27 writer cases and 18 attention cases

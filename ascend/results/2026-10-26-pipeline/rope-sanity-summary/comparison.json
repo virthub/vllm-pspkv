@@ -1,0 +1,154 @@
+{
+  "latency": [
+    {
+      "format": "basic",
+      "profile": "short",
+      "input_tokens": 3,
+      "mode": 0,
+      "samples": 1,
+      "p50_seconds": 1.6035474874079227,
+      "p95_seconds": 1.6035474874079227,
+      "ttft_p50_ms": 112.55492269992828,
+      "tpot_p50_ms": 48.089909337220654,
+      "p50_reduction_pct": 0.0,
+      "paired_mean_reduction_pct": 0.0,
+      "paired_mean_ci95_low": 0.0,
+      "paired_mean_ci95_high": 0.0
+    },
+    {
+      "format": "basic",
+      "profile": "short",
+      "input_tokens": 3,
+      "mode": 1,
+      "samples": 1,
+      "p50_seconds": 1.5560975261032581,
+      "p95_seconds": 1.5560975261032581,
+      "ttft_p50_ms": 102.05640271306038,
+      "tpot_p50_ms": 46.89951685647811,
+      "p50_reduction_pct": 2.959061809972696,
+      "paired_mean_reduction_pct": 2.959061809972696,
+      "paired_mean_ci95_low": 2.959061809972696,
+      "paired_mean_ci95_high": 2.959061809972696
+    },
+    {
+      "format": "basic",
+      "profile": "short",
+      "input_tokens": 3,
+      "mode": 2,
+      "samples": 1,
+      "p50_seconds": 1.4980313889682293,
+      "p95_seconds": 1.4980313889682293,
+      "ttft_p50_ms": 101.12639144062996,
+      "tpot_p50_ms": 45.057132479644594,
+      "p50_reduction_pct": 6.580166740821403,
+      "paired_mean_reduction_pct": 6.580166740821403,
+      "paired_mean_ci95_low": 6.580166740821403,
+      "paired_mean_ci95_high": 6.580166740821403
+    },
+    {
+      "format": "basic",
+      "profile": "short",
+      "input_tokens": 3,
+      "mode": 3,
+      "samples": 1,
+      "p50_seconds": 0.480820968747139,
+      "p95_seconds": 0.480820968747139,
+      "ttft_p50_ms": 62.51482293009758,
+      "tpot_p50_ms": 13.489297440936488,
+      "p50_reduction_pct": 70.01517120491587,
+      "paired_mean_reduction_pct": 70.01517120491587,
+      "paired_mean_ci95_low": 70.01517120491587,
+      "paired_mean_ci95_high": 70.01517120491587
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "input_tokens": 135,
+      "mode": 0,
+      "samples": 1,
+      "p50_seconds": 1.6173586770892143,
+      "p95_seconds": 1.6173586770892143,
+      "ttft_p50_ms": 109.18999835848808,
+      "tpot_p50_ms": 48.646043625570115,
+      "p50_reduction_pct": 0.0,
+      "paired_mean_reduction_pct": 0.0,
+      "paired_mean_ci95_low": 0.0,
+      "paired_mean_ci95_high": 0.0
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "input_tokens": 135,
+      "mode": 1,
+      "samples": 1,
+      "p50_seconds": 1.6054884791374207,
+      "p95_seconds": 1.6054884791374207,
+      "ttft_p50_ms": 99.08304363489151,
+      "tpot_p50_ms": 48.58928378070554,
+      "p50_reduction_pct": 0.7339248937135334,
+      "paired_mean_reduction_pct": 0.7339248937135334,
+      "paired_mean_ci95_low": 0.7339248937135334,
+      "paired_mean_ci95_high": 0.7339248937135334
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "input_tokens": 135,
+      "mode": 2,
+      "samples": 1,
+      "p50_seconds": 1.244082149118185,
+      "p95_seconds": 1.244082149118185,
+      "ttft_p50_ms": 89.51928466558456,
+      "tpot_p50_ms": 37.238944682382765,
+      "p50_reduction_pct": 23.079390691669023,
+      "paired_mean_reduction_pct": 23.079390691669023,
+      "paired_mean_ci95_low": 23.079390691669023,
+      "paired_mean_ci95_high": 23.079390691669023
+    },
+    {
+      "format": "basic",
+      "profile": "cross_page",
+      "input_tokens": 135,
+      "mode": 3,
+      "samples": 1,
+      "p50_seconds": 0.4993620552122593,
+      "p95_seconds": 0.4993620552122593,
+      "ttft_p50_ms": 63.720714300870895,
+      "tpot_p50_ms": 14.049293653618905,
+      "p50_reduction_pct": 69.12484149088259,
+      "paired_mean_reduction_pct": 69.12484149088259,
+      "paired_mean_ci95_low": 69.12484149088259,
+      "paired_mean_ci95_high": 69.12484149088259
+    }
+  ],
+  "quality": [
+    {
+      "format": "basic",
+      "all_stage_texts_equal": true,
+      "quality_prompts": 12,
+      "quality_probe_requests": 48,
+      "logprob_comparisons": [
+        {
+          "mode": 0,
+          "max_generated_token_logprob_delta": 0.0,
+          "changed_generated_tokens": 0
+        },
+        {
+          "mode": 1,
+          "max_generated_token_logprob_delta": 0.0,
+          "changed_generated_tokens": 0
+        },
+        {
+          "mode": 2,
+          "max_generated_token_logprob_delta": 0.0,
+          "changed_generated_tokens": 0
+        },
+        {
+          "mode": 3,
+          "max_generated_token_logprob_delta": 0.0,
+          "changed_generated_tokens": 0
+        }
+      ]
+    }
+  ]
+}

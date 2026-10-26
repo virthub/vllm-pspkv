@@ -1,0 +1,3 @@
+[2026-10-25-16:45:49.877] [INFO] [AscendProfiler_CANNExportParser:97] Profiler logger initialized at: /pipeline/results/matmul-profile/PipeUtilization/b121d394b219_1_20261025164549215_ascend_pt/logs/profiler_20261025164549_238_CANNExportParser.log
+[2026-10-25-16:45:49.877] [INFO] [AscendProfiler_CANNExportParser:51] CANNExportParser start.
+[2026-10-25-16:45:51.924] [INFO] [AscendProfiler_CANNExportParser:79] CANNExportParser finish.
