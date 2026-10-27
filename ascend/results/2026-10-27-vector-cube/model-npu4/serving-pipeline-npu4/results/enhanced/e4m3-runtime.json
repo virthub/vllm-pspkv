@@ -1,0 +1,138 @@
+{
+  "Name": "/pspkv-nvidia-pipeline4-20261027-enhanced-e4m3",
+  "Image": "quay.io/ascend/vllm-ascend:v0.20.2rc1",
+  "ImageID": "sha256:27d1146419e99981c0a676a3fff102d2119fa6ecf5ae00e5c83aab611f5b7733",
+  "Args": [
+    "-lc",
+    "source /usr/local/Ascend/ascend-toolkit/set_env.sh; exec /workspace/pspkv-native-build/.venv/bin/python /strategy/serve_initialized_npu.py \"$@\"",
+    "bash",
+    "serve",
+    "Qwen/Qwen2.5-7B",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000",
+    "--seed",
+    "123",
+    "--tensor-parallel-size",
+    "1",
+    "--block-size",
+    "128",
+    "--max-num-seqs",
+    "1",
+    "--max-model-len",
+    "8320",
+    "--max-num-batched-tokens",
+    "8320",
+    "--gpu-memory-utilization",
+    "0.35",
+    "--no-enable-prefix-caching",
+    "--no-enable-chunked-prefill",
+    "--additional-config",
+    "{\"pa_shape_list\":[1]}",
+    "--compilation-config",
+    "{\"mode\":0,\"cudagraph_mode\":\"FULL_DECODE_ONLY\",\"cudagraph_capture_sizes\":[1]}",
+    "--attention-backend",
+    "PSP_KV",
+    "--kv-cache-dtype",
+    "fp8"
+  ],
+  "Entrypoint": [
+    "bash"
+  ],
+  "Devices": [
+    {
+      "PathOnHost": "/dev/davinci4",
+      "PathInContainer": "/dev/davinci4",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/davinci_manager",
+      "PathInContainer": "/dev/davinci_manager",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/devmm_svm",
+      "PathInContainer": "/dev/devmm_svm",
+      "CgroupPermissions": "rwm"
+    },
+    {
+      "PathOnHost": "/dev/hisi_hdc",
+      "PathInContainer": "/dev/hisi_hdc",
+      "CgroupPermissions": "rwm"
+    }
+  ],
+  "Environment": [
+    "VLLM_WORKER_MULTIPROC_METHOD=spawn",
+    "PSPKV_COMPARE_PRECISION=e4m3",
+    "PSPKV_ASCEND_PIPELINE_LEVEL=3",
+    "PYTHONPATH=/strategy:/workspace/pspkv-src:/vllm-workspace/vllm-ascend",
+    "PSPKV_ADAPTIVE_PRECISION=0",
+    "PSPKV_ASCEND_SHARE_METADATA=1",
+    "PSPKV_STRATEGY_DECODE_PATH=cube",
+    "PSPKV_ASCEND_CUBE_LIB=/strategy-native/libpspkv_cube.so",
+    "PSPKV_COMPARE_FORMAT=enhanced",
+    "PSPKV_COMPARE_OPTIMIZED=1",
+    "PSPKV_ASCEND_FULL_GRAPH=1",
+    "PSPKV_PRECISION=e4m3",
+    "PSPKV_AVG_BYTES=1",
+    "PSPKV_ASCEND_SPLITS=4",
+    "PSPKV_STRATEGY_INIT_PA_GRAPH=1",
+    "PSPKV_ASCEND_NATIVE_LIB=/strategy-native/libpspkv_strategy.so",
+    "VLLM_USE_MODELSCOPE=True",
+    "PSPKV_NVIDIA_STRATEGIES=1",
+    "PSPKV_FORMAT=1"
+  ],
+  "SourceMounts": [
+    {
+      "Source": "/root/zhang/pspkv-native-build",
+      "Destination": "/workspace/pspkv-native-build",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4/attention.py",
+      "Destination": "/workspace/pspkv-src/vllm/model_executor/layers/attention/attention.py",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-nvidia-strategies-20261026/source-v1",
+      "Destination": "/workspace/pspkv-src",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/libpspkv_cube_v28.so",
+      "Destination": "/strategy-native/libpspkv_cube.so",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4",
+      "Destination": "/strategy",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4/kv_cache_interface.py",
+      "Destination": "/workspace/pspkv-src/vllm/v1/kv_cache_interface.py",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4/ops.py",
+      "Destination": "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_ops.py",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/libpspkv_native_v24.so",
+      "Destination": "/strategy-native/libpspkv_strategy.so",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4/strategy.py",
+      "Destination": "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend_strategy.py",
+      "RW": false
+    },
+    {
+      "Source": "/root/zhang/pspkv-cube-20261027/serving-pipeline-npu4/backend.py",
+      "Destination": "/workspace/pspkv-src/vllm/v1/attention/backends/psp_kv_ascend.py",
+      "RW": false
+    }
+  ]
+}

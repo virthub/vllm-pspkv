@@ -1,7 +1,8 @@
 # Ascend 910B3 reference path
 
-Current validation (2026-10-26): start with the
+Current validation (2026-10-27): start with the
 [results index](results/README.md), the
+[Vector encoding and Vector/Cube pipeline report](results/2026-10-27-vector-cube/REPORT.zh-CN.md), the
 [NVIDIA strategy matrix and long-context report](results/2026-10-26-nvidia-strategies/REPORT.zh-CN.md), the
 [fixed-FP8 pipeline report](results/2026-10-26-pipeline/REPORT.zh-CN.md), and the
 [precision audit](results/2026-10-26-precision-audit/REPORT.zh-CN.md).
@@ -10,8 +11,8 @@ The opt-in `PSPKV_NVIDIA_STRATEGIES=1` route now covers Basic / Enhanced / BTKV
 with lossless / E4M3 / E5M2 / FP4 storage and a separate develop-style amplitude
 selector. It follows the newer `develop` snapshot `00b78e9` codecs and page
 layout, using Ascend software kernels rather than merging CUDA execution code.
-All three format names share an Ascend implementation; Enhanced / BTKV use a
-staged fallback in the main comparison. They do not represent native CUDA TMA
+All three format names share an Ascend implementation; the comparison launcher
+uses a staged consumer by default. They do not represent native CUDA TMA
 or three independent hardware algorithms.
 
 The comparison applies shared metadata, direct strided writes, fused decode
@@ -21,6 +22,13 @@ restricted single-request shapes. A direct compressed-tile Vector attention
 path is checked separately. See the report for timing and quality limits;
 storage savings must not be interpreted as guaranteed BF16 latency speedups.
 The full NVIDIA Tensor Core / TMA implementations have not been ported.
+
+Fixed lossless/FP8 prefill now uses a tiled SIMD writer. An optional
+`PSPKV_STRATEGY_DECODE_PATH=cube` path shares decoded tiles across GQA heads,
+uses both Vector workers, buffers V ahead, and prefetches K during asynchronous
+Cube PV. It uses bounded GM tiles between UB and Cube, with a shared 32 MiB
+workspace; it does not retain full-context BF16 pages or claim zero HBM traffic.
+The latest report includes per-stage cycles and whole-model measurements.
 
 The sections below describe the original bring-up interfaces and historical
 extensions. The older RMSE, grouped-FP4 and asymmetric-K/V experiments remain

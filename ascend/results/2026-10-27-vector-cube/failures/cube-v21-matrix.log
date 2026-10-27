@@ -1,0 +1,27 @@
+can not use command: npu-smi info
+/experiment/checks-source/ascend/check_nvidia_strategies_npu.py:38: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  v = torch.zeros_like(k)
+INFO 10-27 04:09:15 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-27 04:09:15 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-27 04:09:15 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-27 04:09:15 [__init__.py:238] Platform plugin ascend is activated
+INFO 10-27 04:09:21 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 10-27 04:09:21 [nixl_utils.py:34] NIXL is not available
+WARNING 10-27 04:09:21 [nixl_utils.py:44] NIXL agent config is not available
+CHECK 3 lossless 1
+CHECK 3 lossless 4
+CHECK 3 lossless 8
+CHECK 3 lossless 16
+Traceback (most recent call last):
+  File "/experiment/checks-source/ascend/check_nvidia_strategies_npu.py", line 558, in <module>
+    main()
+  File "/experiment/checks-source/ascend/check_nvidia_strategies_npu.py", line 470, in main
+    torch.testing.assert_close(actual, expected, atol=2e-2, rtol=2e-2)
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch/testing/_comparison.py", line 1600, in assert_close
+    raise error_metas[0].to_error(msg)
+AssertionError: Tensor-likes are not close!
+
+Mismatched elements: 3405 / 3584 (95.0%)
+Greatest absolute difference: 1.015625 at index (0, 23, 40) (up to 0.02 allowed)
+Greatest relative difference: 1.0 at index (0, 0, 0) (up to 0.02 allowed)
+[ERROR] 2026-10-27-04:09:24 (PID:8340, Device:0, RankID:-1) ERR99999 UNKNOWN applicaiton exception

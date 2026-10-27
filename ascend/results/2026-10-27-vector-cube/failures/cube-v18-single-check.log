@@ -1,0 +1,25 @@
+can not use command: npu-smi info
+/experiment/checks-source/ascend/check_nvidia_strategies_npu.py:38: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  v = torch.zeros_like(k)
+INFO 10-27 03:58:22 [__init__.py:44] Available plugins for group vllm.platform_plugins:
+INFO 10-27 03:58:22 [__init__.py:46] - ascend -> vllm_ascend:register
+INFO 10-27 03:58:22 [__init__.py:49] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 10-27 03:58:22 [__init__.py:238] Platform plugin ascend is activated
+INFO 10-27 03:58:28 [nixl_utils.py:20] Setting UCX_RCACHE_MAX_UNRELEASED to '1024' to avoid a rare memory leak in UCX when using NIXL.
+WARNING 10-27 03:58:28 [nixl_utils.py:34] NIXL is not available
+WARNING 10-27 03:58:28 [nixl_utils.py:44] NIXL agent config is not available
+CHECK 135 lossless 1
+CHECK 135 lossless 4
+CHECK 135 lossless 8
+CHECK 135 lossless 16
+Traceback (most recent call last):
+  File "/experiment/checks-source/ascend/check_nvidia_strategies_npu.py", line 527, in <module>
+    main()
+  File "/experiment/checks-source/ascend/check_nvidia_strategies_npu.py", line 447, in main
+    check_source("after one Cube call")
+  File "/experiment/checks-source/ascend/check_nvidia_strategies_npu.py", line 236, in check_source
+    torch.testing.assert_close(key.cpu(), key_cpu, atol=0, rtol=0, msg=phase)
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch/testing/_comparison.py", line 1600, in assert_close
+    raise error_metas[0].to_error(msg)
+AssertionError: after one Cube call
+[ERROR] 2026-10-27-03:58:31 (PID:7346, Device:0, RankID:-1) ERR99999 UNKNOWN applicaiton exception

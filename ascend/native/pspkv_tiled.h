@@ -12,7 +12,9 @@ class PspkvTileDecoder {
  public:
   __aicore__ inline void Init(AscendC::TPipe& pipe, uint32_t dim, GM_ADDR e4,
                               GM_ADDR e5, GM_ADDR permutation,
-                              bool pair_lut = false) {
+                              bool pair_lut = false, bool no_transpose = false,
+                              bool strict_sync = false) {
+    strict_pipeline = strict_sync;
     dimension = dim;
     count = PSPKV_TILE * dim;
     fp4_from_gm = pair_lut;
@@ -24,7 +26,7 @@ class PspkvTileDecoder {
     pipe.InitBuffer(indexBuffer, count * 4);
     pipe.InitBuffer(decodedBuffer, count * 4);
     pipe.InitBuffer(transposedBuffer, count * 4);
-    pipe.InitBuffer(permutationBuffer, count * 4);
+    pipe.InitBuffer(permutationBuffer, no_transpose ? 32 : count * 4);
     pipe.InitBuffer(tableBuffer, 1024 * 4);
     pipe.InitBuffer(outputBuffer, count * 2);
     bytes = inputBuffer.Get<uint8_t>();
@@ -43,8 +45,10 @@ class PspkvTileDecoder {
         reinterpret_cast<__gm__ uint32_t*>(permutation));
     AscendC::DataCopy(table, e4Global, 256);
     AscendC::DataCopy(table[256], e5Global, 256);
-    AscendC::DataCopy(permutationLocal, permutationGlobal, count);
+    if (!no_transpose)
+      AscendC::DataCopy(permutationLocal, permutationGlobal, count);
     pipe_barrier(PIPE_ALL);
+    CopyReady();
   }
 
   __aicore__ inline AscendC::LocalTensor<float> Load(
@@ -55,6 +59,7 @@ class PspkvTileDecoder {
       AscendC::DataCopy(halves.ReinterpretCast<uint8_t>(),
                         source[base + token * dimension * 2], count * 2);
       pipe_barrier(PIPE_ALL);
+      CopyReady();
       AscendC::Cast(decoded, halves.ReinterpretCast<bfloat16_t>(),
                     AscendC::RoundMode::CAST_NONE, count);
       pipe_barrier(PIPE_V);
@@ -71,10 +76,12 @@ class PspkvTileDecoder {
           }
         }
         pipe_barrier(PIPE_ALL);
+        CopyReady();
         fp4_initialized = true;
       }
       AscendC::DataCopy(bytes, source[base + token * dimension / 2], count / 2);
       pipe_barrier(PIPE_ALL);
+      CopyReady();
       AscendC::Cast(halves, bytes, AscendC::RoundMode::CAST_NONE, count / 2);
       pipe_barrier(PIPE_V);
       AscendC::Cast(indices, halves, AscendC::RoundMode::CAST_RINT, count / 2);
@@ -142,6 +149,7 @@ class PspkvTileDecoder {
       AscendC::DataCopy(bytes, source[base + token * dimension], count);
     }
     pipe_barrier(PIPE_ALL);
+    CopyReady();
     // 910B has no native FP8 cast. Byte -> integer offsets -> FP32 UB LUT
     // is entirely vectorized and also preserves subnormals and signed zero.
     AscendC::Cast(halves, bytes, AscendC::RoundMode::CAST_NONE, count);
@@ -250,6 +258,15 @@ class PspkvTileDecoder {
   AscendC::LocalTensor<bfloat16_t> bf16;
 
  private:
+  __aicore__ inline void CopyReady() {
+    if (strict_pipeline) {
+      event_t event = static_cast<event_t>(
+          GetTPipePtr()->FetchEventID(AscendC::HardEvent::MTE2_V));
+      AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(event);
+      AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(event);
+    }
+  }
+  bool strict_pipeline = false;
   bool fp4_initialized = false;
   bool fp4_from_gm = false;
   AscendC::GlobalTensor<float> fp4_global;
@@ -263,6 +280,7 @@ class PspkvTileDecoder {
   AscendC::LocalTensor<float> decoded, transposed, table;
 };
 
+#ifndef PSPKV_TILE_DECODER_ONLY
 __global__ __vector__ void PspkvGatherPagedBF16Vec(
     GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR block_tables,
     GM_ADDR context_lens, GM_ADDR formats, GM_ADDR offsets, GM_ADDR scales,
@@ -546,3 +564,5 @@ __global__ __vector__ void PspkvTileFusedAttention(
     }
   }
 }
+
+#endif  // PSPKV_TILE_DECODER_ONLY

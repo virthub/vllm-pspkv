@@ -62,10 +62,9 @@ class PSPKVAscendImpl(AscendAttentionBackendImpl):
 
     @staticmethod
     def update_graph_params(*args, **kwargs):
-        if (
-            os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1"
-            and os.environ.get("PSPKV_STRATEGY_DECODE_PATH", "fused") == "fused"
-        ):
+        if os.environ.get("PSPKV_NVIDIA_STRATEGIES") == "1" and os.environ.get(
+            "PSPKV_STRATEGY_DECODE_PATH", "fused"
+        ) in ("fused", "cube"):
             from pipeline_runtime import validate_graph_inputs
 
             return validate_graph_inputs(*args, **kwargs)

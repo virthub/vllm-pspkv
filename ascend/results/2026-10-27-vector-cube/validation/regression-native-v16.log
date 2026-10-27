@@ -1,0 +1,18 @@
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+...............................................                          [100%]
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:241
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/v1/attention/test_psp_kv_correctness.py::test_basic_attention[8-8-0-dtype0]
+  /workspace/pspkv-src/tests/v1/attention/test_psp_kv_correctness.py:113: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+    output = torch.empty_like(query)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+263 passed, 3 warnings in 9.32s
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

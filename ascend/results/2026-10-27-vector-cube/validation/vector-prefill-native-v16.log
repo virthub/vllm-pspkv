@@ -1,0 +1,13 @@
+can not use command: npu-smi info
+{'length': 512, 'code': 0, 'old_ms': 0.021281999349594117, 'new_ms': 0.0190870001912117, 'passed': True}
+{'length': 512, 'code': 1, 'old_ms': 0.11461800336837769, 'new_ms': 0.01993499994277954, 'passed': True}
+{'length': 512, 'code': 2, 'old_ms': 0.11503800153732299, 'new_ms': 0.02145099937915802, 'passed': True}
+{'length': 3, 'code': 0, 'old_ms': 0.018667000532150268, 'new_ms': 0.018469999730587005, 'passed': True}
+{'length': 3, 'code': 1, 'old_ms': 0.018424999713897706, 'new_ms': 0.01928499937057495, 'passed': True}
+{'length': 3, 'code': 2, 'old_ms': 0.018216000497341157, 'new_ms': 0.0193340003490448, 'passed': True}
+{'length': 135, 'code': 0, 'old_ms': 0.02120400071144104, 'new_ms': 0.019023999571800232, 'passed': True}
+{'length': 135, 'code': 1, 'old_ms': 0.11963900327682495, 'new_ms': 0.019381000101566313, 'passed': True}
+{'length': 135, 'code': 2, 'old_ms': 0.11976499557495117, 'new_ms': 0.01888200044631958, 'passed': True}
+{'length': 8192, 'code': 0, 'old_ms': 0.5999800205230713, 'new_ms': 0.049768999218940735, 'passed': True}
+{'length': 8192, 'code': 1, 'old_ms': 7.0237480163574215, 'new_ms': 0.13855600357055664, 'passed': True}
+{'length': 8192, 'code': 2, 'old_ms': 7.012075805664063, 'new_ms': 0.13846100568771363, 'passed': True}

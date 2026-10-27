@@ -1,0 +1,4 @@
+can not use command: npu-smi info
+/experiment/checks-source/ascend/check_cube_mixed_npu.py:64: UserWarning: Cannot create tensor with interal format while allow_internel_format=False, tensor will be created with base format. (Triggered internally at ../torch_npu/csrc/aten/common/TensorFactories.cpp:340.)
+  source[:, heads : heads + kv_heads].copy_(key)
+{"passed": 16, "max_abs_error": 0.015625}

@@ -62,6 +62,11 @@ launch() {
       -v "$STRATEGY_DIR/attention.py:/workspace/pspkv-src/vllm/model_executor/layers/attention/attention.py:ro"
       -v "$STRATEGY_DIR/kv_cache_interface.py:/workspace/pspkv-src/vllm/v1/kv_cache_interface.py:ro"
     )
+    if [[ "${DECODE_PATH:-paged}" == cube ]]; then
+      : "${CUBE_LIBRARY_PATH:?Cube attention requires its separate native library}"
+      vars+=(-e PSPKV_ASCEND_CUBE_LIB=/strategy-native/libpspkv_cube.so)
+      mounts+=(-v "$CUBE_LIBRARY_PATH:/strategy-native/libpspkv_cube.so:ro")
+    fi
     if [[ "${CANDIDATE_COMPILE_MODE:-0}" == 0 ]]; then
       graph='{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[1]}'
     fi

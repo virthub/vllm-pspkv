@@ -9,6 +9,7 @@ installed into vLLM or the shared vLLM-Ascend plugin.
 """
 
 import argparse
+import os
 import subprocess
 import sysconfig
 from pathlib import Path
@@ -22,10 +23,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
     parser.add_argument("--arch", default="dav-2201", help="910B3 target architecture")
+    parser.add_argument("--source", default="pspkv_fp8.asc")
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    source = Path(__file__).with_name("pspkv_fp8.asc")
+    source = Path(__file__).with_name(args.source)
     torch_dir = Path(torch.__file__).parent
     torch_npu_dir = Path(torch_npu.__file__).parent
     includes = [
@@ -33,6 +35,12 @@ def main() -> None:
         sysconfig.get_path("include"),
         str(torch_npu_dir / "include"),
     ]
+    sdk = Path(
+        os.environ.get("ASCEND_HOME_PATH", "/usr/local/Ascend/ascend-toolkit/latest")
+    )
+    asc = sdk / "aarch64-linux/asc"
+    if asc.exists():
+        includes.extend([str(asc), str(asc / "include/adv_api")])
     libraries = [torch_dir / "lib", torch_npu_dir / "lib"]
     command = [
         "bisheng",
@@ -54,6 +62,10 @@ def main() -> None:
         "-ltorch_cpu",
         "-lc10",
     ]
+    if args.source == "pspkv_cube.asc":
+        command.extend(
+            [f"-L{sdk / 'aarch64-linux/lib64'}", "-ltiling_api", "-lplatform"]
+        )
     print("Building", output, "for", args.arch, flush=True)
     subprocess.run(command, check=True)
 

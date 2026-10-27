@@ -1,0 +1,117 @@
+{
+  "base_commit": "5b10bc5f036933b74303f23ecc12a6d0e56fc544",
+  "nvidia_develop": "00b78e954225947fbd05281fc19bd9f22164f851",
+  "image": "quay.io/ascend/vllm-ascend:v0.20.2rc1",
+  "target": "dav-2201",
+  "hardware": "Ascend 910B3",
+  "versions": {
+    "python": "3.11.15",
+    "machine": "aarch64",
+    "torch": "2.10.0+cpu",
+    "torch_npu": "2.10.0",
+    "bisheng": "2026-04-25T15:46:25+08:00 clang version 15.0.5 (clang-5c68a1cb1231 flang-5c68a1cb1231)\nTarget: aarch64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /usr/local/Ascend/cann-9.0.0/bin\n"
+  },
+  "libraries": {
+    "libpspkv_vec_v3.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_vec_v3.so",
+      "sha256": "ed7bc3ce41ab2c03cea110f86d872a2d98d1f84f2222d15f701ec593292fabc3",
+      "bytes": 1217472
+    },
+    "libpspkv_native_v24.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_native_v24.so",
+      "sha256": "ee6a57ed04d308137cf8b11a9af618da76b8594f8cbcc684f2842283da66b7aa",
+      "bytes": 1217976
+    },
+    "libpspkv_cube_v20.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_cube_v20.so",
+      "sha256": "60a96603c5d9fd9a68a2093a7eaf5b51df1764b67eb58edbdb8c2ad7068991f4",
+      "bytes": 875744
+    },
+    "libpspkv_cube_v24.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_cube_v24.so",
+      "sha256": "4c6c2349bfaa4e229a8c4b245e2bb010f9d0e12750de92fe83d6b57adca5d14c",
+      "bytes": 911944
+    },
+    "libpspkv_cube_v27.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_cube_v27.so",
+      "sha256": "75bd0ff5f08c1dcd777729a035e1aa3b1ccaa2b494337be056d77133dfb66323",
+      "bytes": 919024
+    },
+    "libpspkv_cube_v28.so": {
+      "server_path": "/root/zhang/pspkv-cube-20261027/libpspkv_cube_v28.so",
+      "sha256": "c0a3981166746e58f7b4c8e423286004d3842de987cb061790f1e09769390de3",
+      "bytes": 921584
+    }
+  },
+  "sources": {
+    "build-v24/ascend/native": {
+      "build-v24/ascend/native/build.py": "1628bc574d29b6dfe3aba3856c6da9340cc5ba8a43c4ff7c02d244efdded9020",
+      "build-v24/ascend/native/build_in_container.sh": "917e51cfa66e2e4521e03b875e596b91d4c4edb105672422f66dd026249ff56b",
+      "build-v24/ascend/native/check_in_container.sh": "5924ba5c1f430210f790ba53494553444a4e6ad0fcb8099966c0e620691f305d",
+      "build-v24/ascend/native/check_native_fp8_npu.py": "a9660e9d57f462875cc10b2ea1d166b6baa57a3cb664898e2516148bffaf542b",
+      "build-v24/ascend/native/pspkv_cube.asc": "4d39e7cd24aa286e0b1b5317b4b8edeafe15947edec3c7c58f28a5b9670e093a",
+      "build-v24/ascend/native/pspkv_fp8.asc": "13fffe7bf0fb0f47e2b78ce8afff1d55a1caed2376fa7e50461313985133e184",
+      "build-v24/ascend/native/pspkv_rope.h": "6021ece9a03cf3dbf0f14ed229fd8a96f67f885be61364aefdea029f5ce71765",
+      "build-v24/ascend/native/pspkv_split.h": "02f0daf2c5c1d7180c297fe2dc07b7610d6cbbfffce324cc31890d8c8617a7c4",
+      "build-v24/ascend/native/pspkv_strategy.h": "fb3c895a7830ae2a1079ad0f491232c6ea525768a5e7247e9c752fa9ff135f0a",
+      "build-v24/ascend/native/pspkv_tiled.h": "34c459561d872db9dfac929619c6144694f7cb5b156fefffbf119acd0f4f02c2",
+      "build-v24/ascend/native/pspkv_vector_encode.h": "25ff1e15020345818f2a5b2e21a3bba81451a2b7286cd59cefc41df2879f01e2"
+    },
+    "build-v28/ascend/native": {
+      "build-v28/ascend/native/build.py": "1628bc574d29b6dfe3aba3856c6da9340cc5ba8a43c4ff7c02d244efdded9020",
+      "build-v28/ascend/native/build_in_container.sh": "917e51cfa66e2e4521e03b875e596b91d4c4edb105672422f66dd026249ff56b",
+      "build-v28/ascend/native/check_in_container.sh": "5924ba5c1f430210f790ba53494553444a4e6ad0fcb8099966c0e620691f305d",
+      "build-v28/ascend/native/check_native_fp8_npu.py": "a9660e9d57f462875cc10b2ea1d166b6baa57a3cb664898e2516148bffaf542b",
+      "build-v28/ascend/native/pspkv_cube.asc": "ddb99fc98274a9a0837624f6e94d16584f786a000ee3e70318404127d24e23b4",
+      "build-v28/ascend/native/pspkv_fp8.asc": "13fffe7bf0fb0f47e2b78ce8afff1d55a1caed2376fa7e50461313985133e184",
+      "build-v28/ascend/native/pspkv_rope.h": "6021ece9a03cf3dbf0f14ed229fd8a96f67f885be61364aefdea029f5ce71765",
+      "build-v28/ascend/native/pspkv_split.h": "02f0daf2c5c1d7180c297fe2dc07b7610d6cbbfffce324cc31890d8c8617a7c4",
+      "build-v28/ascend/native/pspkv_strategy.h": "fb3c895a7830ae2a1079ad0f491232c6ea525768a5e7247e9c752fa9ff135f0a",
+      "build-v28/ascend/native/pspkv_tiled.h": "34c459561d872db9dfac929619c6144694f7cb5b156fefffbf119acd0f4f02c2",
+      "build-v28/ascend/native/pspkv_vector_encode.h": "25ff1e15020345818f2a5b2e21a3bba81451a2b7286cd59cefc41df2879f01e2"
+    },
+    "checks-source/ascend": {
+      "checks-source/ascend/__pycache__/analyze_attention_performance.cpython-311.pyc": "1bf1419e3821ac0d65ffd9ea41d3a160c2d4f29194f7b9523768b2466ae10d1d",
+      "checks-source/ascend/analyze_attention_performance.py": "734e9db31eab2eb001be344b339474630a73bc5a94eca5fbc39be297fcaf6d8a",
+      "checks-source/ascend/check_cube_mixed_npu.py": "669ff06d713b4b9c2725b948ded1c82fa50f067eca0a333ed08aa6cbd5d2a416",
+      "checks-source/ascend/check_nvidia_strategies_npu.py": "e490fc3e15afd6a3aed9affbf1ff63a8c6f67168e7ec895dd73ba005c99aab65"
+    }
+  },
+  "serving": {
+    "serving-pipeline-npu4/attention.py": "64ee6dfe6d47b70b69ac87d09881dbd0a644b31a3a78f08a18bc7cd8349aecf9",
+    "serving-pipeline-npu4/backend.py": "d3f80d0fde362c3c80fa01ddb1219cea96c26443e72c7090338c26ce004bf6ab",
+    "serving-pipeline-npu4/compare_nvidia_client.py": "bb15d20e1d0cdb0a54194a2e51832d23c6e9ca2fe1b6031bc30f1ed0d2c8bc24",
+    "serving-pipeline-npu4/develop-reference.py": "107c9c7f840ae1cd63a1d76ecc222748bdc54cdb45b8ceaecb949a978a941c04",
+    "serving-pipeline-npu4/kv_cache_interface.py": "51c7ba29c2631ffc7fe82d865349937de25003a98fd58ad3ed5bbd21cc929342",
+    "serving-pipeline-npu4/ops.py": "bd1d0751326e1aa4a52c9322e6eb27acfa6a6f32981675db05cfc8873972e25d",
+    "serving-pipeline-npu4/pipeline_runtime.py": "94de6eb92337a6cd665ba2a70d7eb7a52563c70ac1c7b973a8abd3d1cd4af6c9",
+    "serving-pipeline-npu4/run_baseline_only.sh": "a3351be42912be0638a56ca70d86b5918e1940539367428d1c85773e6ff1af37",
+    "serving-pipeline-npu4/run_nvidia_strategies.sh": "cea18c0f16776e25945c44d5bae3de16c04b47e877c697b5363b6d142ac1edb7",
+    "serving-pipeline-npu4/serve_initialized_npu.py": "dca39db7ef702a1f8099345834649280dcac99fef5885d06b69d1c1925672ec6",
+    "serving-pipeline-npu4/shared_metadata.py": "1c0e9d22a577f49c2de5ca1ebf940d92319f8c17ccb8c7ff939cd491f640fd56",
+    "serving-pipeline-npu4/strategy.py": "ed3a0c3d070bf7af8478e4f1f8346db621490fa662d4e8ded2a98d5761f88081"
+  },
+  "model_config": {
+    "/root/.cache/modelscope/hub/models/Qwen/Qwen2___5-7B/config.json": "267ce68584c5f24c3b267d934db2de68dd21d1ca677fb78ed809eb60067f7642"
+  },
+  "npu_device": "4 (final model/kernel), 6 (encoder ablation), 7 (initial encoder check)",
+  "active_source_matches_tested_build": {
+    "ascend/native/build.py": true,
+    "ascend/native/build_in_container.sh": true,
+    "ascend/native/check_in_container.sh": true,
+    "ascend/native/check_native_fp8_npu.py": true,
+    "ascend/native/pspkv_cube.asc": true,
+    "ascend/native/pspkv_fp8.asc": true,
+    "ascend/native/pspkv_rope.h": true,
+    "ascend/native/pspkv_split.h": true,
+    "ascend/native/pspkv_strategy.h": true,
+    "ascend/native/pspkv_tiled.h": true,
+    "ascend/native/pspkv_vector_encode.h": true
+  },
+  "final_model_cases": {
+    "before": "model-npu4/serving-bf16-npu4b/results/enhanced/bf16-before.json",
+    "paged": "model-npu4/serving-paged-npu4/results/enhanced/e4m3.json",
+    "cube": "model-npu4/serving-pipeline-npu4/results/enhanced/e4m3.json",
+    "after": "model-npu4/serving-pipeline-npu4/results/enhanced/bf16-after.json"
+  }
+}

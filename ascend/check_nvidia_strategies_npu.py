@@ -182,6 +182,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--lengths", default="135,1536,8192")
     parser.add_argument("--iterations", type=int, default=10)
+    parser.add_argument("--cube-library", type=Path)
+    parser.add_argument("--profile-cube", action="store_true")
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location(
         "develop_reference", args.reference_file
@@ -192,6 +194,12 @@ def main():
     torch.manual_seed(20261026)
     torch.npu.set_device(0)
     native = load_native_fp8_ops()
+    cube_workspace = None
+    if args.cube_library:
+        torch.ops.load_library(str(args.cube_library.resolve()))
+        cube_workspace = torch.full(
+            (32 * 1024 * 1024,), 85, dtype=torch.uint8, device="npu"
+        )
     report = {
         "encoders": verify_encoders(native),
         "rope_cases": verify_rope(native),
@@ -226,6 +234,13 @@ def main():
         key, value = source[:, heads : heads + kv_heads], source[:, heads + kv_heads :]
         key.copy_(key_cpu)
         value.copy_(value_cpu)
+
+        def check_source(phase):
+            torch.testing.assert_close(key.cpu(), key_cpu, atol=0, rtol=0, msg=phase)
+            torch.testing.assert_close(
+                value.cpu(), value_cpu, atol=0, rtol=0, msg=phase
+            )
+
         query_cpu = torch.randn(1, heads, dim).bfloat16()
         query = query_cpu.npu()
         out = torch.empty_like(query)
@@ -258,6 +273,9 @@ def main():
         baseline()
         bf16_output = out.cpu().float().clone()
         for code, name in enumerate(("lossless", "e4m3", "e5m2", "fp4")):
+            if cube_workspace is not None:
+                torch.testing.assert_close(key.cpu(), key_cpu, atol=0, rtol=0)
+                torch.testing.assert_close(value.cpu(), value_cpu, atol=0, rtol=0)
             page_bytes = int(block * kv_heads * dim * (2, 1, 1, 0.5)[code])
             offsets = torch.arange(pages, dtype=torch.int32, device="npu") * page_bytes
             codes = torch.full((pages,), code, dtype=torch.uint8, device="npu")
@@ -361,6 +379,8 @@ def main():
                 .max()
                 .item(),
             }
+            if cube_workspace is not None:
+                check_source("after staged attention")
             for splits in (1, 4, 8, 16):
                 print("CHECK", length, name, splits, flush=True)
 
@@ -401,6 +421,148 @@ def main():
                     max_abs_error=(actual - expected.float()).abs().max().item(),
                 )
                 case["splits"].append(timing)
+                if cube_workspace is not None:
+                    check_source(f"after Vector attention, split {splits}")
+            if cube_workspace is not None:
+                case["cube"] = []
+                saved_tails = []
+                if length % block:
+                    row_bytes = int(dim * (2, 1, 1, 0.5)[code])
+                    for cache in (k, v):
+                        for head in range(kv_heads):
+                            start = (
+                                int(physical[-1]) * page_bytes
+                                + (head * block + length % block) * row_bytes
+                            )
+                            end = (
+                                int(physical[-1]) * page_bytes
+                                + (head + 1) * block * row_bytes
+                            )
+                            tail = cache[start:end]
+                            saved_tails.append((tail, tail.clone()))
+                            # Unused rows decode to NaNs in every supported
+                            # format. Cube must zero them before QK and PV.
+                            tail.fill_(255)
+                cache_snapshots = (k.cpu(), v.cpu())
+                for cube_splits in (1, 4, 8, 16):
+
+                    def cube():
+                        torch.ops.psp_kv_ascend_cube.attention(
+                            query,
+                            k,
+                            v,
+                            table,
+                            lens,
+                            codes,
+                            offsets,
+                            scales,
+                            e4,
+                            e5,
+                            permutation,
+                            out,
+                            cube_workspace,
+                            cube_splits,
+                            dim**-0.5,
+                        )
+
+                    cube()
+                    check_source("after one Cube call")
+                    actual = out.cpu()
+                    torch.testing.assert_close(actual, expected, atol=2e-2, rtol=2e-2)
+                    timing = measure(cube, args.iterations, 5)
+                    check_source("after eager Cube timing")
+                    timing.update(
+                        splits=cube_splits,
+                        graph=measure_graph(cube, args.iterations),
+                        max_abs_error=(actual.float() - expected.float())
+                        .abs()
+                        .max()
+                        .item(),
+                    )
+                    if args.profile_cube and length == 8192:
+                        stats = torch.empty(
+                            (kv_heads * cube_splits, 8), dtype=torch.int64, device="npu"
+                        )
+                        torch.ops.psp_kv_ascend_cube.attention(
+                            query,
+                            k,
+                            v,
+                            table,
+                            lens,
+                            codes,
+                            offsets,
+                            scales,
+                            e4,
+                            e5,
+                            permutation,
+                            out,
+                            cube_workspace,
+                            cube_splits,
+                            dim**-0.5,
+                            stats,
+                        )
+                        torch.testing.assert_close(
+                            out.cpu(), expected, atol=2e-2, rtol=2e-2
+                        )
+                        host_stats = stats.cpu()
+                        active_stats = host_stats[host_stats[:, 5] > 0]
+                        totals = active_stats.sum(0).tolist()
+                        timing["profile"] = {
+                            "fields": [
+                                "decode",
+                                "qk_with_transport",
+                                "softmax_with_transport",
+                                "pv_with_transport",
+                                "job_total",
+                                "tiles",
+                                "k_prefetch_inside_pv",
+                                "v_wait_inside_pv",
+                            ],
+                            "active_jobs": active_stats.shape[0],
+                            "cycle_sums": totals,
+                            "rows": host_stats.tolist(),
+                        }
+                    case["cube"].append(timing)
+                    check_source(f"after Cube attention, split {cube_splits}")
+                    torch.testing.assert_close(
+                        k.cpu(), cache_snapshots[0], atol=0, rtol=0
+                    )
+                    torch.testing.assert_close(
+                        v.cpu(), cache_snapshots[1], atol=0, rtol=0
+                    )
+                    assert (cube_workspace[28 * 1024 * 1024 :] == 85).all().item()
+                if length == 8192:
+                    cube_graph = torch.npu.NPUGraph()
+                    with torch.npu.graph(cube_graph):
+                        cube()
+                    for changed_length in (3, 135, 1536, 8192, 17, 8191):
+                        lens.fill_(changed_length)
+                        changed_query = torch.randn_like(query_cpu)
+                        query.copy_(changed_query)
+                        cube_graph.replay()
+                        changed_reference = reference.reference_paged_attention(
+                            changed_query,
+                            k.cpu(),
+                            v.cpu(),
+                            physical[None],
+                            torch.tensor([changed_length], dtype=torch.int32),
+                            1,
+                            codes.cpu(),
+                            scales.cpu(),
+                            offsets.cpu(),
+                            kv_heads,
+                            block,
+                            dim**-0.5,
+                        )
+                        torch.testing.assert_close(
+                            out.cpu(), changed_reference, atol=2e-2, rtol=2e-2
+                        )
+                    lens.fill_(length)
+                    query.copy_(query_cpu)
+                    case["cube_dynamic_graph_replays_checked"] = 6
+                for tail, saved in saved_tails:
+                    tail.copy_(saved)
+                case["cube_poisoned_tail_checked"] = bool(saved_tails)
             row["precisions"].append(case)
             print(json.dumps({"length": length, **case}), flush=True)
             if length == 8192:

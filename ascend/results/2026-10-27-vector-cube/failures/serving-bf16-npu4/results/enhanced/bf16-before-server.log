@@ -1,0 +1,26 @@
+can not use command: npu-smi info
+can not use command: npu-smi info
+DrvMngGetConsoleLogLevel failed. (ret=4)
+Traceback (most recent call last):
+  File "/strategy/serve_initialized_npu.py", line 16, in <module>
+    torch.npu.set_device(0)
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/npu/utils.py", line 91, in set_device
+    torch_npu._C._npu_setDevice(device_id)
+  File "/usr/local/python3.11.15/lib/python3.11/site-packages/torch_npu/npu/__init__.py", line 276, in _lazy_init
+    torch_npu._C._npu_init()
+RuntimeError: Initialize:../torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.cpp:165 NPU function error: aclInit, error code is 507899
+[ERROR] 2026-10-27-09:34:28 (PID:1, Device:0, RankID:-1) ERR00100 PTA call acl api failed
+[Error]: An internal error occurs in the Driver module. 
+        Rectify the fault based on the error information in the ascend log.
+[PID: 1] 2026-10-27-09:34:28.392.765 Resource_Busy(EL0005): The resources are busy.
+        Possible Cause: 1. The resources have been occupied. 2. The device is being reset. 3. Software is not ready.
+        Solution: 1. Close applications not in use. 2. Wait for a while and try again.
+        TraceBack (most recent call last):
+        Get device cnt failed, retCode=0x7020010[FUNC:CheckDeviceIdIsValid][FILE:api_error.cc][LINE:4791]
+        drv devId is invalid, drv devId=0, retCode=0x7020010[FUNC:SetDefaultDeviceId][FILE:api_error.cc][LINE:5436]
+        rtSetDefaultDeviceId execution failed, reason=driver error:internal error[FUNC:FuncErrorReason][FILE:error_message_manage.cc][LINE:65]
+        set default device id failed, ret:507899[FUNC:ReportCallError][FILE:log_inner.cpp][LINE:148]
+        [Process][DefaultDevice]process HandleDefaultDevice failed[FUNC:ReportInnerError][FILE:log_inner.cpp][LINE:132]
+        chipType=0 does not support get device msg feature.[FUNC:GetDevMsg][FILE:api_impl.cc][LINE:6181]
+        The argument is invalid.Reason: rtGetDevMsg execution failed, the feature is not supported.
+

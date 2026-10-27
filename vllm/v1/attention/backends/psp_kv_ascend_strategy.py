@@ -20,6 +20,15 @@ PRECISIONS = {"lossless": 0, "e4m3": 1, "e5m2": 2, "fp4": 3}
 STATES = {}
 
 
+@lru_cache(maxsize=1)
+def load_cube_ops():
+    library = os.environ.get("PSPKV_ASCEND_CUBE_LIB")
+    if not library:
+        raise RuntimeError("Cube attention requires PSPKV_ASCEND_CUBE_LIB")
+    torch.ops.load_library(library)
+    return torch.ops.psp_kv_ascend_cube
+
+
 @lru_cache(maxsize=2)
 def causal_mask(device):
     return torch.ones((2048, 2048), dtype=torch.bool).triu(1).to(device)
@@ -210,6 +219,10 @@ def strategy_attention(
         native.strategy_scatter_codes(
             k, v, keys, values, prepared.slots, codes, offsets, scales
         )
+    elif prefill and strategy.code <= 2:
+        native.strategy_scatter_prefill_vec(
+            k, v, keys, values, prepared.slots, offsets, scales, strategy.code
+        )
     else:
         native.strategy_scatter_kv(
             k, v, keys, values, prepared.slots, offsets, scales, strategy.code
@@ -229,7 +242,39 @@ def strategy_attention(
             if getattr(owner, "capturing", False):
                 GRAPH_INPUTS.add(graph_signature(prepared.source))
         e4, e5, _ = packed_lookup_tables(query.device)
-        if os.environ.get("PSPKV_STRATEGY_DECODE_PATH", "fused") == "paged":
+        decode_path = os.environ.get("PSPKV_STRATEGY_DECODE_PATH", "fused")
+        if decode_path == "cube":
+            # Bound tile storage independently of context length. Layers on
+            # the same stream consume it before the next layer reuses it.
+            if not hasattr(owner, "_pspkv_cube_workspaces"):
+                owner._pspkv_cube_workspaces = {}
+            stream_key = (
+                query.device,
+                torch.npu.current_stream(query.device).npu_stream,
+            )
+            if stream_key not in owner._pspkv_cube_workspaces:
+                owner._pspkv_cube_workspaces[stream_key] = torch.empty(
+                    32 * 1024 * 1024, dtype=torch.uint8, device=query.device
+                )
+            load_cube_ops().attention(
+                q.contiguous(),
+                keys,
+                values,
+                tables,
+                prepared.lengths,
+                codes,
+                offsets,
+                scales,
+                e4,
+                e5,
+                strategy_tile_permutation(query.device),
+                result,
+                owner._pspkv_cube_workspaces[stream_key],
+                int(os.environ.get("PSPKV_ASCEND_SPLITS", "8")),
+                softmax_scale,
+            )
+            return output
+        if decode_path == "paged":
             workspace = _forward_workspace(q, tables, heads, 128, 128)
             if workspace is None:
                 raise RuntimeError(

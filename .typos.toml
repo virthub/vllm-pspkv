@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+
+# Exact CANN SDK identifiers: the Matmul macro and plain matrix layout.
+[default.extend-identifiers]
+REGIST_MATMUL_OBJ = "REGIST_MATMUL_OBJ"
+ND = "ND"
+
+[default.extend-words]
+CANN = "CANN"
