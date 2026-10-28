@@ -144,6 +144,7 @@ from vllm.v1.kv_cache_interface import (
     KVCacheGroupSpec,
     KVCacheSpec,
     MambaSpec,
+    PSPKVAttentionSpec,
     SlidingWindowSpec,
     UniformTypeKVCacheSpecs,
 )
@@ -506,6 +507,16 @@ def _read_psp_kv_adaptive_precision() -> bool:
     skipped, removing a large prefill latency cost.
     """
     return os.getenv("PSPKV_ADAPTIVE_PRECISION", "0").strip().lower() in ("1", "true", "on")
+
+
+def _read_psp_kv_adaptive_e() -> float:
+    """Target relative error for the adaptive precision derivation.
+
+    Higher values lower the fp8/fp4 cutoff (more blocks fall to fp4, saving
+    cache bytes at the cost of accuracy). Default 1e-3 matches the original
+    conservative threshold.
+    """
+    return float(os.getenv("PSPKV_ADAPTIVE_E", "1e-3"))
 
 
 class GPUModelRunner(
@@ -893,6 +904,12 @@ class GPUModelRunner(
         self.scale_cpu = None
         self.precision_is_lossless = False
         self.precision_fp8_fmt = 0
+        self.precision_v_fmt = 0
+        self.precision_k_fmt = 0
+        self.precision_k_lossless = False
+        self.precision_v_lossless = False
+        self.k_cache_bytes = 0
+        self.v_cache_bytes = 0
         self.h_precision_table = None
         self.h_scale_table = None
         self.h_tma_descriptors = None
@@ -916,15 +933,24 @@ class GPUModelRunner(
         self.psp_kv_profile = _read_psp_kv_profile()
         # Per-prefill adaptive precision derivation (PSPKV_ADAPTIVE_PRECISION=1)
         self.psp_kv_adaptive_precision = _read_psp_kv_adaptive_precision()
-        # Cache byte budget: lossless stores 2 bytes/elem, fp8 1, fp4 0.5. Set
-        # the PSPKV_AVG_BYTES default to the configured precision's size (the
-        # worst case when adaptive) so the byte-buffer cache is never
-        # under-allocated. An explicit PSPKV_AVG_BYTES env value still wins.
+        self.psp_kv_adaptive_e = _read_psp_kv_adaptive_e()
+        # The default per-K/V precision (packed k_fmt | (v_fmt << 2)). The
+        # adaptive derive later refines this per block; the cache byte budget is
+        # derived from the packed default (whatever E produces) rather than a
+        # fixed constant. An explicit PSPKV_AVG_BYTES env value still wins.
         if self.psp_kv_adaptive_precision:
-            psp_kv_avg_bytes = 2.0
+            # The V (~0.3 magnitude) is always fp4; the K (~fp_max magnitude)
+            # flips to fp4 once E loosens past ~0.5.
+            self.psp_kv_default_k = 3 if self.psp_kv_adaptive_e >= 0.5 else self.precision_default
+            self.psp_kv_default_v = 3
         else:
-            psp_kv_avg_bytes = {0: 2.0, 1: 1.0, 2: 1.0, 3: 0.5}.get(
-                self.precision_default, 2.0)
+            self.psp_kv_default_k = self.precision_default
+            self.psp_kv_default_v = self.precision_default
+        _fmt_bytes = {0: 2.0, 1: 1.0, 2: 1.0, 3: 0.5}
+        psp_kv_avg_bytes = (
+            _fmt_bytes.get(self.psp_kv_default_k, 2.0)
+            + _fmt_bytes.get(self.psp_kv_default_v, 2.0)
+        ) / 2.0
         os.environ.setdefault("PSPKV_AVG_BYTES", str(psp_kv_avg_bytes))
         # ====================================================
 
@@ -2367,6 +2393,12 @@ class GPUModelRunner(
             format_generation=self.format_generation,
             precision_is_lossless=self.precision_is_lossless,
             precision_fp8_fmt=self.precision_fp8_fmt,
+            precision_v_fmt=self.precision_v_fmt,
+            precision_k_fmt=self.precision_k_fmt,
+            precision_k_lossless=self.precision_k_lossless,
+            precision_v_lossless=self.precision_v_lossless,
+            k_cache_bytes=self.k_cache_bytes,
+            v_cache_bytes=self.v_cache_bytes,
         )
 
         if self.dcp_world_size > 1:
@@ -4261,8 +4293,10 @@ class GPUModelRunner(
                 # Compute is_prefilling from input_batch state.
                 num_computed_tokens_cpu = self.input_batch.num_computed_tokens_cpu_tensor[:num_reqs]
                 num_prompt_tokens_cpu = self.input_batch.num_prompt_tokens_cpu_tensor[:num_reqs]
-                is_prefilling = (num_computed_tokens_cpu < num_prompt_tokens_cpu).to(device=self.device)
-                has_prefill = bool(is_prefilling.any().item())
+                # Both inputs are already CPU tensors; compute the prefill
+                # detection on the CPU to avoid a per-step GPU round-trip +
+                # .item() synchronization in the decode hot path.
+                has_prefill = bool((num_computed_tokens_cpu < num_prompt_tokens_cpu).any().item())
 
                 if has_prefill:
                     import torch
@@ -4303,7 +4337,9 @@ class GPUModelRunner(
                                 self.precision_table,
                                 self.scale_table,
                                 num_prefill_tokens,
-                                self.precision_default,
+                                self.psp_kv_default_k,
+                                self.psp_kv_default_v,
+                                self.psp_kv_adaptive_e,
                             )
                             self._compute_block_offsets()
 
@@ -4320,10 +4356,12 @@ class GPUModelRunner(
                             if (layer_kv_cache is None
                                     or not isinstance(layer_kv_cache, torch.Tensor)):
                                 continue
-                            # Assume layer_kv_cache has shape (2, ...)
-                            if layer_kv_cache.dim() >= 1 and layer_kv_cache.size(0) == 2:
-                                k_cache = layer_kv_cache[0]
-                                v_cache = layer_kv_cache[1]
+                            # Flat byte buffer: [K_bytes | V_bytes].
+                            if (layer_kv_cache.dim() >= 1
+                                    and getattr(self, "k_cache_bytes", 0) > 0):
+                                kb = self.k_cache_bytes
+                                k_cache = layer_kv_cache[:kb]
+                                v_cache = layer_kv_cache[kb:]
                                 # The scratch has shape (num_layers, max_num_tokens, 2, ...)
                                 # We pass the slice for this layer.
                                 torch.ops.psp_kv.quantize_and_scatter_kv(
@@ -6545,29 +6583,112 @@ class GPUModelRunner(
         block_size = 16
         head_size = self.model_config.get_head_size()
         base = block_size * head_size * self.num_kv_heads
-        per_block = torch.where(
-            self.precision_table == 0,
-            base * 2,
-            torch.where(self.precision_table == 3, base // 2, base),
-        )
-        cumsum = torch.cumsum(per_block, dim=0)
-        self.block_offsets = (cumsum - per_block).to(torch.int32)
+        lossless_bytes = int(torch.tensor([], dtype=self.dtype).element_size())
+        # Packed per-block precision: k_fmt | (v_fmt << 2); legacy < 4 is uniform.
+        p = self.precision_table
+        k_fmt = torch.where(p >= 4, p & 3, p)
+        v_fmt = torch.where(p >= 4, p >> 2, p)
+
+        def _block_bytes(fmt: torch.Tensor) -> torch.Tensor:
+            b = torch.where(fmt == 0, base * lossless_bytes,
+                            torch.where(fmt == 3, base // 2, base))
+            return b
+
+        per_block_k = _block_bytes(k_fmt)
+        per_block_v = _block_bytes(v_fmt)
+        k_cumsum = torch.cumsum(per_block_k, dim=0)
+        v_cumsum = torch.cumsum(per_block_v, dim=0)
+        k_offsets = (k_cumsum - per_block_k).to(torch.int32)
+        v_offsets = (v_cumsum - per_block_v).to(torch.int32)
+        # Layout [K | V]: the first total_blocks entries are K byte offsets,
+        # the rest are V byte offsets.
+        self.block_offsets = torch.cat([k_offsets, v_offsets]).to(torch.int32)
+        self.k_cache_bytes = int(k_cumsum[-1].item()) if k_cumsum.numel() else 0
+        self.v_cache_bytes = int(v_cumsum[-1].item()) if v_cumsum.numel() else 0
+        num_blocks = self.precision_table.numel()
+        if num_blocks > 0:
+            self.psp_kv_avg_bytes = (
+                (self.k_cache_bytes + self.v_cache_bytes)
+                / (2 * num_blocks * base)
+            )
+        else:
+            self.psp_kv_avg_bytes = 1.0
         # CPU copies for the virthub connector's variable-size transfer
         # provider and sidecar serialization.
-        self.block_sizes_cpu = per_block.to(torch.int32).cpu()
+        self.block_sizes_cpu = (per_block_k + per_block_v).to(torch.int32).cpu()
         self.block_offsets_cpu = self.block_offsets.cpu()
         self.precision_cpu = self.precision_table.to(torch.uint8).cpu()
         self.scale_cpu = self.scale_table.to(torch.float32).cpu()
         # CPU-side dispatch flags (no per-step GPU->CPU sync): the tensor-core
-        # paths require uniform lossless or uniform e4m3/e5m2 inner precision.
+        # paths require uniform lossless, uniform fp8, or the per-K/V combo of
+        # uniform fp8 K + uniform fp4 V. The precision table is packed
+        # k_fmt | (v_fmt << 2).
         if self.precision_cpu.numel() == 0:
             self.precision_is_lossless = True
             self.precision_fp8_fmt = 0
+            self.precision_v_fmt = 0
+            self.precision_k_fmt = 0
         else:
-            pmin = int(self.precision_cpu.min().item())
-            pmax = int(self.precision_cpu.max().item())
-            self.precision_is_lossless = (pmin == 0 and pmax == 0)
-            self.precision_fp8_fmt = pmax if (pmin == pmax and pmax in (1, 2)) else 0
+            p = self.precision_cpu
+            k_fmt = torch.where(p >= 4, p & 3, p)
+            v_fmt = torch.where(p >= 4, p >> 2, p)
+            self.precision_is_lossless = bool(
+                (k_fmt == 0).all().item() and (v_fmt == 0).all().item())
+            # The K's uniform fp8 fmt (1=e4m3, 2=e5m2), else 0.
+            self.precision_fp8_fmt = int(k_fmt[0].item()) if (
+                (k_fmt == k_fmt[0]).all().item()
+                and int(k_fmt[0].item()) in (1, 2)) else 0
+            # The V's uniform fmt (3=fp4), else 0.
+            self.precision_v_fmt = int(v_fmt[0].item()) if (
+                (v_fmt == v_fmt[0]).all().item()) else 0
+            # The K's uniform fmt (3=fp4), else 0. Lets uniform fp4 (K=V=fp4)
+            # reach the fp4-K tensor-core path instead of the scalar fallback.
+            self.precision_k_fmt = int(k_fmt[0].item()) if (
+                (k_fmt == k_fmt[0]).all().item()
+                and int(k_fmt[0].item()) == 3) else 0
+            # True when any K block is lossless; the per-block fp8/fp4 TC path
+            # can only run when every K block is quantized.
+            self.precision_k_lossless = bool((k_fmt == 0).any().item())
+            self.precision_v_lossless = bool((v_fmt == 0).any().item())
+
+    def psp_kv_stats(self, num_used_blocks: int = 0) -> dict:
+        """Introspection for profiling: precision mix + decode-dispatch flags.
+
+        Returns the K/V per-block format histogram (over the first
+        ``num_used_blocks`` physical blocks, or all blocks when 0), the
+        uniform-precision dispatch flags, and the flat-cache byte footprints.
+        """
+        p = self.precision_cpu
+        num_blocks = int(p.numel()) if p is not None else 0
+        if num_used_blocks > 0:
+            p = p[: min(num_used_blocks, num_blocks)]
+            num_blocks = int(p.numel())
+        stats: dict = {
+            "num_blocks": num_blocks,
+            "precision_is_lossless": bool(self.precision_is_lossless),
+            "precision_fp8_fmt": int(self.precision_fp8_fmt),
+            "precision_v_fmt": int(self.precision_v_fmt),
+            "precision_k_fmt": int(self.precision_k_fmt),
+            "precision_k_lossless": bool(self.precision_k_lossless),
+            "precision_v_lossless": bool(self.precision_v_lossless),
+            "k_cache_bytes": int(getattr(self, "k_cache_bytes", 0)),
+            "v_cache_bytes": int(getattr(self, "v_cache_bytes", 0)),
+            "psp_kv_avg_bytes": float(getattr(self, "psp_kv_avg_bytes", 0.0)),
+            "k_fmt_counts": {},
+            "v_fmt_counts": {},
+        }
+        if num_blocks > 0:
+            pp = p.to(torch.int64)
+            k_fmt = torch.where(pp >= 4, pp & 3, pp)
+            v_fmt = torch.where(pp >= 4, pp >> 2, pp)
+            for f in (0, 1, 2, 3):
+                kc = int((k_fmt == f).sum().item())
+                vc = int((v_fmt == f).sum().item())
+                if kc:
+                    stats["k_fmt_counts"][str(f)] = kc
+                if vc:
+                    stats["v_fmt_counts"][str(f)] = vc
+        return stats
 
     def _derive_precision_from_scratch(self, scratch, slot_map, num_tokens):
         """Derive per-block precision from the prefill's max-abs magnitude.
@@ -6685,10 +6806,11 @@ class GPUModelRunner(
         self.max_num_blocks = total_blocks
 
         # GPU tables (static, never resized)
+        packed_default = self.psp_kv_default_k | (self.psp_kv_default_v << 2)
         self.precision_table = torch.full(
-            (total_blocks,), self.precision_default, dtype=torch.uint8, device=self.device
+            (total_blocks,), packed_default, dtype=torch.uint8, device=self.device
         )
-        self.scale_table = torch.zeros(total_blocks, self.num_kv_heads, dtype=torch.float32, device=self.device)
+        self.scale_table = torch.zeros(2 * total_blocks, self.num_kv_heads, dtype=torch.float32, device=self.device)
         self.tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.int64, device=self.device)
 
         # Variable-stride byte offsets: cumulative prefix sum of each block's
@@ -6702,9 +6824,9 @@ class GPUModelRunner(
 
         # Pinned host staging buffers
         self.h_precision_table = torch.full(
-            (total_blocks,), self.precision_default, dtype=torch.uint8, pin_memory=True
+            (total_blocks,), packed_default, dtype=torch.uint8, pin_memory=True
         )
-        self.h_scale_table = torch.zeros(total_blocks, self.num_kv_heads, dtype=torch.float32, pin_memory=True)
+        self.h_scale_table = torch.zeros(2 * total_blocks, self.num_kv_heads, dtype=torch.float32, pin_memory=True)
         self.h_tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.int64, pin_memory=True)
 
         # Scale validity flag (prevents overwriting GPU scales with stale zeros)
@@ -7219,13 +7341,16 @@ class GPUModelRunner(
                     else:
                         shape_block_size = kernel_block_size
 
-                    kv_cache_shape = attn_backend.get_kv_cache_shape(
-                        kernel_num_blocks,
-                        shape_block_size,
-                        kv_cache_spec.num_kv_heads,
-                        kv_cache_spec.head_size,
+                    shape_kwargs: dict = dict(
+                        num_blocks=kernel_num_blocks,
+                        block_size=shape_block_size,
+                        num_kv_heads=kv_cache_spec.num_kv_heads,
+                        head_size=kv_cache_spec.head_size,
                         cache_dtype_str=self.cache_config.cache_dtype,
                     )
+                    if isinstance(kv_cache_spec, PSPKVAttentionSpec):
+                        shape_kwargs["dtype"] = kv_cache_spec.dtype
+                    kv_cache_shape = attn_backend.get_kv_cache_shape(**shape_kwargs)
                     dtype = kv_cache_spec.dtype
                     try:
                         kv_cache_stride_order = attn_backend.get_kv_cache_stride_order()

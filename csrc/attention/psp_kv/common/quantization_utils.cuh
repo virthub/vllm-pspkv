@@ -334,7 +334,7 @@ __device__ inline float4 psp_dequant4_ct(const uint8_t* base, int elem_idx) {
 // The K dot product spans the full HEAD_DIM; the V weighted sum covers a
 // DIM_COUNT-wide dim subset starting at dim_offset (split-H uses HEAD_DIM/2,
 // non-split uses HEAD_DIM with dim_offset=0).
-template <typename scalar_t, int HEAD_DIM, int FMT, int DIM_COUNT>
+template <typename scalar_t, int HEAD_DIM, int KFMT, int VFMT, int DIM_COUNT>
 __device__ inline void psp_decode_block(
     const float* __restrict__ s_query,
     float& local_max, float& local_sum, float* __restrict__ acc,
@@ -347,7 +347,7 @@ __device__ inline void psp_decode_block(
         const int elem_base = (token_offset + t) * HEAD_DIM;
         #pragma unroll
         for (int d = 0; d < HEAD_DIM; d += 4) {
-            float4 k4 = psp_dequant4_ct<scalar_t, FMT>(k_base, elem_base + d);
+            float4 k4 = psp_dequant4_ct<scalar_t, KFMT>(k_base, elem_base + d);
             s_raw = fmaf(s_query[d], k4.x, s_raw);
             s_raw = fmaf(s_query[d + 1], k4.y, s_raw);
             s_raw = fmaf(s_query[d + 2], k4.z, s_raw);
@@ -365,7 +365,7 @@ __device__ inline void psp_decode_block(
         const float w_scaled = w * v_scale_eff;
         #pragma unroll
         for (int d = 0; d < DIM_COUNT; d += 4) {
-            float4 v4 = psp_dequant4_ct<scalar_t, FMT>(v_base, elem_base + dim_offset + d);
+            float4 v4 = psp_dequant4_ct<scalar_t, VFMT>(v_base, elem_base + dim_offset + d);
             acc[d]     = fmaf(w_scaled, v4.x, acc[d]);
             acc[d + 1] = fmaf(w_scaled, v4.y, acc[d + 1]);
             acc[d + 2] = fmaf(w_scaled, v4.z, acc[d + 2]);
@@ -424,6 +424,33 @@ __device__ inline void psp_quantize_row(
         psp_quantize_ct<scalar_t, FMT>(v_out, block_offset * head_dim + elem_base + d, v, scale);
     }
 }
+
+// Per-K/V quantize: quantizes one row (K or V) with its own format + scale.
+template <typename scalar_t, int FMT>
+__device__ inline void psp_quantize_row_k(
+    const scalar_t* __restrict__ row, uint8_t* __restrict__ out,
+    int chunk_dim, int elem_base, float scale)
+{
+    for (int d = 0; d < chunk_dim; ++d) {
+        psp_quantize_ct<scalar_t, FMT>(out, elem_base + d, psp_to_float(row[d]), scale);
+    }
+}
+
+template <typename scalar_t, int FMT>
+__device__ inline void psp_quantize_row_v(
+    const scalar_t* __restrict__ row, uint8_t* __restrict__ out,
+    int head_dim, int chunk_dim, int elem_base, float scale, int block_offset)
+{
+    for (int d = 0; d < chunk_dim; ++d) {
+        psp_quantize_ct<scalar_t, FMT>(out, block_offset * head_dim + elem_base + d,
+                                       psp_to_float(row[d]), scale);
+    }
+}
+
+// Packed per-block precision helpers: the value >= 4 is packed
+// k_fmt | (v_fmt << 2); the legacy value < 4 is a uniform K/V format.
+__device__ inline int psp_kv_fmt_k(int p) { return (p >= 4) ? (p & 3) : p; }
+__device__ inline int psp_kv_fmt_v(int p) { return (p >= 4) ? (p >> 2) : p; }
 
 // Bytes per element for a block's precision (fp4 packs 2 elems per byte).
 __device__ inline int psp_bytes_per_elem(int fmt, int scalar_size) {

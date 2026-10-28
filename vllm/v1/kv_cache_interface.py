@@ -275,19 +275,20 @@ class FullAttentionSpec(AttentionSpec):
         )
 
 
-def _psp_kv_avg_bytes() -> float:
+def _psp_kv_avg_bytes(dtype: torch.dtype = torch.float16) -> float:
     """Average bytes-per-element budget for the PSP-KV byte-buffer cache.
 
     The default matches the configured inner precision's worst case: lossless
-    (0) = 2 B/elem, fp8 (1/2) = 1, fp4 (3) = 0.5. An explicit PSPKV_AVG_BYTES
-    env wins. The per-block byte offsets are tracked separately by the backend.
+    (0) = the target dtype size (2 B/elem for fp16/bf16, 4 for fp32), fp8
+    (1/2) = 1, fp4 (3) = 0.5. An explicit PSPKV_AVG_BYTES env wins. The
+    per-block byte offsets are tracked separately by the backend.
     """
     env = os.environ.get("PSPKV_AVG_BYTES")
     if env is not None and env.strip() != "":
         return float(env)
     p = os.environ.get("PSPKV_PRECISION", "e4m3").strip().lower()
     if p in ("0", "lossless"):
-        return 2.0
+        return float(get_dtype_size(dtype))
     if p in ("3", "fp4"):
         return 0.5
     return 1.0
@@ -308,7 +309,7 @@ class PSPKVAttentionSpec(FullAttentionSpec):
             self.block_size
             * self.num_kv_heads
             * (self.head_size + self.head_size_v)
-            * _psp_kv_avg_bytes()
+            * _psp_kv_avg_bytes(self.dtype)
         )
 
 
@@ -505,7 +506,7 @@ class PSPKVSlidingWindowSpec(SlidingWindowSpec):
             self.block_size
             * self.num_kv_heads
             * (self.head_size + self.head_size_v)
-            * _psp_kv_avg_bytes()
+            * _psp_kv_avg_bytes(self.dtype)
         )
 
 

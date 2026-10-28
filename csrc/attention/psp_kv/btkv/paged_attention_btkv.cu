@@ -110,10 +110,10 @@ __global__ void paged_attention_btkv_split_kernel(
         const int start_token = b * BLOCK_SIZE;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
         switch (fp8_fmt) {
-            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
-            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
-            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
-            default: psp_decode_block<scalar_t, HEAD_DIM, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            case 0: psp_decode_block<scalar_t, HEAD_DIM, 0, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            case 1: psp_decode_block<scalar_t, HEAD_DIM, 1, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            case 2: psp_decode_block<scalar_t, HEAD_DIM, 2, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
+            default: psp_decode_block<scalar_t, HEAD_DIM, 3, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, combined_scale, v_scale_eff, dim_offset, 0); break;
         }
     }
 

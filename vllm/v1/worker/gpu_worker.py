@@ -750,6 +750,22 @@ class Worker(WorkerBase):
         return self.model_runner.sample_tokens(grammar_output)
 
     @torch.inference_mode()
+    def psp_kv_stats(self, num_used_blocks: int = 0) -> dict:
+        """Introspection hook for the PSP-KV profiling scripts."""
+        if hasattr(self.model_runner, "psp_kv_stats"):
+            return self.model_runner.psp_kv_stats(num_used_blocks)
+        return {}
+
+    def psp_kv_set_num_splits(self, num_splits: int) -> None:
+        """Runtime override of the tensor-core split-K count (Option C autotune).
+
+        The C++ wrapper reads ``PSPKV_TC_NUM_SPLITS`` via ``getenv`` on every
+        decode call, so writing it here (inside the engine-core process) takes
+        effect for subsequent decodes without a reload.
+        """
+        import os
+        os.environ["PSPKV_TC_NUM_SPLITS"] = str(int(num_splits))
+
     def execute_model(
         self, scheduler_output: "SchedulerOutput"
     ) -> ModelRunnerOutput | AsyncModelRunnerOutput | None:

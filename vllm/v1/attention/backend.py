@@ -434,8 +434,24 @@ class CommonAttentionMetadata:
     """True when every block's inner precision is lossless (FMT=0), precomputed
     CPU-side by the model runner to avoid a GPU->CPU sync per decode step."""
     precision_fp8_fmt: int = 0
-    """1/2 when every block is uniform e4m3/e5m2 (else 0), precomputed CPU-side
+    """1/2 when every K block is uniform e4m3/e5m2 (else 0), precomputed CPU-side
     for the fp8 tensor-core dispatch without a per-step GPU->CPU sync."""
+    precision_v_fmt: int = 0
+    """3 when every V block is uniform fp4 (else 0), precomputed CPU-side for the
+    per-K/V fp8+fp4 tensor-core dispatch without a per-step GPU->CPU sync."""
+    precision_k_fmt: int = 0
+    """3 when every K block is uniform fp4 (else 0), precomputed CPU-side so the
+    uniform-fp4 (K=V=fp4) tensor-core path can be selected without a sync."""
+    precision_k_lossless: bool = False
+    """True when ANY K block is lossless (FMT=0). Precomputed CPU-side so the
+    per-block fp8/fp4 tensor-core path can avoid dequantizing lossless K."""
+    precision_v_lossless: bool = False
+    """True when ANY V block is lossless (FMT=0). Precomputed CPU-side so the
+    per-block fp8/fp4 tensor-core path can avoid dequantizing lossless V."""
+    k_cache_bytes: int = 0
+    """Byte footprint of the K region in the flat [K_bytes | V_bytes] cache."""
+    v_cache_bytes: int = 0
+    """Byte footprint of the V region in the flat [K_bytes | V_bytes] cache."""
     # ====================================================
 
     def batch_size(self) -> int:

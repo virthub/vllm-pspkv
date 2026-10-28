@@ -87,6 +87,7 @@ def _run_and_compare(format_gen, num_heads, num_kv_heads, fmt, dtype):
             [[0.5, 1.0, 2.0, 0.5, 1.0, 2.0, 0.5, 1.0][:num_kv_heads]],
             dtype=torch.float32, device="cuda",
         )
+        scale_table = torch.cat([scale_table] * 2)
     if format_gen == 2:
         tma_descriptors = torch.zeros(1, 16, dtype=torch.int64, device="cuda")
 
@@ -101,6 +102,12 @@ def _run_and_compare(format_gen, num_heads, num_kv_heads, fmt, dtype):
     meta.format_generation = format_gen
     meta.num_actual_tokens = 1
     meta.num_reqs = 1
+    meta.precision_is_lossless = (fmt == 0)
+    meta.precision_fp8_fmt = fmt if fmt in (1, 2) else 0
+    meta.precision_v_fmt = fmt
+    meta.precision_k_fmt = 3 if fmt == 3 else 0
+    meta.precision_k_lossless = (fmt == 0)
+    meta.precision_v_lossless = (fmt == 0)
 
     layer = DummyLayer(num_heads=num_heads, num_kv_heads=num_kv_heads, head_size=head_size, scale=softmax_scale)
     impl = PSPKVAttentionImpl(num_heads, head_size, softmax_scale, num_kv_heads, None, None, "auto")
@@ -160,7 +167,7 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
                             dtype=torch.float16, device="cuda").to(dtype)
 
     precision_table = torch.full((1,), fmt, dtype=torch.uint8, device="cuda")
-    block_offsets = torch.zeros(1, dtype=torch.int32, device="cuda")
+    block_offsets = torch.zeros(2, dtype=torch.int32, device="cuda")  # [K | V]
     # one block's byte size
     scalar_size = 2 if dtype in (torch.float16, torch.bfloat16) else 1
     total = block_bytes(fmt, num_kv_heads, block_size, head_size, scalar_size)
@@ -168,7 +175,7 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
     value_cache = torch.zeros(total, dtype=torch.uint8, device="cuda")
     block_tables = torch.zeros(1, 1, dtype=torch.int32, device="cuda")
     slot_mapping = torch.arange(num_tokens, dtype=torch.int64, device="cuda")  # block 0, offsets 0..15
-    scale_table = torch.zeros(1, num_kv_heads, dtype=torch.float32, device="cuda")
+    scale_table = torch.cat([torch.zeros(1, num_kv_heads, dtype=torch.float32, device="cuda")] * 2)
 
     torch.ops.psp_kv.quantize_and_scatter_kv(
         prefill, key_cache, value_cache, block_tables, slot_mapping,
@@ -191,7 +198,8 @@ def test_quantize_and_scatter_roundtrip(fmt, dtype):
     assert torch.equal(key_cache, expected_k)
     assert torch.equal(value_cache, expected_v)
     assert torch.equal(
-        scale_table, torch.full((1, num_kv_heads), scale, device="cuda"))
+        scale_table,
+        torch.full((2, num_kv_heads), scale, device="cuda"))
 
 
 @skip_if_no_ops
@@ -204,7 +212,7 @@ def test_dequantize_kv_staging_path(fmt, dtype):
     v = torch.randn(num_blocks, num_kv_heads, block_size, head_size, device="cuda") * 2.0
     precision_table = torch.full((num_blocks,), fmt, dtype=torch.uint8, device="cuda")
     k_buf, v_buf, block_offsets = pack_kv_cache(k, v, 0, precision_table, dtype)
-    scale_table = torch.ones(num_blocks, num_kv_heads, dtype=torch.float32, device="cuda")
+    scale_table = torch.cat([torch.ones(num_blocks, num_kv_heads, dtype=torch.float32, device="cuda")] * 2)
 
     k_out = torch.empty(num_blocks, num_kv_heads, block_size, head_size, dtype=dtype, device="cuda")
     v_out = torch.empty_like(k_out)

@@ -72,7 +72,7 @@ class TestPSPKVMultiblock:
         key_cache, value_cache, block_offsets = _build_multiblock_cache(
             num_blocks, num_kv_heads, block_size, head_dim, format_gen, precision_table, dtype, "cuda"
         )
-        scale_table = torch.rand(num_blocks, num_kv_heads, device="cuda") * 1.5 + 0.5
+        scale_table = torch.cat([torch.rand(num_blocks, num_kv_heads, device="cuda") * 1.5 + 0.5] * 2)
 
         ref_out = reference_paged_attention(
             query, key_cache, value_cache, block_tables, context_lens,
@@ -93,7 +93,8 @@ class TestPSPKVMultiblock:
         elif format_gen == 1:
             op(query, key_cache, value_cache, block_tables, context_lens,
                precision_table, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim,
-               -1, (fmt == 0), (fmt if fmt in (1, 2) else 0), kernel_out)
+               -1, (fmt == 0), (fmt if fmt in (1, 2) else 0), fmt,
+               (3 if fmt == 3 else 0), (fmt == 0), (fmt == 0), kernel_out)
         else:
             tma_descriptors = torch.zeros(num_blocks, 16, dtype=torch.int64, device="cuda")
             op(query, key_cache, value_cache, block_tables, context_lens,
@@ -126,7 +127,7 @@ class TestPSPKVMultiblock:
         key_cache, value_cache, block_offsets = _build_multiblock_cache(
             num_blocks, num_kv_heads, block_size, head_dim, 1, prec_e4m3, torch.float16, "cuda"
         )
-        scale_table = torch.ones((num_blocks, num_kv_heads), dtype=torch.float32, device="cuda")
+        scale_table = torch.cat([torch.ones((num_blocks, num_kv_heads), dtype=torch.float32, device="cuda")] * 2)
         prec_e5m2 = torch.full((num_blocks,), 2, dtype=torch.uint8, device="cuda")
 
         def run(prec, fmt):
@@ -134,7 +135,7 @@ class TestPSPKVMultiblock:
             self.ops.psp_attention_enhanced(
                 query, key_cache, value_cache, block_tables, context_lens,
                 prec, block_offsets, scale_table, softmax_scale, num_kv_heads, head_dim,
-                -1, False, fmt, out,
+                -1, False, fmt, fmt, 0, False, False, out,
             )
             return out
 

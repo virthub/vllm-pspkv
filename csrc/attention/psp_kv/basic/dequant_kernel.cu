@@ -70,6 +70,203 @@ void launch_dequant_kv(
         k_out, v_out, num_blocks, num_kv_heads, block_size, head_dim);
 }
 
+// ---------------------------------------------------------------------------
+// Prefix dequantization: dequantizes one request's cached prefix (the physical
+// blocks named by `block_table`) into a contiguous [n_blk, num_kv_heads,
+// block_size, head_dim] tensor. One fused launch replaces the per-block Python
+// loop (which did 4 GPU->CPU syncs + a torch LUT gather + a cat per block).
+// ---------------------------------------------------------------------------
+template <typename scalar_t>
+__global__ void dequant_prefix_kernel(
+    const uint8_t* __restrict__ k_cache,
+    const uint8_t* __restrict__ v_cache,
+    const int* __restrict__ block_table,      // [n_blk] physical block ids
+    const uint8_t* __restrict__ precision_table,
+    const uint32_t* __restrict__ block_offsets,  // [2*num_blocks] K offsets | V offsets
+    const float* __restrict__ scale_table,
+    scalar_t* __restrict__ k_out,             // [n_blk, num_kv_heads, block_size, head_dim]
+    scalar_t* __restrict__ v_out,
+    int n_blk, int num_blocks, int num_kv_heads, int block_size, int head_dim)
+{
+    const int elems_per_head = block_size * head_dim;
+    const int elems_per_block = elems_per_head * num_kv_heads;
+    const int total = elems_per_block * n_blk;
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+
+    const int seq_block = idx / elems_per_block;
+    const int rem = idx % elems_per_block;
+    const int head = rem / elems_per_head;
+    const int elem = rem % elems_per_head;
+
+    const int block = block_table[seq_block];
+    const int packed = (int)precision_table[block];
+    const int k_fmt = psp_kv_fmt_k(packed);
+    const int v_fmt = psp_kv_fmt_v(packed);
+    const float k_scale = (k_fmt != 0) ? scale_table[block * num_kv_heads + head] : 1.0f;
+    const float v_scale = (v_fmt != 0)
+        ? scale_table[(num_blocks + block) * num_kv_heads + head] : 1.0f;
+
+    int k_block_bytes_per_head;
+    if (k_fmt == 0)      k_block_bytes_per_head = elems_per_head * (int)sizeof(scalar_t);
+    else if (k_fmt == 3) k_block_bytes_per_head = elems_per_head / 2;
+    else                 k_block_bytes_per_head = elems_per_head;
+
+    int v_block_bytes_per_head;
+    if (v_fmt == 0)      v_block_bytes_per_head = elems_per_head * (int)sizeof(scalar_t);
+    else if (v_fmt == 3) v_block_bytes_per_head = elems_per_head / 2;
+    else                 v_block_bytes_per_head = elems_per_head;
+
+    const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_block_bytes_per_head;
+    const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_block_bytes_per_head;
+
+    k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, elem, k_fmt, k_scale));
+    v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, elem, v_fmt, v_scale));
+}
+
+template <typename scalar_t>
+void launch_dequant_prefix(
+    const uint8_t* k_cache, const uint8_t* v_cache,
+    const int* block_table, const uint8_t* precision_table,
+    const uint32_t* block_offsets, const float* scale_table,
+    scalar_t* k_out, scalar_t* v_out,
+    int n_blk, int num_blocks, int num_kv_heads, int block_size, int head_dim,
+    cudaStream_t stream)
+{
+    int total = n_blk * num_kv_heads * block_size * head_dim;
+    int threads = 256;
+    int blocks = (total + threads - 1) / threads;
+    dequant_prefix_kernel<scalar_t><<<blocks, threads, 0, stream>>>(
+        k_cache, v_cache, block_table, precision_table, block_offsets,
+        scale_table, k_out, v_out, n_blk, num_blocks, num_kv_heads, block_size, head_dim);
+}
+
+template void launch_dequant_prefix<half>(
+    const uint8_t*, const uint8_t*, const int*, const uint8_t*, const uint32_t*,
+    const float*, half*, half*, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix<__nv_bfloat16>(
+    const uint8_t*, const uint8_t*, const int*, const uint8_t*, const uint32_t*,
+    const float*, __nv_bfloat16*, __nv_bfloat16*, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix<float>(
+    const uint8_t*, const uint8_t*, const int*, const uint8_t*, const uint32_t*,
+    const float*, float*, float*, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix<__nv_fp8_e4m3>(
+    const uint8_t*, const uint8_t*, const int*, const uint8_t*, const uint32_t*,
+    const float*, __nv_fp8_e4m3*, __nv_fp8_e4m3*, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix<__nv_fp8_e5m2>(
+    const uint8_t*, const uint8_t*, const int*, const uint8_t*, const uint32_t*,
+    const float*, __nv_fp8_e5m2*, __nv_fp8_e5m2*, int, int, int, int, int, cudaStream_t);
+
+// ---------------------------------------------------------------------------
+// Batched prefix dequantization: one launch dequantizes every request's cached
+// prefix into a contiguous [total_padded, num_kv_heads, head_dim] tensor. Each
+// request's prefix starts at out_offsets[seq] (a CPU-side prefix sum of the
+// padded block counts). This removes the per-request Python op-dispatch loop.
+// ---------------------------------------------------------------------------
+template <typename scalar_t>
+__global__ void dequant_prefix_batch_kernel(
+    const uint8_t* __restrict__ k_cache,
+    const uint8_t* __restrict__ v_cache,
+    const int* __restrict__ block_tables,      // [num_seqs * max_blocks_per_seq]
+    const int* __restrict__ ctx_lens,          // [num_seqs]
+    const int* __restrict__ out_offsets,       // [num_seqs] padded prefix-sum
+    const uint8_t* __restrict__ precision_table,
+    const uint32_t* __restrict__ block_offsets,
+    const float* __restrict__ scale_table,
+    scalar_t* __restrict__ k_out,              // [total_padded, num_kv_heads, head_dim]
+    scalar_t* __restrict__ v_out,
+    int num_seqs, int max_blocks_per_seq, int num_blocks,
+    int num_kv_heads, int block_size, int head_dim)
+{
+    const int elems_per_head = block_size * head_dim;
+    const int elems_per_block = elems_per_head * num_kv_heads;
+    const int total = elems_per_block * max_blocks_per_seq * num_seqs;
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= total) return;
+
+    const int seq = idx / (elems_per_block * max_blocks_per_seq);
+    const int rem = idx % (elems_per_block * max_blocks_per_seq);
+    const int seq_block = rem / elems_per_block;
+    const int rem2 = rem % elems_per_block;
+    const int head = rem2 / elems_per_head;
+    const int elem = rem2 % elems_per_head;
+
+    const int ctx = ctx_lens[seq];
+    const int n_blk = (ctx + block_size - 1) / block_size;
+    if (seq_block >= n_blk) return;
+
+    const int block = block_tables[seq * max_blocks_per_seq + seq_block];
+    const int packed = (int)precision_table[block];
+    const int k_fmt = psp_kv_fmt_k(packed);
+    const int v_fmt = psp_kv_fmt_v(packed);
+    const float k_scale = (k_fmt != 0) ? scale_table[block * num_kv_heads + head] : 1.0f;
+    const float v_scale = (v_fmt != 0)
+        ? scale_table[(num_blocks + block) * num_kv_heads + head] : 1.0f;
+
+    int k_bph;
+    if (k_fmt == 0)      k_bph = elems_per_head * (int)sizeof(scalar_t);
+    else if (k_fmt == 3) k_bph = elems_per_head / 2;
+    else                 k_bph = elems_per_head;
+    int v_bph;
+    if (v_fmt == 0)      v_bph = elems_per_head * (int)sizeof(scalar_t);
+    else if (v_fmt == 3) v_bph = elems_per_head / 2;
+    else                 v_bph = elems_per_head;
+
+    const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_bph;
+    const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_bph;
+
+    const int token_in_block = elem / head_dim;
+    const int dim = elem % head_dim;
+    const int token = out_offsets[seq] + seq_block * block_size + token_in_block;
+    const int out_idx = (token * num_kv_heads + head) * head_dim + dim;
+
+    k_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, elem, k_fmt, k_scale));
+    v_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, elem, v_fmt, v_scale));
+}
+
+template <typename scalar_t>
+void launch_dequant_prefix_batch(
+    const uint8_t* k_cache, const uint8_t* v_cache,
+    const int* block_tables, const int* ctx_lens, const int* out_offsets,
+    const uint8_t* precision_table, const uint32_t* block_offsets,
+    const float* scale_table,
+    scalar_t* k_out, scalar_t* v_out,
+    int num_seqs, int max_blocks_per_seq, int num_blocks,
+    int num_kv_heads, int block_size, int head_dim,
+    cudaStream_t stream)
+{
+    int total = num_seqs * max_blocks_per_seq * num_kv_heads * block_size * head_dim;
+    int threads = 256;
+    int blocks = (total + threads - 1) / threads;
+    dequant_prefix_batch_kernel<scalar_t><<<blocks, threads, 0, stream>>>(
+        k_cache, v_cache, block_tables, ctx_lens, out_offsets,
+        precision_table, block_offsets, scale_table, k_out, v_out,
+        num_seqs, max_blocks_per_seq, num_blocks, num_kv_heads, block_size, head_dim);
+}
+
+template void launch_dequant_prefix_batch<half>(
+    const uint8_t*, const uint8_t*, const int*, const int*, const int*,
+    const uint8_t*, const uint32_t*, const float*, half*, half*,
+    int, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix_batch<__nv_bfloat16>(
+    const uint8_t*, const uint8_t*, const int*, const int*, const int*,
+    const uint8_t*, const uint32_t*, const float*, __nv_bfloat16*, __nv_bfloat16*,
+    int, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix_batch<float>(
+    const uint8_t*, const uint8_t*, const int*, const int*, const int*,
+    const uint8_t*, const uint32_t*, const float*, float*, float*,
+    int, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix_batch<__nv_fp8_e4m3>(
+    const uint8_t*, const uint8_t*, const int*, const int*, const int*,
+    const uint8_t*, const uint32_t*, const float*, __nv_fp8_e4m3*, __nv_fp8_e4m3*,
+    int, int, int, int, int, int, cudaStream_t);
+template void launch_dequant_prefix_batch<__nv_fp8_e5m2>(
+    const uint8_t*, const uint8_t*, const int*, const int*, const int*,
+    const uint8_t*, const uint32_t*, const float*, __nv_fp8_e5m2*, __nv_fp8_e5m2*,
+    int, int, int, int, int, int, cudaStream_t);
+
 template void launch_dequant_kv<half>(
     const uint8_t*, const uint8_t*, const uint32_t*, const uint8_t*, const float*,
     half*, half*, int, int, int, int, cudaStream_t);

@@ -149,7 +149,9 @@ def pack_kv_cache(k_full: torch.Tensor, v_full: torch.Tensor, format_gen: int,
         k_buf[off:off + block_bytes[b]] = k_bytes
         v_buf[off:off + block_bytes[b]] = v_bytes
 
-    return k_buf, v_buf, torch.tensor(offsets, dtype=torch.int32, device=k_full.device)
+    # PSP-KV now uses separate [K | V] byte offsets (per-K/V precision).
+    off = torch.tensor(offsets, dtype=torch.int32, device=k_full.device)
+    return k_buf, v_buf, torch.cat([off, off])
 
 
 def dequantize_kv(k_cache: torch.Tensor, v_cache: torch.Tensor,

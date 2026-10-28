@@ -63,6 +63,10 @@ void psp_attention_enhanced(
     int64_t sliding_window,
     bool is_lossless,
     int64_t fp8_fmt,
+    int64_t v_fmt,
+    int64_t k_fmt,
+    bool k_lossless,
+    bool v_lossless,
     torch::Tensor& out);
 
 /**
