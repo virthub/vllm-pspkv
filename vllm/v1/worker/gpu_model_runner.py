@@ -4297,8 +4297,12 @@ class GPUModelRunner(
                 # detection on the CPU to avoid a per-step GPU round-trip +
                 # .item() synchronization in the decode hot path.
                 has_prefill = bool((num_computed_tokens_cpu < num_prompt_tokens_cpu).any().item())
+                # Speculative verify schedules N>1 tokens/seq but the prompt is
+                # already computed (so it is not a "prefill"); its K/V still need
+                # the scratch scatter, so treat any multi-token step as needing it.
+                has_multi_token = int(scheduler_output.total_num_scheduled_tokens) > num_reqs
 
-                if has_prefill:
+                if has_prefill or has_multi_token:
                     import torch
                     num_prefill_tokens = int(scheduler_output.total_num_scheduled_tokens)
                     # Loop over all layers in self.kv_caches.
@@ -4330,12 +4334,12 @@ class GPUModelRunner(
                         # the variable-stride byte offsets. The derivation is a
                         # fused kernel (estimate max-abs + derive) reusing the
                         # quantize path's max-abs, so no Torch pass is needed.
-                        if self.psp_kv_adaptive_precision:
+                        if has_prefill and self.psp_kv_adaptive_precision:
                             torch.ops.psp_kv.derive_precision_kv(
                                 self.prefill_kv_scratch[0],
                                 slot_map,
                                 self.precision_table,
-                                self.scale_table,
+                                self.scale_table[0],
                                 num_prefill_tokens,
                                 self.psp_kv_default_k,
                                 self.psp_kv_default_v,
@@ -4363,19 +4367,34 @@ class GPUModelRunner(
                                 k_cache = layer_kv_cache[:kb]
                                 v_cache = layer_kv_cache[kb:]
                                 # The scratch has shape (num_layers, max_num_tokens, 2, ...)
-                                # We pass the slice for this layer.
-                                torch.ops.psp_kv.quantize_and_scatter_kv(
-                                    self.prefill_kv_scratch[layer_idx],
-                                    k_cache,
-                                    v_cache,
-                                    blk_table,
-                                    slot_map,
-                                    self.precision_table,
-                                    self.block_offsets,
-                                    self.scale_table,
-                                    num_prefill_tokens,
-                                    self.format_generation,
-                                )
+                                # We pass the slice for this layer. The verify
+                                # (decode-like, no prefill) uses the scatter-only
+                                # op so the accepted blocks' scale is preserved.
+                                if has_prefill:
+                                    torch.ops.psp_kv.quantize_and_scatter_kv(
+                                        self.prefill_kv_scratch[layer_idx],
+                                        k_cache,
+                                        v_cache,
+                                        blk_table,
+                                        slot_map,
+                                        self.precision_table,
+                                        self.block_offsets,
+                                        self.scale_table[layer_idx],
+                                        num_prefill_tokens,
+                                        self.format_generation,
+                                    )
+                                else:
+                                    torch.ops.psp_kv.quantize_scatter_multi(
+                                        self.prefill_kv_scratch[layer_idx],
+                                        k_cache,
+                                        v_cache,
+                                        slot_map,
+                                        self.precision_table,
+                                        self.block_offsets,
+                                        self.scale_table[layer_idx],
+                                        num_prefill_tokens,
+                                        self.format_generation,
+                                    )
 
                         if prof:
                             ev_quant[1].record()
@@ -6806,11 +6825,17 @@ class GPUModelRunner(
         self.max_num_blocks = total_blocks
 
         # GPU tables (static, never resized)
+        num_layers = self.model_config.get_num_layers(self.parallel_config)
         packed_default = self.psp_kv_default_k | (self.psp_kv_default_v << 2)
         self.precision_table = torch.full(
             (total_blocks,), packed_default, dtype=torch.uint8, device=self.device
         )
-        self.scale_table = torch.zeros(2 * total_blocks, self.num_kv_heads, dtype=torch.float32, device=self.device)
+        # Per-layer, per-(block, head, scale-group) K/V scales. Each attention
+        # layer has its own magnitude distribution, and low-precision formats
+        # (fp4 e2m1) need a per-channel-group scale because the K cache spans
+        # ~100x across dims.
+        num_groups = self.model_config.get_head_size() // 16
+        self.scale_table = torch.zeros(num_layers, 2 * total_blocks, self.num_kv_heads, num_groups, dtype=torch.float32, device=self.device)
         self.tma_descriptors = torch.zeros(total_blocks, 16, dtype=torch.int64, device=self.device)
 
         # Variable-stride byte offsets: cumulative prefix sum of each block's

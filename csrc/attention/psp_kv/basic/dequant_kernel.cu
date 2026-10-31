@@ -39,6 +39,9 @@ __global__ void dequant_kv_kernel(
     int elem = rem % elems_per_head;
 
     int fmt = (int)precision_table[block];
+    // The basic (format_gen 0) staging path keeps a per-(block, head) 2D scale
+    // table (uniform K/V precision); the enhanced prefix dequant below is the
+    // one that uses the per-group table.
     float scale = (fmt != 0) ? scale_table[block * num_kv_heads + head] : 1.0f;
 
     int block_bytes_per_head;
@@ -104,9 +107,12 @@ __global__ void dequant_prefix_kernel(
     const int packed = (int)precision_table[block];
     const int k_fmt = psp_kv_fmt_k(packed);
     const int v_fmt = psp_kv_fmt_v(packed);
-    const float k_scale = (k_fmt != 0) ? scale_table[block * num_kv_heads + head] : 1.0f;
-    const float v_scale = (v_fmt != 0)
-        ? scale_table[(num_blocks + block) * num_kv_heads + head] : 1.0f;
+    const int num_groups = psp_kv_num_groups(head_dim);
+    const int group = (elem % head_dim) / PSP_KV_SCALE_GROUP;
+    const int gidx = psp_kv_scale_idx(block, head, num_kv_heads, num_groups, group);
+    const int v_base_idx = num_blocks * num_kv_heads * num_groups;
+    const float k_scale = (k_fmt != 0) ? scale_table[gidx] : 1.0f;
+    const float v_scale = (v_fmt != 0) ? scale_table[v_base_idx + gidx] : 1.0f;
 
     int k_block_bytes_per_head;
     if (k_fmt == 0)      k_block_bytes_per_head = elems_per_head * (int)sizeof(scalar_t);
@@ -201,9 +207,14 @@ __global__ void dequant_prefix_batch_kernel(
     const int packed = (int)precision_table[block];
     const int k_fmt = psp_kv_fmt_k(packed);
     const int v_fmt = psp_kv_fmt_v(packed);
-    const float k_scale = (k_fmt != 0) ? scale_table[block * num_kv_heads + head] : 1.0f;
-    const float v_scale = (v_fmt != 0)
-        ? scale_table[(num_blocks + block) * num_kv_heads + head] : 1.0f;
+    const int num_groups = psp_kv_num_groups(head_dim);
+    const int token_in_block = elem / head_dim;
+    const int dim = elem % head_dim;
+    const int group = dim / PSP_KV_SCALE_GROUP;
+    const int gidx = psp_kv_scale_idx(block, head, num_kv_heads, num_groups, group);
+    const int v_base_idx = num_blocks * num_kv_heads * num_groups;
+    const float k_scale = (k_fmt != 0) ? scale_table[gidx] : 1.0f;
+    const float v_scale = (v_fmt != 0) ? scale_table[v_base_idx + gidx] : 1.0f;
 
     int k_bph;
     if (k_fmt == 0)      k_bph = elems_per_head * (int)sizeof(scalar_t);
@@ -217,8 +228,6 @@ __global__ void dequant_prefix_batch_kernel(
     const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_bph;
     const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_bph;
 
-    const int token_in_block = elem / head_dim;
-    const int dim = elem % head_dim;
     const int token = out_offsets[seq] + seq_block * block_size + token_in_block;
     const int out_idx = (token * num_kv_heads + head) * head_dim + dim;
 

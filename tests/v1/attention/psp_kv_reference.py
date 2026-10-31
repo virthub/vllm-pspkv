@@ -16,6 +16,19 @@ These functions reimplement the exact kernel math (docs/PSP_KV_FORMAT_CONTRACT.m
 
 import torch
 
+# Per-scale-group granularity (matches PSP_KV_SCALE_GROUP in the CUDA kernels).
+SCALE_GROUP = 16
+
+
+def _per_group_scale(scale_row: torch.Tensor, num_kv_heads: int,
+                     block_size: int, head_dim: int) -> torch.Tensor:
+    """Broadcast a [num_kv_heads, num_groups] scale row to
+    [num_kv_heads, block_size, head_dim] (one scale per 16-dim group)."""
+    num_groups = head_dim // SCALE_GROUP
+    return (scale_row.float().reshape(num_kv_heads, 1, num_groups, 1)
+            .expand(num_kv_heads, block_size, num_groups, SCALE_GROUP)
+            .reshape(num_kv_heads, block_size, head_dim))
+
 
 def dequantize_fp8(q: torch.Tensor, fmt: int) -> torch.Tensor:
     """Bit-exact reimplementation of the CUDA dequantize_fp8_* helpers (uint8 -> f32)."""
@@ -52,27 +65,19 @@ def quantize_fp8(x: torch.Tensor, fmt: int) -> torch.Tensor:
 
 
 def dequantize_fp4_e2m1(q: torch.Tensor) -> torch.Tensor:
-    """Bit-exact e2m1 dequant (nibble 0-15 -> float), matching the CUDA helper."""
-    table = torch.tensor(
-        [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, float("inf"), float("inf"),
-         -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, float("-inf"), float("-inf")],
-        dtype=torch.float32, device=q.device,
-    )
-    return table[q.to(torch.int32)]
+    """Linear signed 4-bit (int4) dequant: sign-magnitude, magnitude 0..7."""
+    q = q.to(torch.int32)
+    mag = (q & 0x7).to(torch.float32)
+    return torch.where((q & 0x8) != 0, -mag, mag)
 
 
 def quantize_fp4_e2m1(x: torch.Tensor) -> torch.Tensor:
-    """Nearest-neighbor e2m1 quantize (exact for integers 0..3)."""
+    """Linear signed 4-bit (int4) quantize: round-to-nearest in [-7, 7]."""
     x = x.to(torch.float32)
-    mag = x.abs()
-    code = torch.where(mag < 0.25, 0,
-            torch.where(mag < 0.75, 1,
-            torch.where(mag < 1.25, 2,
-            torch.where(mag < 1.75, 3,
-            torch.where(mag < 2.5, 4, 5)))))
-    code = code.to(torch.uint8)
-    sign_bit = (x < 0).to(torch.uint8) * 8
-    return code | sign_bit
+    r = torch.round(x).clamp(-7, 7)
+    mag = r.abs().to(torch.uint8) & 0x7
+    sign = (r < 0).to(torch.uint8) * 8
+    return mag | sign
 
 
 def _scalar_size(dtype: torch.dtype) -> int:
@@ -172,7 +177,12 @@ def dequantize_kv(k_cache: torch.Tensor, v_cache: torch.Tensor,
         per_head = _bytes_per_head(fmt, block_size, head_size, scalar_size)
         bb = per_head * num_kv_heads
         off = int(block_offsets[b].item())
-        scale = scale_table[b].float()[:, None, None] if fmt != 0 else 1.0
+        if fmt != 0:
+            scale = (_per_group_scale(scale_table[b], num_kv_heads, block_size, head_size)
+                     if scale_table.dim() >= 3
+                     else scale_table[b].float()[:, None, None])
+        else:
+            scale = 1.0
         k_out[b] = _dequant_elements(k_cache[off:off + bb], fmt, dtype,
                                      (num_kv_heads, block_size, head_size), scale)
         v_out[b] = _dequant_elements(v_cache[off:off + bb], fmt, dtype,
@@ -199,6 +209,7 @@ def reference_paged_attention(
     num_heads = query.shape[1]
     head_dim = query.shape[2]
     device = query.device
+    num_blocks = len(precision_table)
 
     outputs = []
     for seq in range(query.shape[0]):
@@ -217,16 +228,22 @@ def reference_paged_attention(
             scalar_size = _scalar_size(query.dtype)
             per_head = _bytes_per_head(fmt, block_size, head_dim, scalar_size)
             bb = per_head * num_kv_heads
-            off = int(block_offsets[bid].item())
+            k_off = int(block_offsets[bid].item())
+            v_off = int(block_offsets[num_blocks + bid].item())
 
-            k = _dequant_elements(key_cache[off:off + bb], fmt, query.dtype,
+            k = _dequant_elements(key_cache[k_off:k_off + bb], fmt, query.dtype,
                                   (num_kv_heads, block_size, head_dim), 1.0)
-            v = _dequant_elements(value_cache[off:off + bb], fmt, query.dtype,
+            v = _dequant_elements(value_cache[v_off:v_off + bb], fmt, query.dtype,
                                   (num_kv_heads, block_size, head_dim), 1.0)
             if format_gen != 0 and fmt != 0:
-                s = scale_table[bid].float()[:, None, None]
-                k = k * s
-                v = v * s
+                if scale_table.dim() >= 3:
+                    ks = _per_group_scale(scale_table[bid], num_kv_heads, block_size, head_dim)
+                    vs = _per_group_scale(scale_table[num_blocks + bid], num_kv_heads, block_size, head_dim)
+                else:
+                    ks = scale_table[bid].float()[:, None, None]
+                    vs = scale_table[num_blocks + bid].float()[:, None, None]
+                k = k * ks
+                v = v * vs
 
             k_blocks.append(k)
             v_blocks.append(v)

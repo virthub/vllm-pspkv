@@ -325,9 +325,10 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
 
         context_lens = getattr(meta, "context_lens", None)
         if context_lens is None:
-            # seq_lens is the optimistic length (includes the current decode
-            # token); the cache holds one fewer token, so subtract 1.
-            context_lens = meta.seq_lens - 1
+            # seq_lens already includes the current decode token's slot; the
+            # current token is written to that slot before attention so the
+            # decode attends over the full prefix plus itself.
+            context_lens = meta.seq_lens
 
         # ----- Ensure required tensor invariants for CUDA kernels -----
         # The model runner must provide these in the correct format before
@@ -354,6 +355,15 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         # The softmax scale lives on the impl (set from the constructor's
         # `scale` argument), not on the Attention layer.
         softmax_scale = self.scale
+
+        # Per-layer K/V scales: the runner stores the scale table with a
+        # leading layer dimension; slice out this layer's scales (the tests
+        # pass a 2D table, which is left as-is).
+        scale_table = getattr(meta, "scale_table", None)
+        if scale_table is not None and scale_table.dim() == 4:
+            layer_name = getattr(layer, "layer_name", None)
+            layer_idx = extract_layer_index(layer_name) if layer_name is not None else 0
+            scale_table = scale_table[layer_idx]
 
         # ----- Locate the PSP-KV op namespace -----
         # The wrapper registers ops under `torch.ops.psp_kv.*`.
@@ -392,8 +402,29 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                     query, key, value, meta, output, layer, k_cache, v_cache,
                     block_tables, block_offsets, num_kv_heads, head_size)
 
+        # Decode write-back happens before attention so the current token is
+        # already in its cache slot when the kernel reads `context_lens`
+        # (= seq_lens) tokens, matching the FlashAttention baseline's self-
+        # attention over [prefix | current token].
+        slot_mapping = getattr(meta, "slot_mapping", None)
+        if slot_mapping is not None and key is not None and value is not None:
+            ops.quantize_single_token(
+                key.contiguous(), value.contiguous(), k_cache, v_cache,
+                slot_mapping,
+                meta.precision_table,
+                block_offsets,
+                scale_table,
+                format_gen,
+            )
+
         # ----- Dispatch to the correct PSP-KV kernel -----
-        if format_gen == 0:
+        if (format_gen == 1 and getattr(meta, "precision_is_lossless", False)
+                and query.dtype in (torch.float16, torch.bfloat16)):
+            self._lossless_flash_attn(
+                query, k_cache, v_cache, block_tables, context_lens,
+                meta, block_offsets, num_kv_heads, head_size, output,
+                scale_table)
+        elif format_gen == 0:
             # Basic format: staging path. Dequantize the compressed byte buffer
             # into a uniform target-precision buffer, then run the transparent
             # (uniform) consumer that needs no inner-precision metadata.
@@ -402,7 +433,6 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 dtype=query.dtype, device=query.device,
             )
             v_staging = torch.empty_like(k_staging)
-            scale_table = getattr(meta, "scale_table", None)
             if scale_table is None:
                 scale_table = torch.ones(num_blocks, num_kv_heads,
                                          dtype=torch.float32, device=query.device)
@@ -425,7 +455,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 context_lens,
                 meta.precision_table,
                 block_offsets,
-                meta.scale_table,
+                scale_table,
                 softmax_scale,
                 num_kv_heads,
                 head_size,
@@ -453,7 +483,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 context_lens,
                 meta.precision_table,
                 block_offsets,
-                meta.scale_table,
+                scale_table,
                 meta.tma_descriptors,
                 softmax_scale,
                 num_kv_heads,
@@ -465,25 +495,84 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 f"Unsupported PSP-KV format_generation: {format_gen}"
             )
 
-        # Decode write-back: quantize this step's K/V with the block's existing
-        # scale and scatter it into the byte cache so the next step sees it.
-        slot_mapping = getattr(meta, "slot_mapping", None)
         if os.environ.get("PSPKV_VERIFY") == "1" and slot_mapping is not None:
             _verify_fp32_closeness(
                 query, k_cache, v_cache, block_tables, context_lens,
-                meta.precision_table, meta.scale_table, block_offsets,
+                meta.precision_table, scale_table, block_offsets,
                 num_kv_heads, softmax_scale, output, format_gen,
                 self.sliding_window[0] + self.sliding_window[1] + 1)
-        if slot_mapping is not None and key is not None and value is not None:
-            ops.quantize_single_token(
-                key.contiguous(), value.contiguous(), k_cache, v_cache,
-                slot_mapping,
-                meta.precision_table,
-                block_offsets,
-                meta.scale_table,
-                format_gen,
-            )
 
+        return output
+
+    def _lossless_flash_attn(
+        self,
+        query: torch.Tensor,
+        k_cache: torch.Tensor,
+        v_cache: torch.Tensor,
+        block_tables: torch.Tensor,
+        context_lens: torch.Tensor,
+        meta,
+        block_offsets: torch.Tensor,
+        num_kv_heads: int,
+        head_size: int,
+        output: torch.Tensor,
+        scale_table: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        from vllm.vllm_flash_attn.flash_attn_interface import (
+            flash_attn_varlen_func,
+        )
+
+        scale = self.scale
+        block_size = 16
+        num_reqs = context_lens.size(0)
+        num_actual = getattr(meta, "num_actual_tokens", num_reqs)
+
+        ctx_cpu = [int(c) for c in context_lens.cpu().tolist()]
+        n_blk = [(c + block_size - 1) // block_size for c in ctx_cpu]
+        padded = [n * block_size for n in n_blk]
+        total_padded = sum(padded)
+        out_offsets = [0]
+        for pl in padded:
+            out_offsets.append(out_offsets[-1] + pl)
+        max_blocks = max(n_blk) if n_blk else 1
+
+        k_pre = torch.empty(total_padded, num_kv_heads, head_size,
+                            dtype=query.dtype, device=query.device)
+        v_pre = torch.empty_like(k_pre)
+        if total_padded > 0:
+            ctx_t = context_lens.to(torch.int32)
+            offs_t = torch.tensor(out_offsets[:num_reqs], dtype=torch.int32,
+                                  device=query.device)
+            _get_psp_kv_ops().psp_dequantize_prefix_batch(
+                k_cache, v_cache, block_tables[:, :max_blocks].contiguous(),
+                ctx_t, offs_t, meta.precision_table, block_offsets,
+                scale_table, num_kv_heads, block_size, head_size,
+                k_pre, v_pre)
+
+        # Gather the valid tokens (the pre-write already placed the current
+        # token in its cache slot, so context_lens == seq_lens includes it).
+        k_parts, v_parts = [], []
+        k_lens = []
+        for j in range(num_reqs):
+            ctx = ctx_cpu[j]
+            o0 = out_offsets[j]
+            k_parts.append(k_pre[o0:o0 + ctx])
+            v_parts.append(v_pre[o0:o0 + ctx])
+            k_lens.append(ctx)
+
+        k_big = torch.cat(k_parts, dim=0)
+        v_big = torch.cat(v_parts, dim=0)
+        cu_q = torch.arange(num_reqs + 1, dtype=torch.int32, device=query.device)
+        cu_k = torch.cumsum(
+            torch.tensor([0] + k_lens, dtype=torch.int32, device=query.device),
+            dim=0).to(torch.int32)
+        max_k = max(k_lens)
+
+        o = flash_attn_varlen_func(
+            q=query[:num_actual], k=k_big, v=v_big, out=output[:num_actual],
+            cu_seqlens_q=cu_q, max_seqlen_q=1, max_seqlen_k=max_k,
+            cu_seqlens_k=cu_k, softmax_scale=scale, causal=True, num_splits=0,
+        )
         return output
 
     def _prefill_forward(
@@ -525,6 +614,11 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         # quantize them afterwards (the scratch is read by quantize_and_scatter_kv).
         scratch = _prefill_kv_scratch
         layer_idx = extract_layer_index(layer.layer_name) if scratch is not None else -1
+        scale_table = getattr(meta, "scale_table", None)
+        if scale_table is not None and scale_table.dim() == 4:
+            layer_name = getattr(layer, "layer_name", None)
+            layer_idx = extract_layer_index(layer_name) if layer_name is not None else 0
+            scale_table = scale_table[layer_idx]
         if scratch is not None:
             scratch[layer_idx, :total_q, 0].copy_(key)
             scratch[layer_idx, :total_q, 1].copy_(value)
@@ -544,12 +638,48 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             output[:total_q].copy_(o.to(output.dtype))
             return output
 
-        # Chunked prefill: batch-dequantize every cached prefix in one launch,
-        # then build the concatenated [prefix | chunk] K/V and run one batched
-        # left-padded flash-attn (causal=True aligns the mask bottom-right).
+        # Cached-prefix case: split the batch. Speculative-verify sequences
+        # (uniform N tokens, ctx > 0) use the in-kernel multi-token attention so
+        # the fp4/fp8 prefix dequant is amortized over N; the chunked-prefill
+        # remainder uses the dense-buffer + left-padded flash-attn path.
         qs_cpu = query_start_loc.cpu().tolist()
         ctx_cpu = [int(c) for c in ctx_lens.cpu().tolist()]
-        n_blk_list = [(c + block_size - 1) // block_size for c in ctx_cpu]
+        q_lens_cpu = [qs_cpu[i + 1] - qs_cpu[i] for i in range(num_reqs)]
+
+        verify_idx = [i for i in range(num_reqs)
+                      if ctx_cpu[i] > 0 and 1 < q_lens_cpu[i] <= 8]
+        uniform_n = (len({q_lens_cpu[i] for i in verify_idx}) == 1
+                     if verify_idx else False)
+
+        if (verify_idx and uniform_n and meta.format_generation == 1 and
+                not getattr(meta, "precision_is_lossless", False)):
+            N = q_lens_cpu[verify_idx[0]]
+            sub_q = torch.cat([query[qs_cpu[i]:qs_cpu[i + 1]] for i in verify_idx], dim=0)
+            sub_k = torch.cat([key[qs_cpu[i]:qs_cpu[i + 1]] for i in verify_idx], dim=0)
+            sub_v = torch.cat([value[qs_cpu[i]:qs_cpu[i + 1]] for i in verify_idx], dim=0)
+            sub_bt = block_tables[verify_idx].contiguous()
+            sub_ctx = ctx_lens[verify_idx].to(torch.int32)
+            sub_out = torch.empty_like(sub_q)
+            _get_psp_kv_ops().psp_attention_enhanced_mt(
+                sub_q, sub_k, sub_v, k_cache, v_cache, sub_bt, sub_ctx,
+                meta.precision_table, block_offsets, scale_table,
+                scale, num_kv_heads, head_size,
+                getattr(meta, "precision_fp8_fmt", 1), N, sub_out)
+            off = 0
+            for i in verify_idx:
+                s, e = qs_cpu[i], qs_cpu[i + 1]
+                output[s:e].copy_(sub_out[off:off + (e - s)].to(output.dtype))
+                off += e - s
+
+        rest_idx = [i for i in range(num_reqs) if i not in verify_idx]
+        if not rest_idx:
+            return output
+
+        # Chunked-prefill remainder: batch-dequantize each cached prefix and run
+        # one left-padded flash-attn over [prefix | chunk].
+        rest_ql = [q_lens_cpu[i] for i in rest_idx]
+        rest_ctx = [ctx_cpu[i] for i in rest_idx]
+        n_blk_list = [(c + block_size - 1) // block_size for c in rest_ctx]
         padded_lens = [n * block_size for n in n_blk_list]
         total_padded = sum(padded_lens)
         out_offsets = [0]
@@ -557,32 +687,40 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             out_offsets.append(out_offsets[-1] + pl)
         max_blocks = max(n_blk_list) if n_blk_list else 1
 
+        rest_bt = block_tables[rest_idx].contiguous()
         k_pre_big = torch.empty(total_padded, num_kv_heads, head_size,
                                 dtype=query.dtype, device=query.device)
         v_pre_big = torch.empty_like(k_pre_big)
         if total_padded > 0:
-            ctx_lens_t = torch.tensor(ctx_cpu, dtype=torch.int32,
+            ctx_lens_t = torch.tensor(rest_ctx, dtype=torch.int32,
                                       device=query.device)
-            offs_t = torch.tensor(out_offsets[:num_reqs], dtype=torch.int32,
+            offs_t = torch.tensor(out_offsets[:len(rest_idx)], dtype=torch.int32,
                                   device=query.device)
             _get_psp_kv_ops().psp_dequantize_prefix_batch(
-                k_cache, v_cache, block_tables[:, :max_blocks].contiguous(),
+                k_cache, v_cache, rest_bt[:, :max_blocks].contiguous(),
                 ctx_lens_t, offs_t, meta.precision_table, block_offsets,
-                meta.scale_table, num_kv_heads, block_size, head_size,
+                scale_table, num_kv_heads, block_size, head_size,
                 k_pre_big, v_pre_big)
+
+        rest_q = torch.cat([query[qs_cpu[i]:qs_cpu[i + 1]] for i in rest_idx], dim=0)
+        rest_k = torch.cat([key[qs_cpu[i]:qs_cpu[i + 1]] for i in rest_idx], dim=0)
+        rest_v = torch.cat([value[qs_cpu[i]:qs_cpu[i + 1]] for i in rest_idx], dim=0)
+        rest_q_start = [0]
+        for ql in rest_ql:
+            rest_q_start.append(rest_q_start[-1] + ql)
 
         k_parts, v_parts = [], []
         k_lens = []
-        for i in range(num_reqs):
-            s, e = qs_cpu[i], qs_cpu[i + 1]
-            ctx = ctx_cpu[i]
-            o0 = out_offsets[i]
+        for j in range(len(rest_idx)):
+            s, e = rest_q_start[j], rest_q_start[j + 1]
+            ctx = rest_ctx[j]
+            o0 = out_offsets[j]
             if ctx > 0:
-                k_i = torch.cat([k_pre_big[o0:o0 + ctx], key[s:e]], dim=0)
-                v_i = torch.cat([v_pre_big[o0:o0 + ctx], value[s:e]], dim=0)
+                k_i = torch.cat([k_pre_big[o0:o0 + ctx], rest_k[s:e]], dim=0)
+                v_i = torch.cat([v_pre_big[o0:o0 + ctx], rest_v[s:e]], dim=0)
             else:
-                k_i = key[s:e]
-                v_i = value[s:e]
+                k_i = rest_k[s:e]
+                v_i = rest_v[s:e]
             k_parts.append(k_i)
             v_parts.append(v_i)
             k_lens.append(ctx + (e - s))
@@ -593,12 +731,19 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             torch.tensor([0] + k_lens, dtype=torch.int32, device=query.device),
             dim=0).to(torch.int32)
         max_k = int(max(k_lens))
+        rest_cu_q = torch.tensor(rest_q_start, dtype=torch.int32,
+                                 device=query.device).to(torch.int32)
+        max_q_rest = int(max(rest_ql))
 
         o = flash_attn_varlen_func(
-            query, k_big, v_big, max_q, query_start_loc, max_k, cu_k,
+            rest_q, k_big, v_big, max_q_rest, rest_cu_q, max_k, cu_k,
             softmax_scale=scale, causal=True, num_splits=0,
         )
-        output[:total_q].copy_(o.to(output.dtype))
+        off = 0
+        for i in rest_idx:
+            s, e = qs_cpu[i], qs_cpu[i + 1]
+            output[s:e].copy_(o[off:off + (e - s)].to(output.dtype))
+            off += e - s
         return output
 
 

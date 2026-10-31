@@ -10,6 +10,25 @@
 #include <math.h>
 #include <stdint.h>
 
+// Per-scale-group granularity. The per-(block, head) scale is split into
+// groups of PSP_KV_SCALE_GROUP dims so low-precision formats (fp4 e2m1 has a
+// ~6x representable range) can track the per-channel magnitude spread: the K
+// cache spans ~100x across dims, which a single max-abs scale cannot cover.
+// The scale table's innermost dimension becomes head_dim / PSP_KV_SCALE_GROUP.
+#define PSP_KV_SCALE_GROUP 16
+
+__device__ __host__ inline int psp_kv_num_groups(int head_dim) {
+    return head_dim / PSP_KV_SCALE_GROUP;
+}
+
+// Flat index into a per-(block, head, group) scale table (within one K or V
+// section). The caller adds the V section offset (num_blocks * num_kv_heads *
+// num_groups) for the value scales.
+__device__ inline int psp_kv_scale_idx(int block, int kv_head, int num_kv_heads,
+                                       int num_groups, int group) {
+    return (block * num_kv_heads + kv_head) * num_groups + group;
+}
+
 // Forward declarations of the FP8 helpers (defined later in this header).
 __host__ __device__ inline float dequantize_fp8_e4m3(uint8_t q);
 __host__ __device__ inline float dequantize_fp8_e5m2(uint8_t q);
@@ -169,56 +188,23 @@ __device__ inline void psp_cache_quantize(
     }
 }
 
-// FP4 E2M1 (1 sign, 2 exponent, 1 mantissa, bias 1)
+// FP4 as a linear signed 4-bit (int4) value: sign-magnitude with magnitude
+// 0..7. The per-(block, head, group) scale already absorbs the dynamic range,
+// so spending the 4 bits on a uniform mantissa (vs e2m1's coarse 1-bit mantissa
+// + 2 exponent bits) roughly halves the quantization error and brings fp4 close
+// to fp8 e4m3 accuracy for attention.
 __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value) {
-    if (isnan(value)) return 0x7;
-    if (value == 0.0f) return 0x0;
-
-    uint32_t bits = float_as_uint(value);
-    uint8_t sign = (bits >> 31) & 0x1;
-    float abs_value = fabsf(value);
-
-    if (isinf(abs_value)) return (sign << 3) | 0x5;  // clamp to max (3.0)
-
-    int f32_exp = ((bits >> 23) & 0xFF) - 127;
-    uint32_t f32_mant = bits & 0x7FFFFF;
-
-    int fp4_exp = f32_exp + 1;
-    uint8_t mant = f32_mant >> (23 - 1);
-    uint8_t round_bit = (f32_mant >> (23 - 1 - 1)) & 1;
-    uint8_t sticky = (f32_mant & ((1 << (23 - 1 - 1)) - 1)) != 0;
-
-    if (round_bit && (sticky || (mant & 1))) {
-        mant++;
-        if (mant == 0x2) {
-            mant = 0;
-            fp4_exp++;
-        }
-    }
-
-    if (fp4_exp >= 3) {
-        return (sign << 3) | 0x5;  // clamp to max (3.0)
-    } else if (fp4_exp <= 0) {
-        if (fp4_exp < -1) {
-            return sign << 3;      // underflow to zero
-        }
-        // subnormal
-        mant = ((0x2 | mant) >> (1 - fp4_exp)) & 0x1;
-        fp4_exp = 0;
-    }
-
-    return (sign << 3) | ((fp4_exp & 0x3) << 1) | mant;
+    if (isnan(value)) return 0x0;
+    float r = rintf(value);
+    r = fminf(fmaxf(r, -7.0f), 7.0f);
+    uint8_t sign = (r < 0.0f) ? 0x8u : 0x0u;
+    return (uint8_t)(sign | ((uint8_t)fabsf(r) & 0x7u));
 }
 
 __host__ __device__ inline float dequantize_fp4_e2m1(uint8_t q) {
-    // 16-entry LUT for the e2m1 (1 sign, 2 exp, 1 mantissa) format. The
-    // `static const` array lives in constant memory on device, so the lookup
-    // is a single constant read instead of bit manipulation + branches.
-    static const float lut[16] = {
-        0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, INFINITY, INFINITY,
-        -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -INFINITY, -INFINITY
-    };
-    return lut[q & 0x0Fu];
+    int mag = q & 0x7;
+    float v = (float)mag;
+    return (q & 0x8) ? -v : v;
 }
 
 // Variable-stride (byte-buffer) dequant/quantize. The cache is a uint8 byte
@@ -333,27 +319,31 @@ __device__ inline float4 psp_dequant4_ct(const uint8_t* base, int elem_idx) {
 // Branchless decode of one block's token range for a compile-time format.
 // The K dot product spans the full HEAD_DIM; the V weighted sum covers a
 // DIM_COUNT-wide dim subset starting at dim_offset (split-H uses HEAD_DIM/2,
-// non-split uses HEAD_DIM with dim_offset=0).
+// non-split uses HEAD_DIM with dim_offset=0). `k_scales`/`v_scales` are the
+// per-scale-group (PSP_KV_SCALE_GROUP-wide) arrays for this block+head; the
+// softmax scale is already folded into k_scales by the caller.
 template <typename scalar_t, int HEAD_DIM, int KFMT, int VFMT, int DIM_COUNT>
 __device__ inline void psp_decode_block(
     const float* __restrict__ s_query,
     float& local_max, float& local_sum, float* __restrict__ acc,
     const uint8_t* __restrict__ k_base, const uint8_t* __restrict__ v_base,
-    int tokens_in_block, float combined_scale, float v_scale_eff, int dim_offset,
-    int token_offset)
+    int tokens_in_block, const float* __restrict__ k_scales,
+    const float* __restrict__ v_scales, int dim_offset, int token_offset)
 {
+    constexpr int NUM_GROUPS = HEAD_DIM / PSP_KV_SCALE_GROUP;
     for (int t = 0; t < tokens_in_block; ++t) {
         float s_raw = 0.0f;
         const int elem_base = (token_offset + t) * HEAD_DIM;
         #pragma unroll
         for (int d = 0; d < HEAD_DIM; d += 4) {
+            const float ks = k_scales[d / PSP_KV_SCALE_GROUP];
             float4 k4 = psp_dequant4_ct<scalar_t, KFMT>(k_base, elem_base + d);
-            s_raw = fmaf(s_query[d], k4.x, s_raw);
-            s_raw = fmaf(s_query[d + 1], k4.y, s_raw);
-            s_raw = fmaf(s_query[d + 2], k4.z, s_raw);
-            s_raw = fmaf(s_query[d + 3], k4.w, s_raw);
+            s_raw = fmaf(s_query[d], k4.x * ks, s_raw);
+            s_raw = fmaf(s_query[d + 1], k4.y * ks, s_raw);
+            s_raw = fmaf(s_query[d + 2], k4.z * ks, s_raw);
+            s_raw = fmaf(s_query[d + 3], k4.w * ks, s_raw);
         }
-        const float s = s_raw * combined_scale;
+        const float s = s_raw;  // softmax scale already folded into k_scales
         if (s > local_max) {
             const float rescale = __expf(local_max - s);
             local_sum *= rescale;
@@ -362,14 +352,14 @@ __device__ inline void psp_decode_block(
         }
         const float w = __expf(s - local_max);
         local_sum += w;
-        const float w_scaled = w * v_scale_eff;
         #pragma unroll
         for (int d = 0; d < DIM_COUNT; d += 4) {
+            const float vs = v_scales[(dim_offset + d) / PSP_KV_SCALE_GROUP];
             float4 v4 = psp_dequant4_ct<scalar_t, VFMT>(v_base, elem_base + dim_offset + d);
-            acc[d]     = fmaf(w_scaled, v4.x, acc[d]);
-            acc[d + 1] = fmaf(w_scaled, v4.y, acc[d + 1]);
-            acc[d + 2] = fmaf(w_scaled, v4.z, acc[d + 2]);
-            acc[d + 3] = fmaf(w_scaled, v4.w, acc[d + 3]);
+            acc[d]     = fmaf(w, v4.x * vs, acc[d]);
+            acc[d + 1] = fmaf(w, v4.y * vs, acc[d + 1]);
+            acc[d + 2] = fmaf(w, v4.z * vs, acc[d + 2]);
+            acc[d + 3] = fmaf(w, v4.w * vs, acc[d + 3]);
         }
     }
 }

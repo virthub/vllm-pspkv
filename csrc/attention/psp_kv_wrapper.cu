@@ -39,6 +39,14 @@
 #include <cstdint>
 #include <cstdlib>
 
+// Per-scale-group granularity (matches PSP_KV_SCALE_GROUP in
+// attention/psp_kv/common/quantization_utils.cuh; this translation unit only
+// forward-declares the kernels so it needs a host copy for shape checks).
+#define PSP_KV_SCALE_GROUP 16
+static inline int psp_kv_num_groups(int head_dim) {
+    return head_dim / PSP_KV_SCALE_GROUP;
+}
+
 // Forward declarations of the PSP-KV kernel launchers (compiled into _C).
 // Templated on the query/output "target precision" (fp16 or bf16).
 template <typename scalar_t>
@@ -75,7 +83,7 @@ void launch_paged_attention_enhanced_tc(
     float* partials,
     int max_blocks_per_seq, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
-    int sliding_window, int num_splits, cudaStream_t stream);
+    int sliding_window, int num_splits, int num_total_blocks, cudaStream_t stream);
 
 void launch_paged_attention_enhanced_tf32_tc(
     float* out, const float* q,
@@ -85,7 +93,7 @@ void launch_paged_attention_enhanced_tf32_tc(
     float* partials,
     int max_blocks_per_seq, int num_seqs,
     int num_heads, int num_kv_heads, int head_dim, float scale,
-    int sliding_window, cudaStream_t stream);
+    int sliding_window, int num_total_blocks, cudaStream_t stream);
 
 template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8_tc(
@@ -133,6 +141,17 @@ void launch_paged_attention_enhanced_fp8pv_tc(
     int k_fmt, int num_total_blocks, int num_splits, cudaStream_t stream);
 
 template <typename scalar_t>
+void launch_paged_attention_enhanced_fp8pv_mt(
+    scalar_t* out, const scalar_t* q, const scalar_t* key, const scalar_t* value,
+    const uint8_t* k_cache, const uint8_t* v_cache,
+    const int* block_tables, const int* context_lens,
+    const uint32_t* block_offsets, const float* scale_table,
+    const uint8_t* precision_table,
+    int max_blocks_per_seq, int num_tokens,
+    int num_heads, int num_kv_heads, int head_dim, float scale, int fp8_fmt,
+    int num_total_blocks, int num_query_tokens, cudaStream_t stream);
+
+template <typename scalar_t>
 void launch_paged_attention_btkv(
     scalar_t* out, const scalar_t* q,
     const uint8_t* k_cache, const uint8_t* v_cache,
@@ -151,6 +170,16 @@ void launch_quantize_and_scatter(
     const int64_t* slot_mapping,
     const uint8_t* precision_table, const uint32_t* block_offsets,
     float* scale_table, float* max_abs,
+    int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
+    int format_generation, cudaStream_t stream);
+
+template <typename scalar_t>
+void launch_quantize_scatter_multi(
+    const scalar_t* prefill_scratch,
+    uint8_t* key_cache, uint8_t* value_cache,
+    const int64_t* slot_mapping,
+    const uint8_t* precision_table, const uint32_t* block_offsets,
+    const float* scale_table,
     int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
     int format_generation, cudaStream_t stream);
 
@@ -311,8 +340,8 @@ void psp_attention_basic(
     // Basic has no out-of-band scale_table (in-band metadata); use unit scale
     // + zero zero-point so the reference kernel dequantizes x = 1.0 * (q - 0).
     auto opts = at::TensorOptions().dtype(at::kFloat).device(key_cache.device());
-    auto k_scales = at::ones({(int64_t)num_blocks, (int64_t)kv_heads}, opts);
-    auto v_scales = at::ones({(int64_t)num_blocks, (int64_t)kv_heads}, opts);
+    auto k_scales = at::ones({(int64_t)num_blocks, (int64_t)kv_heads, (int64_t)psp_kv_num_groups(head_dim)}, opts);
+    auto v_scales = at::ones({(int64_t)num_blocks, (int64_t)kv_heads, (int64_t)psp_kv_num_groups(head_dim)}, opts);
     auto k_zero_points = at::zeros({(int64_t)num_blocks, (int64_t)kv_heads}, opts);
     auto v_zero_points = at::zeros({(int64_t)num_blocks, (int64_t)kv_heads}, opts);
 
@@ -400,6 +429,9 @@ void psp_attention_enhanced(
                 || scale_table.size(0) == 2 * num_blocks,
                 "scale_table num_blocks mismatch");
     TORCH_CHECK(scale_table.size(1) == kv_heads, "scale_table num_kv_heads mismatch");
+    TORCH_CHECK(scale_table.dim() == 2
+                || scale_table.size(2) == psp_kv_num_groups(head_dim),
+                "scale_table num_groups mismatch");
 
     TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
                 "psp_attention_enhanced supports fp16/bf16/fp8 target precision only");
@@ -435,7 +467,7 @@ void psp_attention_enhanced(
                 tc_partials.data_ptr<float>(),
                 max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
                 static_cast<float>(softmax_scale), static_cast<int>(sliding_window),
-                tc_num_splits, stream);
+                tc_num_splits, num_blocks, stream);
         });
         return;
     }
@@ -528,6 +560,7 @@ void psp_attention_enhanced(
     if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
         && sliding_window <= 0 && head_dim <= 256
         && !k_lossless && !v_lossless
+        && k_fmt != 3 && v_fmt != 3  // fp4 needs per-group scales: scalar path
         && (num_heads / kv_heads) >= 4) {
         auto tc_partials = at::empty(
             {(int64_t)num_seqs * kv_heads * tc_num_splits * (num_heads / kv_heads) * (2 + head_dim)},
@@ -567,7 +600,7 @@ void psp_attention_enhanced(
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
             tc_partials.data_ptr<float>(),
             max_blocks_per_seq, num_seqs, num_heads, kv_heads, head_dim,
-            static_cast<float>(softmax_scale), static_cast<int>(sliding_window), stream);
+            static_cast<float>(softmax_scale), static_cast<int>(sliding_window), num_blocks, stream);
         return;
     }
 
@@ -582,7 +615,7 @@ void psp_attention_enhanced(
             key_cache.data_ptr<uint8_t>(),
             value_cache.data_ptr<uint8_t>(),
             scale_table.data_ptr<float>(),
-            scale_table.data_ptr<float>() + (int64_t)num_blocks * kv_heads,
+            scale_table.data_ptr<float>() + (int64_t)num_blocks * kv_heads * psp_kv_num_groups(head_dim),
             block_tables.data_ptr<int>(),
             context_lens.data_ptr<int>(),
             precision_table.data_ptr<uint8_t>(),
@@ -726,7 +759,7 @@ void quantize_and_scatter_kv(
 
     // Temporary per-(block, head) max-abs workspace for scale estimation,
     // laid out as [K | V] (2 * num_blocks rows).
-    auto max_abs = at::zeros({2 * (int64_t)num_blocks, num_kv_heads}, scale_table.options());
+    auto max_abs = at::zeros({2 * (int64_t)num_blocks * num_kv_heads * psp_kv_num_groups(head_dim)}, scale_table.options());
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
     PSP_KV_DISPATCH_SCALAR(prefill_scratch, {
@@ -739,6 +772,51 @@ void quantize_and_scatter_kv(
             reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
             scale_table.data_ptr<float>(),
             max_abs.data_ptr<float>(),
+            static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
+            static_cast<int>(format_generation), stream);
+    });
+}
+
+// Scatter-only write-back for decode-like multi-token steps (speculative
+// verify). Quantizes the scratch with the existing precision/scale (on-the-fly
+// scale for fresh blocks) and scatters; no estimate/finalize pass.
+void quantize_scatter_multi(
+    at::Tensor& prefill_scratch, // [num_tokens, 2, num_kv_heads, head_dim]
+    at::Tensor& key_cache,
+    at::Tensor& value_cache,
+    at::Tensor& slot_mapping,    // [num_tokens] int64
+    at::Tensor& precision_table, // [num_blocks] uint8
+    at::Tensor& block_offsets,   // [2 * num_blocks] int32
+    at::Tensor& scale_table,     // [2 * num_blocks, num_kv_heads] float32
+    int64_t num_tokens,
+    int64_t format_generation)
+{
+    TORCH_CHECK(num_tokens > 0, "num_tokens must be positive");
+    TORCH_CHECK(num_tokens <= prefill_scratch.size(0),
+                "num_tokens exceeds prefill scratch capacity");
+    TORCH_CHECK(prefill_scratch.is_contiguous(), "prefill_scratch must be contiguous");
+    TORCH_CHECK(key_cache.scalar_type() == at::kByte, "key_cache must be uint8");
+    TORCH_CHECK(value_cache.scalar_type() == at::kByte, "value_cache must be uint8");
+    TORCH_CHECK(slot_mapping.scalar_type() == at::kLong, "slot_mapping must be int64");
+    TORCH_CHECK(precision_table.scalar_type() == at::kByte, "precision_table must be uint8");
+    TORCH_CHECK(block_offsets.scalar_type() == at::kInt, "block_offsets must be int32");
+    TORCH_CHECK(scale_table.scalar_type() == at::kFloat, "scale_table must be float32");
+
+    const int num_kv_heads = static_cast<int>(prefill_scratch.size(2));
+    const int block_size = 16;
+    const int head_dim = static_cast<int>(prefill_scratch.size(3));
+    const int num_blocks = static_cast<int>(precision_table.size(0));
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+
+    PSP_KV_DISPATCH_SCALAR(prefill_scratch, {
+        launch_quantize_scatter_multi<scalar_t>(
+            reinterpret_cast<const scalar_t*>(prefill_scratch.data_ptr()),
+            key_cache.data_ptr<uint8_t>(),
+            value_cache.data_ptr<uint8_t>(),
+            slot_mapping.data_ptr<int64_t>(),
+            precision_table.data_ptr<uint8_t>(),
+            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            scale_table.data_ptr<float>(),
             static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
             static_cast<int>(format_generation), stream);
     });
@@ -767,7 +845,7 @@ void derive_precision_kv(
     const int head_dim = static_cast<int>(prefill_scratch.size(3));
     const int num_blocks = static_cast<int>(precision_table.size(0));
 
-    auto max_abs = at::zeros({2 * (int64_t)num_blocks, num_kv_heads}, scale_table.options());
+    auto max_abs = at::zeros({2 * (int64_t)num_blocks * num_kv_heads * psp_kv_num_groups(head_dim)}, scale_table.options());
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
     PSP_KV_DISPATCH_SCALAR(prefill_scratch, {
@@ -991,6 +1069,65 @@ void psp_dequantize_prefix_batch(
     });
 }
 
+// Multi-token per-K/V tensor-core attention (batched-token path). N query
+// tokens per sequence share one K/V read + dequant.
+void psp_attention_enhanced_mt(
+    at::Tensor& query,          // [num_tokens, num_heads, head_size]
+    at::Tensor& key,            // [num_tokens, num_kv_heads, head_size] fp16
+    at::Tensor& value,          // [num_tokens, num_kv_heads, head_size] fp16
+    at::Tensor& key_cache,      // uint8 byte buffer
+    at::Tensor& value_cache,
+    at::Tensor& block_tables,   // [num_seqs, max_blocks] int32
+    at::Tensor& context_lens,   // [num_seqs] int32
+    at::Tensor& precision_table,
+    at::Tensor& block_offsets,
+    at::Tensor& scale_table,
+    double softmax_scale,
+    int64_t num_kv_heads,
+    int64_t head_size,
+    int64_t fp8_fmt,
+    int64_t num_query_tokens,
+    at::Tensor& out)
+{
+    TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
+    TORCH_CHECK(key.scalar_type() == query.scalar_type(), "key dtype mismatch");
+    TORCH_CHECK(value.scalar_type() == query.scalar_type(), "value dtype mismatch");
+    TORCH_CHECK(key_cache.scalar_type() == at::kByte, "key_cache must be uint8");
+    TORCH_CHECK(value_cache.scalar_type() == at::kByte, "value_cache must be uint8");
+    TORCH_CHECK(block_tables.scalar_type() == at::kInt, "block_tables must be int32");
+    TORCH_CHECK(context_lens.scalar_type() == at::kInt, "context_lens must be int32");
+    TORCH_CHECK(precision_table.scalar_type() == at::kByte, "precision_table must be uint8");
+    TORCH_CHECK(block_offsets.scalar_type() == at::kInt, "block_offsets must be int32");
+    TORCH_CHECK(scale_table.scalar_type() == at::kFloat, "scale_table must be float32");
+    TORCH_CHECK(out.scalar_type() == query.scalar_type(), "query and out dtype mismatch");
+
+    const int num_tokens = static_cast<int>(query.size(0));
+    const int num_heads = static_cast<int>(query.size(1));
+    const int num_seqs = static_cast<int>(block_tables.size(0));
+    const int max_blocks_per_seq = static_cast<int>(block_tables.size(1));
+    const int num_total_blocks = static_cast<int>(precision_table.size(0));
+    cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
+
+    PSP_KV_DISPATCH_HALF_BF16(query, {
+        launch_paged_attention_enhanced_fp8pv_mt<scalar_t>(
+            reinterpret_cast<scalar_t*>(out.data_ptr()),
+            reinterpret_cast<const scalar_t*>(query.data_ptr()),
+            reinterpret_cast<const scalar_t*>(key.data_ptr()),
+            reinterpret_cast<const scalar_t*>(value.data_ptr()),
+            key_cache.data_ptr<uint8_t>(),
+            value_cache.data_ptr<uint8_t>(),
+            block_tables.data_ptr<int>(),
+            context_lens.data_ptr<int>(),
+            reinterpret_cast<const uint32_t*>(block_offsets.data_ptr<int>()),
+            scale_table.data_ptr<float>(),
+            precision_table.data_ptr<uint8_t>(),
+            max_blocks_per_seq, num_tokens, num_heads,
+            static_cast<int>(num_kv_heads), static_cast<int>(head_size),
+            static_cast<float>(softmax_scale), static_cast<int>(fp8_fmt),
+            num_total_blocks, static_cast<int>(num_query_tokens), stream);
+    });
+}
+
 // ----------------------------------------------------------------------------
 // Uniform-consumer paged attention (Basic-format staging path)
 // ----------------------------------------------------------------------------
@@ -1105,6 +1242,19 @@ TORCH_LIBRARY(psp_kv, m) {
         ") -> ()");
 
     m.def(
+        "quantize_scatter_multi("
+        "Tensor prefill_scratch, "
+        "Tensor! key_cache, "
+        "Tensor! value_cache, "
+        "Tensor slot_mapping, "
+        "Tensor precision_table, "
+        "Tensor block_offsets, "
+        "Tensor scale_table, "
+        "int num_tokens, "
+        "int format_generation"
+        ") -> ()");
+
+    m.def(
         "derive_precision_kv("
         "Tensor prefill_scratch, "
         "Tensor slot_mapping, "
@@ -1202,13 +1352,35 @@ TORCH_LIBRARY(psp_kv, m) {
         "int head_size, "
         "Tensor! out"
         ") -> ()");
+
+    m.def(
+        "psp_attention_enhanced_mt("
+        "Tensor query, "
+        "Tensor key, "
+        "Tensor value, "
+        "Tensor key_cache, "
+        "Tensor value_cache, "
+        "Tensor block_tables, "
+        "Tensor context_lens, "
+        "Tensor precision_table, "
+        "Tensor block_offsets, "
+        "Tensor scale_table, "
+        "float softmax_scale, "
+        "int num_kv_heads, "
+        "int head_size, "
+        "int fp8_fmt, "
+        "int num_query_tokens, "
+        "Tensor! out"
+        ") -> ()");
 }
 
 TORCH_LIBRARY_IMPL(psp_kv, CUDA, m) {
     m.impl("psp_attention_basic",     &psp_kv::psp_attention_basic);
     m.impl("psp_attention_enhanced",  &psp_kv::psp_attention_enhanced);
+    m.impl("psp_attention_enhanced_mt", &psp_kv::psp_attention_enhanced_mt);
     m.impl("psp_attention_btkv",      &psp_kv::psp_attention_btkv);
     m.impl("quantize_and_scatter_kv", &psp_kv::quantize_and_scatter_kv);
+    m.impl("quantize_scatter_multi", &psp_kv::quantize_scatter_multi);
     m.impl("derive_precision_kv", &psp_kv::derive_precision_kv);
     m.impl("derive_precision_decode_kv", &psp_kv::derive_precision_decode_kv);
     m.impl("quantize_single_token", &psp_kv::quantize_single_token);

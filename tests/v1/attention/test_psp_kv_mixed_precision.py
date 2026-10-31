@@ -72,7 +72,7 @@ class TestPSPKVMultiblock:
         key_cache, value_cache, block_offsets = _build_multiblock_cache(
             num_blocks, num_kv_heads, block_size, head_dim, format_gen, precision_table, dtype, "cuda"
         )
-        scale_table = torch.cat([torch.rand(num_blocks, num_kv_heads, device="cuda") * 1.5 + 0.5] * 2)
+        scale_table = torch.cat([(torch.rand(num_blocks, num_kv_heads, 1, device="cuda") * 1.5 + 0.5).repeat(1, 1, head_dim // 16)] * 2)
 
         ref_out = reference_paged_attention(
             query, key_cache, value_cache, block_tables, context_lens,
@@ -127,7 +127,7 @@ class TestPSPKVMultiblock:
         key_cache, value_cache, block_offsets = _build_multiblock_cache(
             num_blocks, num_kv_heads, block_size, head_dim, 1, prec_e4m3, torch.float16, "cuda"
         )
-        scale_table = torch.cat([torch.ones((num_blocks, num_kv_heads), dtype=torch.float32, device="cuda")] * 2)
+        scale_table = torch.cat([torch.ones((num_blocks, num_kv_heads, head_dim // 16), dtype=torch.float32, device="cuda")] * 2)
         prec_e5m2 = torch.full((num_blocks,), 2, dtype=torch.uint8, device="cuda")
 
         def run(prec, fmt):
