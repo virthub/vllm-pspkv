@@ -21,7 +21,7 @@
 #include "common/quantization_utils.cuh"
 #include "common/head_dim_dispatch.cuh"
 
-#define BLOCK_SIZE 16
+#include "common/psp_kv_config.cuh"
 #define THREADS 128
 #define NUM_SPLITS 2
 #define NUM_SPLITS_H 2

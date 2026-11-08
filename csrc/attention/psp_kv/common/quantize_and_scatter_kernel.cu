@@ -18,8 +18,10 @@
 
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
+#include <cstdio>
 #include <stdint.h>
 
+#include "psp_kv_config.cuh"
 #include "quantization_utils.cuh"
 
 // Largest finite value representable for each precision (matches the
@@ -367,11 +369,19 @@ __global__ void quantize_and_scatter_kernel(
     const float k_scale = (k_scale_stored > 1e-8f) ? k_scale_stored : compute_scale(k_row, k_fmt);
     const float v_scale = (v_scale_stored > 1e-8f) ? v_scale_stored : compute_scale(v_row, v_fmt);
 
+#if PSP_KV_TOKEN_MAJOR
+    const int v_row_idx = block_offset * num_kv_heads + h;
+    uint8_t* k_out = key_cache + block_offsets[block_id]
+                   + (size_t)v_row_idx * k_row_bytes;
+    uint8_t* v_out = value_cache + block_offsets[num_blocks + block_id];
+#else
+    const int v_row_idx = block_offset;
     uint8_t* k_out = key_cache + block_offsets[block_id]
                    + (size_t)h * k_block_bytes
                    + block_offset * k_row_bytes;
     uint8_t* v_out = value_cache + block_offsets[num_blocks + block_id]
                    + (size_t)h * v_block_bytes;
+#endif
 
     switch (k_fmt) {
         case 0: psp_quantize_row_k<scalar_t, 0>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
@@ -380,10 +390,10 @@ __global__ void quantize_and_scatter_kernel(
         default: psp_quantize_row_k<scalar_t, 3>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
     }
     switch (v_fmt) {
-        case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
+        case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
     }
 }
 
@@ -422,6 +432,12 @@ void launch_quantize_and_scatter(
         prefill_scratch, key_cache, value_cache, slot_mapping, precision_table,
         block_offsets, scale_table, num_tokens, num_kv_heads, block_size, head_dim,
         num_blocks, format_generation);
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("[quantize-scatter] CUDA error: %s (num_tokens=%d num_blocks=%d block_size=%d head_dim=%d)\n",
+               cudaGetErrorString(err), num_tokens, num_blocks, block_size, head_dim);
+    }
 }
 
 // Scatter-only variant: quantize the scratch with the EXISTING precision/scale
@@ -618,11 +634,19 @@ __global__ void quantize_single_token_kernel(
     const float v_scale_stored = scale_table[hh + gidx];
     const float k_scale = (k_scale_stored > 1e-8f) ? k_scale_stored : compute_scale(k_row, k_fmt);
     const float v_scale = (v_scale_stored > 1e-8f) ? v_scale_stored : compute_scale(v_row, v_fmt);
+#if PSP_KV_TOKEN_MAJOR
+    const int v_row_idx = block_offset * num_kv_heads + h;
+    uint8_t* k_out = key_cache + block_offsets[block_id]
+                   + (size_t)v_row_idx * k_row_bytes;
+    uint8_t* v_out = value_cache + block_offsets[num_blocks + block_id];
+#else
+    const int v_row_idx = block_offset;
     uint8_t* k_out = key_cache + block_offsets[block_id]
                    + (size_t)h * k_block_bytes
                    + block_offset * k_row_bytes;
     uint8_t* v_out = value_cache + block_offsets[num_blocks + block_id]
                    + (size_t)h * v_block_bytes;
+#endif
 
     switch (k_fmt) {
         case 0: psp_quantize_row_k<scalar_t, 0>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
@@ -631,10 +655,10 @@ __global__ void quantize_single_token_kernel(
         default: psp_quantize_row_k<scalar_t, 3>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
     }
     switch (v_fmt) {
-        case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
-        default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, block_offset); break;
+        case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
     }
 }
 

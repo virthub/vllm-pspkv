@@ -11,8 +11,7 @@
 
 #include "common/quantization_utils.cuh"
 #include "common/head_dim_dispatch.cuh"
-
-#define BLOCK_SIZE 16
+#include "common/psp_kv_config.cuh"
 
 template <typename scalar_t, int HEAD_DIM>
 __global__ void paged_attention_uniform_kernel(

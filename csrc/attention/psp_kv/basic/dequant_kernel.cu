@@ -49,11 +49,19 @@ __global__ void dequant_kv_kernel(
     else if (fmt == 3) block_bytes_per_head = elems_per_head / 2;
     else               block_bytes_per_head = elems_per_head;
 
-    const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * block_bytes_per_head;
-    const uint8_t* v_base = v_cache + block_offsets[block] + (size_t)head * block_bytes_per_head;
+    const uint8_t* k_base = k_cache + block_offsets[block];
+    const uint8_t* v_base = v_cache + block_offsets[block];
 
-    k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, elem, fmt, scale));
-    v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, elem, fmt, scale));
+#if PSP_KV_TOKEN_MAJOR
+    const int token_in_block = elem / head_dim;
+    const int dim = elem % head_dim;
+    const int flat = (token_in_block * num_kv_heads + head) * head_dim + dim;
+    k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, flat, fmt, scale));
+    v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, flat, fmt, scale));
+#else
+    k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base + (size_t)head * block_bytes_per_head, elem, fmt, scale));
+    v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base + (size_t)head * block_bytes_per_head, elem, fmt, scale));
+#endif
 }
 
 template <typename scalar_t>
@@ -127,8 +135,16 @@ __global__ void dequant_prefix_kernel(
     const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_block_bytes_per_head;
     const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_block_bytes_per_head;
 
+#if PSP_KV_TOKEN_MAJOR
+    const int token_in_block = elem / head_dim;
+    const int dim = elem % head_dim;
+    const int flat = (token_in_block * num_kv_heads + head) * head_dim + dim;
+    k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_cache + block_offsets[block], flat, k_fmt, k_scale));
+    v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_cache + block_offsets[num_blocks + block], flat, v_fmt, v_scale));
+#else
     k_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, elem, k_fmt, k_scale));
     v_out[idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, elem, v_fmt, v_scale));
+#endif
 }
 
 template <typename scalar_t>
@@ -225,14 +241,21 @@ __global__ void dequant_prefix_batch_kernel(
     else if (v_fmt == 3) v_bph = elems_per_head / 2;
     else                 v_bph = elems_per_head;
 
-    const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_bph;
-    const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_bph;
-
     const int token = out_offsets[seq] + seq_block * block_size + token_in_block;
     const int out_idx = (token * num_kv_heads + head) * head_dim + dim;
 
+#if PSP_KV_TOKEN_MAJOR
+    const int flat = (token_in_block * num_kv_heads + head) * head_dim + dim;
+    const uint8_t* k_base = k_cache + block_offsets[block];
+    const uint8_t* v_base = v_cache + block_offsets[num_blocks + block];
+    k_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, flat, k_fmt, k_scale));
+    v_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, flat, v_fmt, v_scale));
+#else
+    const uint8_t* k_base = k_cache + block_offsets[block] + (size_t)head * k_bph;
+    const uint8_t* v_base = v_cache + block_offsets[num_blocks + block] + (size_t)head * v_bph;
     k_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(k_base, elem, k_fmt, k_scale));
     v_out[out_idx] = psp_from_float<scalar_t>(psp_packed_dequant<scalar_t>(v_base, elem, v_fmt, v_scale));
+#endif
 }
 
 template <typename scalar_t>

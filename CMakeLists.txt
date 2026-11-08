@@ -720,6 +720,16 @@ define_extension_target(
 # Setting this variable sidesteps the issue by calling the driver directly.
 target_compile_definitions(_C PRIVATE CUTLASS_ENABLE_DIRECT_CUDA_DRIVER_CALL=1)
 
+# PSP-KV block size: mirror the PSP_KV_BLOCK_SIZE env var into the C++ kernels
+# (psp_kv_config.cuh defaults to 16 when unset).
+if(DEFINED ENV{PSP_KV_BLOCK_SIZE})
+  target_compile_definitions(_C PRIVATE PSP_KV_BLOCK_SIZE=$ENV{PSP_KV_BLOCK_SIZE})
+endif()
+# PSP-KV token-major cache layout (FA3-compatible). Defaults to head-major.
+if(DEFINED ENV{PSP_KV_TOKEN_MAJOR})
+  target_compile_definitions(_C PRIVATE PSP_KV_TOKEN_MAJOR=$ENV{PSP_KV_TOKEN_MAJOR})
+endif()
+
 # ========== PSP-KV include directory ==========
 # Make the PSP-KV headers (psp_kv/common/psp_kv_types.h, etc.) visible to the
 # wrapper in _C. The PSP-KV .cu files themselves live in _C_stable_libtorch

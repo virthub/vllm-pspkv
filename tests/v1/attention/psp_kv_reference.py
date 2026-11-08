@@ -14,17 +14,25 @@ selects the inner precision:
 These functions reimplement the exact kernel math (docs/PSP_KV_FORMAT_CONTRACT.md).
 """
 
+import os
+
 import torch
 
 # Per-scale-group granularity (matches PSP_KV_SCALE_GROUP in the CUDA kernels).
 SCALE_GROUP = 16
+TOKEN_MAJOR = os.environ.get("PSP_KV_TOKEN_MAJOR") == "1"
 
 
 def _per_group_scale(scale_row: torch.Tensor, num_kv_heads: int,
                      block_size: int, head_dim: int) -> torch.Tensor:
     """Broadcast a [num_kv_heads, num_groups] scale row to
-    [num_kv_heads, block_size, head_dim] (one scale per 16-dim group)."""
+    [num_kv_heads, block_size, head_dim] (head-major) or
+    [block_size, num_kv_heads, head_dim] (token-major)."""
     num_groups = head_dim // SCALE_GROUP
+    if TOKEN_MAJOR:
+        return (scale_row.float().reshape(1, num_kv_heads, num_groups, 1)
+                .expand(block_size, num_kv_heads, num_groups, SCALE_GROUP)
+                .reshape(block_size, num_kv_heads, head_dim))
     return (scale_row.float().reshape(num_kv_heads, 1, num_groups, 1)
             .expand(num_kv_heads, block_size, num_groups, SCALE_GROUP)
             .reshape(num_kv_heads, block_size, head_dim))
@@ -231,10 +239,11 @@ def reference_paged_attention(
             k_off = int(block_offsets[bid].item())
             v_off = int(block_offsets[num_blocks + bid].item())
 
+            shape = (block_size, num_kv_heads, head_dim) if TOKEN_MAJOR else (num_kv_heads, block_size, head_dim)
             k = _dequant_elements(key_cache[k_off:k_off + bb], fmt, query.dtype,
-                                  (num_kv_heads, block_size, head_dim), 1.0)
+                                  shape, 1.0)
             v = _dequant_elements(value_cache[v_off:v_off + bb], fmt, query.dtype,
-                                  (num_kv_heads, block_size, head_dim), 1.0)
+                                  shape, 1.0)
             if format_gen != 0 and fmt != 0:
                 if scale_table.dim() >= 3:
                     ks = _per_group_scale(scale_table[bid], num_kv_heads, block_size, head_dim)
@@ -248,21 +257,31 @@ def reference_paged_attention(
             k_blocks.append(k)
             v_blocks.append(v)
 
-        k_seq = torch.cat(k_blocks, dim=1)[:, :ctx, :]
-        v_seq = torch.cat(v_blocks, dim=1)[:, :ctx, :]
+        if TOKEN_MAJOR:
+            k_seq = torch.cat(k_blocks, dim=0)[:ctx, :, :]
+            v_seq = torch.cat(v_blocks, dim=0)[:ctx, :, :]
+        else:
+            k_seq = torch.cat(k_blocks, dim=1)[:, :ctx, :]
+            v_seq = torch.cat(v_blocks, dim=1)[:, :ctx, :]
 
         if num_heads > num_kv_heads:
             g = num_heads // num_kv_heads
-            k_seq = k_seq.repeat_interleave(g, dim=0)
-            v_seq = v_seq.repeat_interleave(g, dim=0)
+            k_seq = k_seq.repeat_interleave(g, dim=1 if TOKEN_MAJOR else 0)
+            v_seq = v_seq.repeat_interleave(g, dim=1 if TOKEN_MAJOR else 0)
 
         q = query[seq].float()
-        scores = torch.einsum("hd,htd->ht", q, k_seq) * softmax_scale
+        scores = torch.einsum("hd,thd->ht" if TOKEN_MAJOR else "hd,htd->ht", q, k_seq) * softmax_scale
+        if os.environ.get("PSPKV_DEBUG") == "1":
+            print(f"[ref-debug] k_seq.max={k_seq.abs().max().item():.4f} "
+                  f"v_seq.max={v_seq.abs().max().item():.4f} "
+                  f"q.max={q.abs().max().item():.4f} "
+                  f"scores.max={scores.abs().max().item():.4f} "
+                  f"bid={block_ids}", flush=True)
         if sliding_window > 0:
             window_start = max(0, ctx - sliding_window + 1)
             scores[:, :window_start] = -torch.inf
         weights = torch.softmax(scores, dim=-1)
-        out = torch.einsum("ht,htd->hd", weights, v_seq)
+        out = torch.einsum("ht,thd->hd" if TOKEN_MAJOR else "ht,htd->hd", weights, v_seq)
         outputs.append(out)
 
     return torch.stack(outputs).to(query.dtype)

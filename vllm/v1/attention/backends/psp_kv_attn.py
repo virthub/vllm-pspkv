@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import os
+import time
 from dataclasses import dataclass
 
 import torch
@@ -25,6 +26,14 @@ from vllm.v1.kv_cache_interface import AttentionSpec, _psp_kv_avg_bytes
 # [num_layers, max_num_tokens, 2, num_kv_heads, head_size]. Set by
 # GPUModelRunner.initialize_psp_kv_tables via set_prefill_kv_scratch().
 _prefill_kv_scratch: torch.Tensor | None = None
+
+# Temporary decode-step timing (PSPKV_TIME=1): accumulate the GPU time in
+# quantize_single_token vs the attention dispatch across the 36 layers.
+_time_acc = {"q": 0.0, "a": 0.0, "layers": 0, "steps": 0}
+
+# Tokens per KV-cache block. Must match the C++ PSP_KV_BLOCK_SIZE in
+# csrc/attention/psp_kv/common/psp_kv_config.cuh (override both together).
+PSP_KV_BLOCK_SIZE = int(os.environ.get("PSP_KV_BLOCK_SIZE", "128"))
 
 
 def set_prefill_kv_scratch(scratch: torch.Tensor | None) -> None:
@@ -154,11 +163,18 @@ def _verify_fp32_closeness(query, k_cache, v_cache, block_tables, context_lens,
 
     ref = reference_paged_attention(
         query, k_cache, v_cache, block_tables, context_lens, format_gen,
-        precision_table, scale_table, block_offsets, num_kv_heads, 16,
+        precision_table, scale_table, block_offsets, num_kv_heads,
+        PSP_KV_BLOCK_SIZE,
         softmax_scale, sliding_window,
     )
     diff = (output.float() - ref.float()).abs()
     _verify_stats["max"] = max(_verify_stats["max"], diff.max().item())
+    if int(os.environ.get("PSPKV_DEBUG", "0")):
+        print(f"[verify-debug] out_max={output.float().abs().max().item():.4f} "
+              f"ref_max={ref.float().abs().max().item():.4f} "
+              f"diff_max={diff.max().item():.4f} "
+              f"q_max={query.float().abs().max().item():.4f} "
+              f"k_nonzero={(k_cache != 0).sum().item()}", flush=True)
     _verify_stats["sum"] += diff.sum().item()
     _verify_stats["n"] += diff.numel()
     _verify_stats["calls"] += 1
@@ -370,7 +386,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         ops = _get_psp_kv_ops()
 
         # ----- Resolve per-block byte offsets -----
-        block_size = 16  # PSP-KV block size
+        block_size = PSP_KV_BLOCK_SIZE  # PSP-KV block size
         num_blocks = meta.precision_table.numel()
         block_offsets = getattr(meta, "block_offsets", None)
         if block_offsets is None:
@@ -388,6 +404,12 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             block_offsets = torch.arange(
                 num_blocks, dtype=torch.int32, device=query.device
             ) * block_bytes
+
+        if int(os.environ.get("PSPKV_DEBUG", "0")):
+            st = scale_table
+            if st is not None and st.dim() >= 2:
+                print(f"[cache-debug] scale_table[:3,0]={st[:3,0].tolist() if st.dim()>=3 else st[:3].tolist()} "
+                      f"k_cache_nonzero={(k_cache != 0).sum().item()} k_cache_numel={k_cache.numel()}", flush=True)
 
         # ===== Prefill detection (safe for CUDA Graph) =====
         # Avoid GPU-CPU sync during graph capture.
@@ -407,6 +429,15 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         # (= seq_lens) tokens, matching the FlashAttention baseline's self-
         # attention over [prefix | current token].
         slot_mapping = getattr(meta, "slot_mapping", None)
+        if int(os.environ.get("PSPKV_DEBUG", "0")) and slot_mapping is not None:
+            bt = getattr(meta, "block_tables", None)
+            print(f"[slot-debug] slot_mapping[:5]={slot_mapping[:5].tolist()} "
+                  f"block_tables[:2,:4]={bt[:2,:4].tolist() if bt is not None else None} "
+                  f"block_size={PSP_KV_BLOCK_SIZE}", flush=True)
+        timing = os.environ.get("PSPKV_TIME") == "1"
+        if timing:
+            torch.cuda.synchronize()
+            _t0 = time.perf_counter()
         if slot_mapping is not None and key is not None and value is not None:
             ops.quantize_single_token(
                 key.contiguous(), value.contiguous(), k_cache, v_cache,
@@ -416,15 +447,22 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 scale_table,
                 format_gen,
             )
+        if timing:
+            torch.cuda.synchronize()
+            _t1 = time.perf_counter()
+
+        if os.environ.get("PSPKV_FA3") == "1" and format_gen == 1:
+            return self._fa3_decode(
+                query, k_cache, v_cache, block_tables, context_lens,
+                meta, num_kv_heads, head_size, output, scale_table,
+                softmax_scale)
 
         # ----- Dispatch to the correct PSP-KV kernel -----
-        if (format_gen == 1 and getattr(meta, "precision_is_lossless", False)
-                and query.dtype in (torch.float16, torch.bfloat16)):
-            self._lossless_flash_attn(
-                query, k_cache, v_cache, block_tables, context_lens,
-                meta, block_offsets, num_kv_heads, head_size, output,
-                scale_table)
-        elif format_gen == 0:
+        # Lossless (fp16/bf16 cache) goes through the tensor-core lossless
+        # kernel (psp_attention_enhanced with is_lossless=true), which reads the
+        # token-major fp16 cache directly and does not need the dequantize+FA2
+        # staging path.
+        if format_gen == 0:
             # Basic format: staging path. Dequantize the compressed byte buffer
             # into a uniform target-precision buffer, then run the transparent
             # (uniform) consumer that needs no inner-precision metadata.
@@ -495,6 +533,21 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 f"Unsupported PSP-KV format_generation: {format_gen}"
             )
 
+        if timing:
+            torch.cuda.synchronize()
+            _t2 = time.perf_counter()
+            _time_acc["q"] += _t1 - _t0
+            _time_acc["a"] += _t2 - _t1
+            _time_acc["layers"] += 1
+            if _time_acc["layers"] >= 36:
+                _time_acc["steps"] += 1
+                _time_acc["layers"] = 0
+                if _time_acc["steps"] % 4 == 0:
+                    print("PSPKV_TIME quantize=%.2fms attention=%.2fms per step"
+                          % (_time_acc["q"] / _time_acc["steps"] * 1e3,
+                             _time_acc["a"] / _time_acc["steps"] * 1e3),
+                          flush=True)
+
         if os.environ.get("PSPKV_VERIFY") == "1" and slot_mapping is not None:
             _verify_fp32_closeness(
                 query, k_cache, v_cache, block_tables, context_lens,
@@ -502,6 +555,72 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
                 num_kv_heads, softmax_scale, output, format_gen,
                 self.sliding_window[0] + self.sliding_window[1] + 1)
 
+        return output
+
+    def _fa3_decode(
+        self,
+        query: torch.Tensor,
+        k_cache: torch.Tensor,
+        v_cache: torch.Tensor,
+        block_tables: torch.Tensor,
+        context_lens: torch.Tensor,
+        meta,
+        num_kv_heads: int,
+        head_size: int,
+        output: torch.Tensor,
+        scale_table: torch.Tensor,
+        softmax_scale: float,
+    ) -> torch.Tensor:
+        """Decode attention via FA3's paged fp8 path.
+
+        Feeds the token-major fp8 byte cache and the per-block scale table
+        (gathered into FA3's 3-D descale) directly into FA3. Opt-in via
+        PSPKV_FA3=1; requires PSP_KV_TOKEN_MAJOR=1 and PSP_KV_BLOCK_SIZE=128
+        (the FA3-aligned layout).
+        """
+        from vllm.vllm_flash_attn import flash_attn_varlen_func
+
+        num_blocks = meta.precision_table.numel()
+        page_size = PSP_KV_BLOCK_SIZE
+
+        # Quantize Q to fp8 e4m3 with a uniform per-batch scale.
+        qmax = query.float().abs().amax()
+        q_scale = torch.clamp(qmax / 240.0, min=1e-8)
+        q_fp8 = (query.float() / q_scale).to(torch.float8_e4m3fn)
+        batch = block_tables.size(0)
+        q_descale = q_scale.expand(batch, num_kv_heads).contiguous()
+
+        # View the flat fp8 byte buffers as paged [num_blocks, page_size, kv, d].
+        k_fp8 = k_cache.view(torch.float8_e4m3fn).reshape(
+            num_blocks, page_size, num_kv_heads, head_size)
+        v_fp8 = v_cache.view(torch.float8_e4m3fn).reshape(
+            num_blocks, page_size, num_kv_heads, head_size)
+
+        # Build FA3's 3-D per-block descale, gathered by the block table so the
+        # logical block index maps to the physical block's scale.
+        k_scales = scale_table[:num_blocks, :, 0]
+        v_scales = scale_table[num_blocks:, :, 0]
+        k_descale = k_scales[block_tables].permute(0, 2, 1).contiguous()
+        v_descale = v_scales[block_tables].permute(0, 2, 1).contiguous()
+
+        cu_q = meta.query_start_loc
+        max_q = int(getattr(meta, "max_query_len", 1))
+        max_k = int(context_lens.max().item())
+
+        out = flash_attn_varlen_func(
+            q_fp8, k_fp8, v_fp8,
+            max_seqlen_q=max_q, cu_seqlens_q=cu_q, max_seqlen_k=max_k,
+            seqused_k=context_lens, causal=True, softmax_scale=softmax_scale,
+            block_table=block_tables,
+            q_descale=q_descale, k_descale=k_descale, v_descale=v_descale,
+            fa_version=3)
+        output.copy_(out)
+        if int(os.environ.get("PSPKV_DEBUG", "0")):
+            print(f"[fa3-debug] out_max={out.float().abs().max().item():.4f} "
+                  f"q_descale={q_scale.item():.4f} "
+                  f"k_descale_max={k_descale.abs().max().item():.4f} "
+                  f"k_fp8_nonzero={(k_fp8 != 0).sum().item()} "
+                  f"max_k={max_k}", flush=True)
         return output
 
     def _lossless_flash_attn(
@@ -523,7 +642,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         )
 
         scale = self.scale
-        block_size = 16
+        block_size = PSP_KV_BLOCK_SIZE
         num_reqs = context_lens.size(0)
         num_actual = getattr(meta, "num_actual_tokens", num_reqs)
 
@@ -571,7 +690,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         o = flash_attn_varlen_func(
             q=query[:num_actual], k=k_big, v=v_big, out=output[:num_actual],
             cu_seqlens_q=cu_q, max_seqlen_q=1, max_seqlen_k=max_k,
-            cu_seqlens_k=cu_k, softmax_scale=scale, causal=True, num_splits=0,
+            cu_seqlens_k=cu_k, softmax_scale=scale, causal=False, num_splits=0,
         )
         return output
 
@@ -600,7 +719,7 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
         """
         num_heads = query.size(1)
         scale = self.scale
-        block_size = 16
+        block_size = PSP_KV_BLOCK_SIZE
         total_q = query.size(0)
 
         from vllm.vllm_flash_attn.flash_attn_interface import (
@@ -770,7 +889,7 @@ class PSPKVAttentionBackend(AttentionBackend):
 
     @classmethod
     def get_supported_kernel_block_sizes(cls) -> list[int]:
-        return [16]
+        return [PSP_KV_BLOCK_SIZE]
 
     @classmethod
     def get_kv_cache_block_dim(

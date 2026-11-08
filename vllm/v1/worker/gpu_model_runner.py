@@ -4371,6 +4371,10 @@ class GPUModelRunner(
                                 # (decode-like, no prefill) uses the scatter-only
                                 # op so the accepted blocks' scale is preserved.
                                 if has_prefill:
+                                    if int(os.environ.get("PSPKV_DEBUG", "0")):
+                                        print(f"[quant-debug] num_prefill_tokens={num_prefill_tokens} "
+                                              f"slot_map[:3]={slot_map[:3].tolist() if slot_map.numel()>0 else None} "
+                                              f"block_offsets[:3]={self.block_offsets[:3].tolist()}", flush=True)
                                     torch.ops.psp_kv.quantize_and_scatter_kv(
                                         self.prefill_kv_scratch[layer_idx],
                                         k_cache,
@@ -4398,6 +4402,7 @@ class GPUModelRunner(
 
                         if prof:
                             ev_quant[1].record()
+
                             torch.cuda.synchronize()
                             logger.warning(
                                 "[PSP-KV profile] prefill=%d tok derive=%.3fms "
@@ -6599,7 +6604,7 @@ class GPUModelRunner(
         sizes — enabling the cache to shrink when the precision table marks
         blocks as fp8/fp4 instead of lossless.
         """
-        block_size = 16
+        block_size = int(os.environ.get("PSP_KV_BLOCK_SIZE", "128"))
         head_size = self.model_config.get_head_size()
         base = block_size * head_size * self.num_kv_heads
         lossless_bytes = int(torch.tensor([], dtype=self.dtype).element_size())
@@ -6724,7 +6729,7 @@ class GPUModelRunner(
         into ``self.precision_table``; ``_compute_block_offsets`` then re-derives
         the variable-stride byte layout.
         """
-        block_size = 16
+        block_size = int(os.environ.get("PSP_KV_BLOCK_SIZE", "128"))
         fp_max = 240.0  # fp8 e4m3 max finite value
         E = 1e-3        # target relative error (tunable)
 
@@ -6814,10 +6819,14 @@ class GPUModelRunner(
         if total_blocks == 0:
             return
 
-        kernel_block_size = 16  # PSP-KV kernel block size
+        kernel_block_size = int(os.environ.get("PSP_KV_BLOCK_SIZE", "128"))  # PSP-KV kernel block size
         for group in self.kv_cache_config.kv_cache_groups:
             if isinstance(group.kv_cache_spec, AttentionSpec):
                 block_size = group.kv_cache_spec.block_size
+                if int(os.environ.get("PSPKV_DEBUG", "0")):
+                    print(f"[bs-debug] cache_spec.block_size={block_size} "
+                          f"kv_cache_config.num_blocks={self.kv_cache_config.num_blocks} "
+                          f"cache_config.block_size={self.cache_config.block_size}", flush=True)
                 if block_size and block_size % kernel_block_size == 0:
                     total_blocks *= block_size // kernel_block_size
                 break
@@ -6842,6 +6851,11 @@ class GPUModelRunner(
         # byte size (lossless=2B/elem, fp8=1B/elem, fp4=0.5B/elem), so the
         # cache shrinks when the precision table marks blocks as fp8/fp4.
         self._compute_block_offsets()
+        if int(os.environ.get("PSPKV_DEBUG", "0")):
+            print(f"[bs-debug] kernel_block_size={int(os.environ.get('PSP_KV_BLOCK_SIZE','16'))} "
+                  f"total_blocks={total_blocks} k_cache_bytes={self.k_cache_bytes} "
+                  f"head_size={self.model_config.get_head_size()} num_kv_heads={self.num_kv_heads} "
+                  f"block_offsets[:4]={self.block_offsets[:4].tolist()}", flush=True)
 
         # Register the variable-size transfer provider with the virthub
         # connector (generic hook; PSP-KV supplies size + sidecar).
