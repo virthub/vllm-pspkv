@@ -17,6 +17,12 @@
 // The scale table's innermost dimension becomes head_dim / PSP_KV_SCALE_GROUP.
 #define PSP_KV_SCALE_GROUP 16
 
+// Block-scaled int8 inner precision. It is a dedicated uniform sentinel value
+// in the precision_table (K and V both int8): the packed k_fmt | (v_fmt << 2)
+// scheme only has 2 bits per operand, so int8 cannot be packed and instead
+// occupies this out-of-band value.
+#define PSP_KV_FMT_INT8 4
+
 __device__ __host__ inline int psp_kv_num_groups(int head_dim) {
     return head_dim / PSP_KV_SCALE_GROUP;
 }
@@ -117,11 +123,24 @@ __host__ __device__ inline float dequantize_fp8_e5m2(uint8_t q) {
 __host__ __device__ inline uint8_t quantize_fp4_e2m1(float value);
 __host__ __device__ inline float dequantize_fp4_e2m1(uint8_t q);
 
+// Block-scaled int8 (format id 4): one signed byte per element, values in
+// [-127, 127]. The per-(block, head) scale is max_abs / 127.0 (see
+// psp_kv_fp_max in quantize_and_scatter_kernel.cu), so x = q * scale.
+__host__ __device__ inline int8_t quantize_int8(float value) {
+    float r = rintf(value);
+    r = fminf(fmaxf(r, -127.0f), 127.0f);
+    return (int8_t)r;
+}
+__host__ __device__ inline float dequantize_int8(int8_t q) {
+    return (float)q;
+}
+
 // Dispatch helpers keyed by the per-block precision_table value:
 //   0 -> lossless (fp16/bf16, 16-bit)
 //   1 -> FP8 e4m3 (default)
 //   2 -> FP8 e5m2
 //   3 -> FP4 e2m1 (low nibble of the 16-bit value)
+//   4 -> block-scaled int8 (uniform sentinel; K and V both int8)
 __host__ __device__ inline float dequantize_fp8(uint8_t q, int fmt) {
     return (fmt == 2) ? dequantize_fp8_e5m2(q) : dequantize_fp8_e4m3(q);
 }
@@ -207,6 +226,14 @@ __host__ __device__ inline float dequantize_fp4_e2m1(uint8_t q) {
     return (q & 0x8) ? -v : v;
 }
 
+// int4 -> int8 for the tensor-core int4 path: the sign-magnitude nibble
+// (magnitude 0..7 + sign bit) maps directly onto the signed int8 range
+// [-7, 7], which the int8 MMA consumes directly (no fp dequant needed).
+__host__ __device__ inline int8_t dequantize_int4_to_int8(uint8_t q) {
+    int8_t v = (int8_t)(q & 0x7);
+    return (q & 0x8) ? (int8_t)-v : v;
+}
+
 // Variable-stride (byte-buffer) dequant/quantize. The cache is a uint8 byte
 // buffer; each block's byte offset comes from `block_offsets`, and the per-element
 // byte size follows the precision (lossless = sizeof(scalar_t), fp8 = 1, fp4 = 0.5).
@@ -222,6 +249,9 @@ __device__ inline float psp_packed_dequant(
         const uint8_t* b = base + (elem_idx >> 1);
         uint8_t nibble = (elem_idx & 1) ? ((*b >> 4) & 0x0Fu) : (*b & 0x0Fu);
         return dequantize_fp4_e2m1(nibble) * scale;
+    }
+    if (fmt == 4) {
+        return dequantize_int8((int8_t)base[elem_idx]) * scale;
     }
     return dequantize_fp8(base[elem_idx], fmt) * scale;
 }
@@ -247,6 +277,11 @@ __device__ inline float4 psp_packed_dequant4(const uint8_t* base, int elem_idx, 
             dequantize_fp4_e2m1((uint8_t)((packed >> 4) & 0x0Fu)),
             dequantize_fp4_e2m1((uint8_t)((packed >> 8) & 0x0Fu)),
             dequantize_fp4_e2m1((uint8_t)((packed >> 12) & 0x0Fu)));
+    }
+    if (fmt == 4) {
+        // 4 int8 bytes -> float4.
+        const int8_t* s = reinterpret_cast<const int8_t*>(base + elem_idx);
+        return make_float4((float)s[0], (float)s[1], (float)s[2], (float)s[3]);
     }
     // fp8: 4 bytes -> float4 via native hardware conversion.
     uint32_t packed = *reinterpret_cast<const uint32_t*>(base + elem_idx);
@@ -306,6 +341,10 @@ __device__ inline float4 psp_dequant4_ct(const uint8_t* base, int elem_idx) {
             dequantize_fp4_e2m1((uint8_t)((packed >> 4) & 0x0Fu)),
             dequantize_fp4_e2m1((uint8_t)((packed >> 8) & 0x0Fu)),
             dequantize_fp4_e2m1((uint8_t)((packed >> 12) & 0x0Fu)));
+    }
+    if (FMT == 4) {
+        const int8_t* s = reinterpret_cast<const int8_t*>(base + elem_idx);
+        return make_float4((float)s[0], (float)s[1], (float)s[2], (float)s[3]);
     }
     uint32_t packed = *reinterpret_cast<const uint32_t*>(base + elem_idx);
     if (FMT == 2) {
@@ -379,6 +418,8 @@ __device__ inline void psp_packed_quantize(
         } else {
             *b = (*b & 0xF0u) | (q & 0x0Fu);  // low nibble
         }
+    } else if (fmt == 4) {
+        base[elem_idx] = (uint8_t)quantize_int8(x / scale);
     } else {
         base[elem_idx] = quantize_fp8(x / scale, fmt);
     }
@@ -395,6 +436,8 @@ __device__ inline void psp_quantize_ct(uint8_t* base, int elem_idx, float x, flo
         uint8_t q = quantize_fp4_e2m1(x / scale);
         if (elem_idx & 1) *b = (*b & 0x0Fu) | ((q & 0x0Fu) << 4);
         else *b = (*b & 0xF0u) | (q & 0x0Fu);
+    } else if (FMT == 4) {
+        base[elem_idx] = (uint8_t)quantize_int8(x / scale);
     } else {
         base[elem_idx] = (FMT == 2) ? quantize_fp8_e5m2(x / scale) : quantize_fp8_e4m3(x / scale);
     }
@@ -439,8 +482,14 @@ __device__ inline void psp_quantize_row_v(
 
 // Packed per-block precision helpers: the value >= 4 is packed
 // k_fmt | (v_fmt << 2); the legacy value < 4 is a uniform K/V format.
-__device__ inline int psp_kv_fmt_k(int p) { return (p >= 4) ? (p & 3) : p; }
-__device__ inline int psp_kv_fmt_v(int p) { return (p >= 4) ? (p >> 2) : p; }
+// The sentinel value PSP_KV_FMT_INT8 (4) marks uniform int8 for both K and V
+// (it cannot be packed in the 2-bit k/v fields).
+__device__ inline int psp_kv_fmt_k(int p) {
+    return (p == PSP_KV_FMT_INT8) ? PSP_KV_FMT_INT8 : ((p >= 4) ? (p & 3) : p);
+}
+__device__ inline int psp_kv_fmt_v(int p) {
+    return (p == PSP_KV_FMT_INT8) ? PSP_KV_FMT_INT8 : ((p >= 4) ? (p >> 2) : p);
+}
 
 // Bytes per element for a block's precision (fp4 packs 2 elems per byte).
 __device__ inline int psp_bytes_per_elem(int fmt, int scalar_size) {

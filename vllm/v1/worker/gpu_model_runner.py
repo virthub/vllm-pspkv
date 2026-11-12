@@ -408,17 +408,20 @@ def _load_toml(path: str) -> dict:
 def _inner_precision_to_code(fmt) -> int:
     """Map an inner-precision spec to the precision_table value.
 
-    0 = lossless (fp16/bf16), 1 = fp8 e4m3, 2 = fp8 e5m2, 3 = fp4.
+    0 = lossless (fp16/bf16), 1 = fp8 e4m3, 2 = fp8 e5m2, 3 = fp4/int4,
+    4 = block-scaled int8 (W8A8).
     """
     if isinstance(fmt, int):
-        return max(0, min(3, fmt))
+        return max(0, min(4, fmt))
     s = str(fmt).strip().lower()
     if s in ("0", "lossless", "fp16", "bf16"):
         return 0
     if s in ("2", "e5m2"):
         return 2
-    if s in ("3", "fp4", "e2m1", "nvfp4"):
+    if s in ("3", "fp4", "int4", "e2m1", "nvfp4"):
         return 3
+    if s in ("4", "int8", "w8a8"):
+        return 4
     return 1  # "1", "e4m3", or anything else -> e4m3
 
 
@@ -906,6 +909,7 @@ class GPUModelRunner(
         self.precision_fp8_fmt = 0
         self.precision_v_fmt = 0
         self.precision_k_fmt = 0
+        self.precision_int_fmt = 0
         self.precision_k_lossless = False
         self.precision_v_lossless = False
         self.k_cache_bytes = 0
@@ -946,7 +950,7 @@ class GPUModelRunner(
         else:
             self.psp_kv_default_k = self.precision_default
             self.psp_kv_default_v = self.precision_default
-        _fmt_bytes = {0: 2.0, 1: 1.0, 2: 1.0, 3: 0.5}
+        _fmt_bytes = {0: 2.0, 1: 1.0, 2: 1.0, 3: 0.5, 4: 1.0}
         psp_kv_avg_bytes = (
             _fmt_bytes.get(self.psp_kv_default_k, 2.0)
             + _fmt_bytes.get(self.psp_kv_default_v, 2.0)
@@ -2395,6 +2399,7 @@ class GPUModelRunner(
             precision_fp8_fmt=self.precision_fp8_fmt,
             precision_v_fmt=self.precision_v_fmt,
             precision_k_fmt=self.precision_k_fmt,
+            precision_int_fmt=self.precision_int_fmt,
             precision_k_lossless=self.precision_k_lossless,
             precision_v_lossless=self.precision_v_lossless,
             k_cache_bytes=self.k_cache_bytes,
@@ -6609,9 +6614,14 @@ class GPUModelRunner(
         base = block_size * head_size * self.num_kv_heads
         lossless_bytes = int(torch.tensor([], dtype=self.dtype).element_size())
         # Packed per-block precision: k_fmt | (v_fmt << 2); legacy < 4 is uniform.
+        # The int8 sentinel (4) marks uniform block-scaled int8 for both K and V
+        # (it cannot be packed in the 2-bit k/v fields).
         p = self.precision_table
-        k_fmt = torch.where(p >= 4, p & 3, p)
-        v_fmt = torch.where(p >= 4, p >> 2, p)
+        is_int8 = (p == 4)
+        k_fmt = torch.where(is_int8, torch.full_like(p, 4),
+                            torch.where(p >= 4, p & 3, p))
+        v_fmt = torch.where(is_int8, torch.full_like(p, 4),
+                            torch.where(p >= 4, p >> 2, p))
 
         def _block_bytes(fmt: torch.Tensor) -> torch.Tensor:
             b = torch.where(fmt == 0, base * lossless_bytes,
@@ -6654,8 +6664,11 @@ class GPUModelRunner(
             self.precision_k_fmt = 0
         else:
             p = self.precision_cpu
-            k_fmt = torch.where(p >= 4, p & 3, p)
-            v_fmt = torch.where(p >= 4, p >> 2, p)
+            is_int8 = (p == 4)
+            k_fmt = torch.where(is_int8, torch.full_like(p, 4),
+                                torch.where(p >= 4, p & 3, p))
+            v_fmt = torch.where(is_int8, torch.full_like(p, 4),
+                                torch.where(p >= 4, p >> 2, p))
             self.precision_is_lossless = bool(
                 (k_fmt == 0).all().item() and (v_fmt == 0).all().item())
             # The K's uniform fp8 fmt (1=e4m3, 2=e5m2), else 0.
@@ -6670,6 +6683,11 @@ class GPUModelRunner(
             self.precision_k_fmt = int(k_fmt[0].item()) if (
                 (k_fmt == k_fmt[0]).all().item()
                 and int(k_fmt[0].item()) == 3) else 0
+            # The uniform integer TC fmt (3=int4, 4=int8), else 0.
+            self.precision_int_fmt = int(k_fmt[0].item()) if (
+                (k_fmt == k_fmt[0]).all().item()
+                and (v_fmt == v_fmt[0]).all().item()
+                and int(k_fmt[0].item()) in (3, 4)) else 0
             # True when any K block is lossless; the per-block fp8/fp4 TC path
             # can only run when every K block is quantized.
             self.precision_k_lossless = bool((k_fmt == 0).any().item())
@@ -6835,7 +6853,9 @@ class GPUModelRunner(
 
         # GPU tables (static, never resized)
         num_layers = self.model_config.get_num_layers(self.parallel_config)
-        packed_default = self.psp_kv_default_k | (self.psp_kv_default_v << 2)
+        # int8 is a uniform sentinel (K=V=int8), not packable in the 2-bit fields.
+        packed_default = (4 if self.precision_default == 4
+                          else self.psp_kv_default_k | (self.psp_kv_default_v << 2))
         self.precision_table = torch.full(
             (total_blocks,), packed_default, dtype=torch.uint8, device=self.device
         )

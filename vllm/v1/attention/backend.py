@@ -442,6 +442,9 @@ class CommonAttentionMetadata:
     precision_k_fmt: int = 0
     """3 when every K block is uniform fp4 (else 0), precomputed CPU-side so the
     uniform-fp4 (K=V=fp4) tensor-core path can be selected without a sync."""
+    precision_int_fmt: int = 0
+    """3/4 when every block is uniform int4/int8 (else 0), precomputed CPU-side
+    for the integer (int8/int4) tensor-core decode dispatch without a sync."""
     precision_k_lossless: bool = False
     """True when ANY K block is lossless (FMT=0). Precomputed CPU-side so the
     per-block fp8/fp4 tensor-core path can avoid dequantizing lossless K."""

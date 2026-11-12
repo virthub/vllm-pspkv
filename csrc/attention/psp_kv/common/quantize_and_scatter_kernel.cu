@@ -19,6 +19,7 @@
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cstdio>
+#include <cstdlib>
 #include <stdint.h>
 
 #include "psp_kv_config.cuh"
@@ -28,6 +29,7 @@
 // dequantize_* helpers in quantization_utils.cuh).
 __device__ inline float psp_kv_fp_max(int fmt) {
     if (fmt == 3) return 7.0f;      // fp4 (linear int4, magnitude 0..7)
+    if (fmt == 4) return 127.0f;    // block-scaled int8 (clamped [-127, 127])
     if (fmt == 2) return 57344.0f;  // fp8 e5m2
     return 240.0f;                  // fp8 e4m3 (default)
 }
@@ -146,8 +148,11 @@ __global__ void finalize_block_scales_kernel(
         float scale;
         if (fmt == 0) {
             scale = 1.0f;  // lossless: no quantization
-        } else if (fmt == 3) {
-            scale = max_abs[m_base + idx] / psp_kv_fp_max(fmt);  // fp4: per-group
+        } else if (fmt == 3 || fmt == 4) {
+            // fp4/int8: per-scale-group (16-dim) scale. int8 must track the K
+            // cache's per-channel dynamic range (a single head-level max is ~8x
+            // coarser than fp8's per-group scale and loses accuracy).
+            scale = max_abs[m_base + idx] / psp_kv_fp_max(fmt);
         } else {
             // fp8: broadcast the head's max-abs across its groups so the
             // tensor-core kernels (which apply one scale per block+head) read a
@@ -190,7 +195,8 @@ __global__ void finalize_block_scales_decode_kernel(
             float m = max_abs[m_base + idx];
             if (m == 0.0f) return;  // not estimated this step: keep existing scale
             scale = 1.0f;
-        } else if (fmt == 3) {
+        } else if (fmt == 3 || fmt == 4) {
+            // fp4/int8: per-scale-group (16-dim) scale.
             float m = max_abs[m_base + idx];
             if (m == 0.0f) return;
             scale = m / psp_kv_fp_max(fmt);
@@ -387,12 +393,14 @@ __global__ void quantize_and_scatter_kernel(
         case 0: psp_quantize_row_k<scalar_t, 0>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         case 1: psp_quantize_row_k<scalar_t, 1>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         case 2: psp_quantize_row_k<scalar_t, 2>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
+        case 4: psp_quantize_row_k<scalar_t, 4>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         default: psp_quantize_row_k<scalar_t, 3>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
     }
     switch (v_fmt) {
         case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 4: psp_quantize_row_v<scalar_t, 4>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
     }
 }
@@ -421,17 +429,51 @@ void launch_quantize_and_scatter(
     const int scale_blocks =
         (num_blocks * num_kv_heads * num_groups + threads - 1) / threads;
 
+    // ---- temporary per-kernel timing (env PSPKV_TIME_QUANT=1) ----
+    static int quant_calls = 0;
+    static float acc_estimate = 0.f, acc_finalize = 0.f, acc_quant = 0.f;
+    const bool do_time = (getenv("PSPKV_TIME_QUANT") != nullptr);
+    cudaEvent_t e0 = nullptr, e1 = nullptr, e2 = nullptr;
+    if (do_time) {
+        cudaEventCreate(&e0); cudaEventCreate(&e1); cudaEventCreate(&e2);
+        cudaEventRecord(e0, stream);
+    }
+
     estimate_block_scales_kernel<scalar_t><<<pair_blocks, threads, 0, stream>>>(
         prefill_scratch, slot_mapping, precision_table, max_abs,
         num_tokens, num_kv_heads, block_size, head_dim, num_blocks);
 
+    if (do_time) {
+        cudaEventRecord(e1, stream); cudaEventSynchronize(e1);
+        float ms = 0.f; cudaEventElapsedTime(&ms, e0, e1); acc_estimate += ms;
+        cudaEventRecord(e0, stream);
+    }
+
     finalize_block_scales_kernel<<<scale_blocks, threads, 0, stream>>>(
         max_abs, precision_table, scale_table, num_blocks, num_kv_heads, head_dim);
+
+    if (do_time) {
+        cudaEventRecord(e2, stream); cudaEventSynchronize(e2);
+        float ms = 0.f; cudaEventElapsedTime(&ms, e0, e2); acc_finalize += ms;
+        cudaEventRecord(e0, stream);
+    }
 
     quantize_and_scatter_kernel<scalar_t><<<pair_blocks, threads, 0, stream>>>(
         prefill_scratch, key_cache, value_cache, slot_mapping, precision_table,
         block_offsets, scale_table, num_tokens, num_kv_heads, block_size, head_dim,
         num_blocks, format_generation);
+
+    if (do_time) {
+        cudaEventRecord(e1, stream); cudaEventSynchronize(e1);
+        float ms = 0.f; cudaEventElapsedTime(&ms, e0, e1); acc_quant += ms;
+        quant_calls++;
+        if (quant_calls % 36 == 0) {
+            fprintf(stderr, "[quant-time] estimate=%.3fms finalize=%.3fms quant=%.3fms over %d layers\n",
+                    acc_estimate, acc_finalize, acc_quant, quant_calls);
+            acc_estimate = acc_finalize = acc_quant = 0.f;
+        }
+        cudaEventDestroy(e0); cudaEventDestroy(e1); cudaEventDestroy(e2);
+    }
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -581,7 +623,7 @@ __global__ void quantize_single_token_kernel(
     const int64_t* __restrict__ slot_mapping,   // [num_tokens]
     const uint8_t* __restrict__ precision_table,
     const uint32_t* __restrict__ block_offsets,
-    const float* __restrict__ scale_table,
+    float* __restrict__ scale_table,
     int num_tokens, int num_kv_heads, int block_size, int head_dim, int num_blocks)
 {
     const int num_groups = psp_kv_num_groups(head_dim);
@@ -618,11 +660,17 @@ __global__ void quantize_single_token_kernel(
     const scalar_t* k_row = key + ((size_t)token * num_kv_heads + h) * head_dim + elem_base;
     const scalar_t* v_row = value + ((size_t)token * num_kv_heads + h) * head_dim + elem_base;
 
-    // A freshly-allocated decode block has scale 0 in scale_table (it was only
-    // derived for the prefill). Fall back to an on-the-fly scale from this
-    // group's magnitude so the first token of a new block isn't quantized with
-    // scale 0 (which would saturate to +/-max).
-    auto compute_scale = [&](const scalar_t* row, int fmt) -> float {
+    // A freshly-allocated decode block has a sentinel scale in scale_table: 0.0
+    // (never derived), or 1.0 (the prefill finalize's fp8-safe "unscaled"
+    // default, which is wrong for the integer formats). Fall back to an
+    // on-the-fly scale so the first token of a new block isn't quantized with a
+    // wrong scale, and WRITE it back so the attention kernel (which reads the
+    // scale_table) sees it. This removes the Python-side _write_int_decode_scales
+    // torch-op pass for the integer formats. int8 (FMT=4) and int4 (FMT=3) both
+    // use a per-scale-group (16-dim) scale so the K cache's per-channel dynamic
+    // range is tracked (int8 is otherwise ~8x coarser than fp8's per-group scale
+    // and loses accuracy).
+    auto compute_scale_group = [&](const scalar_t* row, int fmt) -> float {
         if (fmt == 0) return 1.0f;  // lossless: no scaling
         float m = 0.0f;
         for (int i = 0; i < PSP_KV_SCALE_GROUP; ++i) m = fmaxf(m, fabsf(psp_to_float(row[i])));
@@ -632,8 +680,16 @@ __global__ void quantize_single_token_kernel(
     const int64_t gidx = ((int64_t)block_id * num_kv_heads + h) * num_groups + group;
     const float k_scale_stored = scale_table[gidx];
     const float v_scale_stored = scale_table[hh + gidx];
-    const float k_scale = (k_scale_stored > 1e-8f) ? k_scale_stored : compute_scale(k_row, k_fmt);
-    const float v_scale = (v_scale_stored > 1e-8f) ? v_scale_stored : compute_scale(v_row, v_fmt);
+    const bool k_int = (k_fmt == 3 || k_fmt == 4);
+    const bool v_int = (v_fmt == 3 || v_fmt == 4);
+    const bool k_fresh = (k_scale_stored < 1e-8f) || (k_int && k_scale_stored == 1.0f);
+    const bool v_fresh = (v_scale_stored < 1e-8f) || (v_int && v_scale_stored == 1.0f);
+    const float k_scale = k_fresh ? compute_scale_group(k_row, k_fmt) : k_scale_stored;
+    const float v_scale = v_fresh ? compute_scale_group(v_row, v_fmt) : v_scale_stored;
+    // Persist the freshly-computed integer scale. int8 and int4 both write the
+    // per-scale-group value for this group.
+    if (k_fresh && k_int) scale_table[gidx] = k_scale;
+    if (v_fresh && v_int) scale_table[hh + gidx] = v_scale;
 #if PSP_KV_TOKEN_MAJOR
     const int v_row_idx = block_offset * num_kv_heads + h;
     uint8_t* k_out = key_cache + block_offsets[block_id]
@@ -652,12 +708,14 @@ __global__ void quantize_single_token_kernel(
         case 0: psp_quantize_row_k<scalar_t, 0>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         case 1: psp_quantize_row_k<scalar_t, 1>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         case 2: psp_quantize_row_k<scalar_t, 2>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
+        case 4: psp_quantize_row_k<scalar_t, 4>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
         default: psp_quantize_row_k<scalar_t, 3>(k_row, k_out, PSP_KV_SCALE_GROUP, elem_base, k_scale); break;
     }
     switch (v_fmt) {
         case 0: psp_quantize_row_v<scalar_t, 0>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         case 1: psp_quantize_row_v<scalar_t, 1>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         case 2: psp_quantize_row_v<scalar_t, 2>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
+        case 4: psp_quantize_row_v<scalar_t, 4>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
         default: psp_quantize_row_v<scalar_t, 3>(v_row, v_out, head_dim, PSP_KV_SCALE_GROUP, elem_base, v_scale, v_row_idx); break;
     }
 }
@@ -668,7 +726,7 @@ void launch_quantize_single_token(
     uint8_t* key_cache, uint8_t* value_cache,
     const int64_t* slot_mapping,
     const uint8_t* precision_table, const uint32_t* block_offsets,
-    const float* scale_table,
+    float* scale_table,
     int num_tokens, int num_kv_heads, int block_size, int head_dim, int num_blocks,
     cudaStream_t stream)
 {
@@ -684,16 +742,16 @@ void launch_quantize_single_token(
 
 template void launch_quantize_single_token<half>(
     const half*, const half*, uint8_t*, uint8_t*, const int64_t*, const uint8_t*,
-    const uint32_t*, const float*, int, int, int, int, int, cudaStream_t);
+    const uint32_t*, float*, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<__nv_bfloat16>(
     const __nv_bfloat16*, const __nv_bfloat16*, uint8_t*, uint8_t*, const int64_t*,
-    const uint8_t*, const uint32_t*, const float*, int, int, int, int, int, cudaStream_t);
+    const uint8_t*, const uint32_t*, float*, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<float>(
     const float*, const float*, uint8_t*, uint8_t*, const int64_t*,
-    const uint8_t*, const uint32_t*, const float*, int, int, int, int, int, cudaStream_t);
+    const uint8_t*, const uint32_t*, float*, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<__nv_fp8_e4m3>(
     const __nv_fp8_e4m3*, const __nv_fp8_e4m3*, uint8_t*, uint8_t*, const int64_t*,
-    const uint8_t*, const uint32_t*, const float*, int, int, int, int, int, cudaStream_t);
+    const uint8_t*, const uint32_t*, float*, int, int, int, int, int, cudaStream_t);
 template void launch_quantize_single_token<__nv_fp8_e5m2>(
     const __nv_fp8_e5m2*, const __nv_fp8_e5m2*, uint8_t*, uint8_t*, const int64_t*,
-    const uint8_t*, const uint32_t*, const float*, int, int, int, int, int, cudaStream_t);
+    const uint8_t*, const uint32_t*, float*, int, int, int, int, int, cudaStream_t);

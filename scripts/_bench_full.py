@@ -85,7 +85,8 @@ def main():
     args = ap.parse_args()
 
     backends = [("baseline", "baseline"), ("lossless", "lossless"),
-                ("e4m3", "e4m3"), ("e5m2", "e5m2"), ("fp4", "fp4")]
+                ("e4m3", "e4m3"), ("e5m2", "e5m2"), ("fp4", "fp4"),
+                ("int8", "int8")]
 
     # tokenizer + prompts (shared per model)
     toks = {}

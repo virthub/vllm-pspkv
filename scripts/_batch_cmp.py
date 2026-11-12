@@ -2,6 +2,8 @@
 """One invocation per (backend, block, batch): PURE decode throughput."""
 import os, sys, time
 os.environ.setdefault("HF_HUB_OFFLINE","1"); os.environ.setdefault("TRANSFORMERS_OFFLINE","1")
+if os.environ.get("PSPKV_TIME_QUANT"):
+    os.environ["PSPKV_TIME_QUANT"] = "1"
 import torch
 from vllm import LLM, SamplingParams
 
@@ -13,12 +15,12 @@ ctx = int(sys.argv[4]) if len(sys.argv) > 4 else 512
 kw = dict(block_size=block)
 if backend == "pspkv":
     os.environ["PSP_KV_BLOCK_SIZE"] = str(block)
-    os.environ["PSPKV_PRECISION"] = "e4m3"
+    os.environ.setdefault("PSPKV_PRECISION", "e4m3")
     os.environ["PSPKV_ADAPTIVE_PRECISION"] = "0"
     os.environ.setdefault("PSPKV_FORMAT", "1")
     kw["attention_backend"] = "PSP_KV"
 
-llm = LLM(model="Qwen/Qwen3-4B", enforce_eager=True, max_model_len=ctx+64,
+llm = LLM(model="Qwen/Qwen3-4B", enforce_eager=os.environ.get("PSPKV_EAGER", "1") == "1", max_model_len=ctx+64,
           gpu_memory_utilization=0.6, dtype="float16",
           enable_chunked_prefill=False, enable_prefix_caching=False, **kw)
 tok = llm.get_tokenizer()

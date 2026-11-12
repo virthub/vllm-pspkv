@@ -265,6 +265,53 @@ __device__ __forceinline__ void cp_async_tc_strided(uint8_t* smem, const uint8_t
     asm volatile("cp.async.commit_group;");
 }
 
+// Token-major strided load into a PADDED smem tile: same gmem source as
+// cp_async_tc_strided ([token][head][dim], row stride num_heads * head_dim), but
+// each smem row is written with a `smem_stride` byte stride instead of the tight
+// head_dim. Padding the int8 smem rows (128 -> 144 bytes) breaks the bank
+// alignment that makes every 16-byte wmma row hit the same 32 banks
+// (128 % 32 == 0). smem_stride must be a multiple of 16 (cp.async + wmma ldm).
+__device__ __forceinline__ void cp_async_tc_strided_pad(uint8_t* smem,
+                                                        const uint8_t* gmem,
+                                                        int tid, int tokens,
+                                                        int head_dim,
+                                                        int num_heads,
+                                                        int smem_stride) {
+    const int chunks_per_row = head_dim / 16;
+    const int total_chunks = tokens * chunks_per_row;
+    #pragma unroll
+    for (int i = tid; i < total_chunks; i += 32) {
+        const int t = i / chunks_per_row;
+        const int c = i % chunks_per_row;
+        const uint8_t* src = gmem + (size_t)t * num_heads * head_dim + c * 16;
+        const uint8_t* dst = smem + (size_t)t * smem_stride + c * 16;
+        asm volatile("cp.async.cg.shared.global [%0], [%1], 16;" ::"r"(
+            (unsigned)__cvta_generic_to_shared(dst)), "l"(src));
+    }
+    asm volatile("cp.async.commit_group;");
+}
+
+// Head-major contiguous load into a PADDED smem tile: copies `bytes` contiguous
+// gmem bytes (rows of `head_dim` bytes) into smem rows of `smem_stride` bytes.
+// Same padding rationale as cp_async_tc_strided_pad, for PSP_KV_TOKEN_MAJOR=0.
+__device__ __forceinline__ void cp_async_tc_pad(uint8_t* smem,
+                                                const uint8_t* gmem,
+                                                int tid, int bytes,
+                                                int head_dim, int smem_stride) {
+    const int chunks_per_row = head_dim / 16;
+    const int total_chunks = bytes / 16;
+    #pragma unroll
+    for (int i = tid; i < total_chunks; i += 32) {
+        const int t = i / chunks_per_row;
+        const int c = i % chunks_per_row;
+        const uint8_t* src = gmem + i * 16;
+        const uint8_t* dst = smem + (size_t)t * smem_stride + c * 16;
+        asm volatile("cp.async.cg.shared.global [%0], [%1], 16;" ::"r"(
+            (unsigned)__cvta_generic_to_shared(dst)), "l"(src));
+    }
+    asm volatile("cp.async.commit_group;");
+}
+
 template <int HEAD_DIM, typename scalar_t>
 __global__ void paged_attention_enhanced_tc_kernel(
     float* __restrict__ partials,
@@ -902,44 +949,50 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
 
     const int context_len = context_lens[seq_idx];
     const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
-    const int split_start = split_idx * blocks_per_split;
-    const int split_end = min(split_start + blocks_per_split, num_blocks);
-    const int chunk_blocks = split_end - split_start;
+    const int num_tiles_total = num_blocks * SUB_TILES;
+    const int tiles_per_split = (num_tiles_total + num_splits - 1) / num_splits;
+    const int tile_start = split_idx * tiles_per_split;
+    const int tile_end = min(tile_start + tiles_per_split, num_tiles_total);
+    const int num_tiles = tile_end - tile_start;
 
     const int block_bytes_per_head = BLOCK_BYTES;
 
     const __nv_fp8_interpretation_t interp = (fp8_fmt == 2) ? __NV_E5M2 : __NV_E4M3;
 
-    // Prologue: prefetch tile 0 (16 tokens) into the first buffer. Guarded so
-    // empty splits (num_splits > num_blocks) never dereference out-of-range.
-    const int num_tiles = chunk_blocks * SUB_TILES;
+    // Prologue: prefetch tile 0 into the first buffer. Guarded so empty splits
+    // (num_splits > num_tiles_total) never dereference out-of-range.
     if (num_tiles > 0) {
-        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+        const int b0 = tile_start / SUB_TILES;
+        const int sub0 = tile_start % SUB_TILES;
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + b0];
 #if PSP_KV_TOKEN_MAJOR
-        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * HEAD_DIM;
-        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * HEAD_DIM;
+        const uint8_t* k0 = k_cache + block_offsets[pb0]
+                          + (size_t)sub0 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0]
+                          + (size_t)sub0 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
         cp_async_tc_strided(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, TILE, HEAD_DIM, num_kv_heads);
         cp_async_tc_strided(reinterpret_cast<uint8_t*>(sv[0]), v0, tid, TILE, HEAD_DIM, num_kv_heads);
 #else
-        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
-        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head
+                          + (size_t)sub0 * TILE * HEAD_DIM;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head
+                          + (size_t)sub0 * TILE * HEAD_DIM;
         cp_async_tc(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, TILE * HEAD_DIM);
         cp_async_tc(reinterpret_cast<uint8_t*>(sv[0]), v0, tid, TILE * HEAD_DIM);
 #endif
     }
 
     for (int n = 0; n < num_tiles; n++) {
-        const int b = split_start + n / SUB_TILES;
-        const int sub = n % SUB_TILES;
+        const int b = (tile_start + n) / SUB_TILES;
+        const int sub = (tile_start + n) % SUB_TILES;
         const int cur = n & 1;
         const int nxt = cur ^ 1;
 
         // Prefetch tile n+1 (2 async groups) so it overlaps the current
         // compute.
         if (n + 1 < num_tiles) {
-            const int b1 = split_start + (n + 1) / SUB_TILES;
-            const int sub1 = (n + 1) % SUB_TILES;
+            const int b1 = (tile_start + n + 1) / SUB_TILES;
+            const int sub1 = (tile_start + n + 1) % SUB_TILES;
             const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b1];
 #if PSP_KV_TOKEN_MAJOR
             const uint8_t* k1 = k_cache + block_offsets[pb1]
@@ -1176,11 +1229,11 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
 
     const int context_len = context_lens[seq_idx];
     const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
-    const int split_start = split_idx * blocks_per_split;
-    const int split_end = min(split_start + blocks_per_split, num_blocks);
-    const int chunk_blocks = split_end - split_start;
-    const int num_tiles = chunk_blocks * SUB_TILES;
+    const int num_tiles_total = num_blocks * SUB_TILES;
+    const int tiles_per_split = (num_tiles_total + num_splits - 1) / num_splits;
+    const int tile_start = split_idx * tiles_per_split;
+    const int tile_end = min(tile_start + tiles_per_split, num_tiles_total);
+    const int num_tiles = tile_end - tile_start;
 
     const int block_bytes_per_head = BLOCK_BYTES;
     const __nv_fp8_interpretation_t interp = (fp8_fmt == 2) ? __NV_E5M2 : __NV_E4M3;
@@ -1191,17 +1244,23 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
     __half* s_prob_w = s_prob[warp_id];
 
     // Prologue: prefetch tile 0 into buffer 0. Guarded so empty splits
-    // (num_splits > num_blocks) never dereference out-of-range.
+    // (num_splits > num_tiles_total) never dereference out-of-range.
     if (num_tiles > 0) {
-        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+        const int b0 = tile_start / SUB_TILES;
+        const int sub0 = tile_start % SUB_TILES;
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + b0];
 #if PSP_KV_TOKEN_MAJOR
-        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * HEAD_DIM;
-        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * HEAD_DIM;
+        const uint8_t* k0 = k_cache + block_offsets[pb0]
+                          + (size_t)sub0 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0]
+                          + (size_t)sub0 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
         cp_async_tc_strided(reinterpret_cast<uint8_t*>(skw[0]), k0, lane, TILE, HEAD_DIM, num_kv_heads);
         cp_async_tc_strided(reinterpret_cast<uint8_t*>(svw[0]), v0, lane, TILE, HEAD_DIM, num_kv_heads);
 #else
-        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
-        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head
+                          + (size_t)sub0 * TILE * HEAD_DIM;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head
+                          + (size_t)sub0 * TILE * HEAD_DIM;
         cp_async_tc(reinterpret_cast<uint8_t*>(skw[0]), k0, lane, TILE * HEAD_DIM);
         cp_async_tc(reinterpret_cast<uint8_t*>(svw[0]), v0, lane, TILE * HEAD_DIM);
 #endif
@@ -1212,15 +1271,15 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
     // tile n from `cur`. Only __syncwarp() is used so warps with differing
     // tile counts (empty trailing splits) can never deadlock on a barrier.
     for (int n = 0; n < num_tiles; n++) {
-        const int b = split_start + n / SUB_TILES;
-        const int sub = n % SUB_TILES;
+        const int b = (tile_start + n) / SUB_TILES;
+        const int sub = (tile_start + n) % SUB_TILES;
         const int cur = n & 1;
         const int nxt = cur ^ 1;
 
         // Prefetch tile n+1 (2 async groups: K then V) into the other buffer.
         if (n + 1 < num_tiles) {
-            const int b1 = split_start + (n + 1) / SUB_TILES;
-            const int sub1 = (n + 1) % SUB_TILES;
+            const int b1 = (tile_start + n + 1) / SUB_TILES;
+            const int sub1 = (tile_start + n + 1) % SUB_TILES;
             const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b1];
 #if PSP_KV_TOKEN_MAJOR
             const uint8_t* k1 = k_cache + block_offsets[pb1]
@@ -1329,6 +1388,649 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
                 load_matrix_sync(vb, svw[cur] + nt * 16 * HEAD_DIM + nt8 * 16, HEAD_DIM);
                 mma_sync(c, pa, vb, c);
                 for (int i = 0; i < c.num_elements; i++) acc[nt8].x[i] += c.x[i] * v_scale;
+            }
+        }
+        __syncwarp();
+    }
+
+    // Output partials: per (kv_head, seq, split, head, dim). Same layout as the
+    // single-warp kernel so the existing merge kernel works unchanged.
+    const int64_t p_base =
+        (((int64_t)kv_head * gridDim.y + seq_idx) * num_splits + split_idx) * gqa + group;
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) {
+        int c0 = nt8 * 16 + tig * 2, c1 = nt8 * 16 + 8 + tig * 2;
+        if (group < gqa) {
+            float* p = partials + p_base * (2 + HEAD_DIM);
+            p[2 + c0]      = acc[nt8].x[0];
+            p[2 + c0 + 1]  = acc[nt8].x[1];
+            p[2 + c1]      = acc[nt8].x[4];
+            p[2 + c1 + 1]  = acc[nt8].x[5];
+        }
+    }
+    if (tig == 0 && group < gqa) {
+        partials[p_base * (2 + HEAD_DIM) + 0] = rmax0;
+        partials[p_base * (2 + HEAD_DIM) + 1] = rsum0;
+    }
+}
+
+// ============================================================================
+// block-scaled int8 (W8A8) tensor-core decode path.
+//
+// K and V are stored as int8 (1 byte/elem, block-scaled). K is fed directly to
+// the int8 mma.sync.aligned.m16n16k16.s8 (2x the fp16 MMA throughput); Q is
+// quantized to int8 in-kernel with per-16-dim-group scales
+// q_scale[group] = max_abs(q)/127. The QK accumulator is int32 per 16-dim
+// K-chunk and is rescaled by
+// q_scale[group] * k_sc[group] to recover the true scores, then the SAME online
+// softmax + fp16-WMMA PV as the fp8 path runs (V is dequantized int8->fp16; the
+// fp16 V scale is applied per 16-dim group after the MMA).
+// TILE=16, one warp, grid (num_kv_heads, num_seqs, num_splits); the partials
+// layout matches the fp8-TC kernel so the existing merge kernel is unchanged.
+// ============================================================================
+template <int HEAD_DIM, typename scalar_t>
+__global__ void paged_attention_enhanced_int8_tc_kernel(
+    float* __restrict__ partials,
+    const scalar_t* __restrict__ q,
+    const uint8_t* __restrict__ k_cache,
+    const uint8_t* __restrict__ v_cache,
+    const int* __restrict__ block_tables,
+    const int* __restrict__ context_lens,
+    const uint32_t* __restrict__ block_offsets,
+    const float* __restrict__ scale_table,  // [2, num_blocks, num_kv_heads, num_groups]
+    int max_blocks_per_seq,
+    int num_heads,
+    int num_kv_heads,
+    float scale,
+    int num_splits,
+    int num_total_blocks)
+{
+    constexpr int NT8 = HEAD_DIM / 16;
+    constexpr int TILE = 16;                     // tokens per sub-tile
+    constexpr int NT = TILE / 16;                // N-tiles per sub-tile (=1)
+    constexpr int SUB_TILES = BLOCK_SIZE / TILE; // sub-tiles per block
+    constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM;  // int8 = 1 byte/elem
+    // Padded int8 smem row stride (bytes): 128 -> 144 so each 16-byte wmma row
+    // lands on a shifted bank phase instead of the same 32 banks (128 % 32 == 0).
+    // 144 = HEAD_DIM + 16 is still a multiple of 16 for the wmma ldm.
+    constexpr int SMEM_STRIDE = HEAD_DIM + 16;
+
+    const int kv_head = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int split_idx = blockIdx.z;
+    const int gqa = num_heads / num_kv_heads;
+    const int tid = threadIdx.x;
+    const int lane = tid & 31, group = lane >> 2, tig = lane & 3;
+    const float log2e = 1.4426950408889634f;
+
+    __shared__ signed char s_q_int8[16 * SMEM_STRIDE];
+    __shared__ signed char sk[2][TILE * SMEM_STRIDE];
+    __shared__ signed char sv_int8[2][TILE * SMEM_STRIDE];
+    __shared__ __half sv[2][TILE * HEAD_DIM];
+    __shared__ float s_score[16 * TILE];
+    __shared__ __half s_prob[16 * TILE];
+
+    fragment<matrix_a, 16, 16, 16, signed char, row_major> a_i[NT8];
+    fragment<matrix_b, 16, 16, 16, signed char, col_major> b_i;
+    // A single reused int32 accumulator per K-chunk: per-group K scales require
+    // the fp32 conversion + scale + sum per 16-dim chunk (the int8 MMA cannot
+    // scale an int32 accumulator mid-accumulation), so each chunk zero-fills
+    // and MMA's into the same c_i, then accumulates into c_f in kt order.
+    fragment<accumulator, 16, 16, 16, int> c_i;
+    fragment<accumulator, 16, 16, 16, float> c_f;
+    fragment<matrix_b, 16, 16, 16, __half, row_major> vb;
+    fragment<matrix_a, 16, 16, 16, __half, row_major> pa;
+    fragment<accumulator, 16, 16, 16, float> c;
+    fragment<accumulator, 16, 16, 16, float> acc[NT8];
+
+    // Padded Q: rows [0, gqa) = the query heads, rest zero. Quantize Q to int8
+    // with a per-16-dim-group max-abs scale (q_scale[g] = max_abs(q)/127, one
+    // max per group over the gqa query heads via a register scan + warp reduce),
+    // matching the per-group K scales. A FIXED 1/127 scale flips greedy tokens
+    // (|q|>1 outliers clip to 127), so the max-based scale is required.
+    for (int i = tid; i < 16 * SMEM_STRIDE; i += 32) s_q_int8[i] = 0;
+    const int head_base = kv_head * gqa;
+    float q_scale[NT8];
+    #pragma unroll
+    for (int g = 0; g < NT8; g++) q_scale[g] = 0.0f;
+    for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
+        int h = head_base + i / HEAD_DIM;
+        int d = i % HEAD_DIM;
+        int g = d / 16;
+        float qv = psp_to_float<scalar_t>(
+            q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d]);
+        q_scale[g] = fmaxf(q_scale[g], fabsf(qv));
+    }
+    #pragma unroll
+    for (int g = 0; g < NT8; g++) {
+        #pragma unroll
+        for (int o = 16; o > 0; o >>= 1)
+            q_scale[g] = fmaxf(q_scale[g], __shfl_xor_sync(0xffffffffu, q_scale[g], o));
+        q_scale[g] /= 127.0f;
+        if (q_scale[g] < 1e-8f) q_scale[g] = 1.0f;
+    }
+    for (int i = tid; i < gqa * HEAD_DIM; i += 32) {
+        int row = i / HEAD_DIM;
+        int h = head_base + row;
+        int d = i % HEAD_DIM;
+        int g = d / 16;
+        float qv = psp_to_float<scalar_t>(
+            q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d]);
+        s_q_int8[row * SMEM_STRIDE + d] = quantize_int8(qv / q_scale[g]);
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int kt = 0; kt < NT8; kt++) load_matrix_sync(a_i[kt], s_q_int8 + kt * 16, SMEM_STRIDE);
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) fill_fragment(acc[nt8], 0.0f);
+
+    float rmax0 = -1e30f, rmax1 = -1e30f, rsum0 = 0.0f, rsum1 = 0.0f;
+
+    const int context_len = context_lens[seq_idx];
+    const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
+    const int split_start = split_idx * blocks_per_split;
+    const int split_end = min(split_start + blocks_per_split, num_blocks);
+    const int chunk_blocks = split_end - split_start;
+
+    const int block_bytes_per_head = BLOCK_BYTES;
+
+    // Prologue: prefetch tile 0 (16 tokens) into the first buffer. Guarded so
+    // empty splits (num_splits > num_blocks) never dereference out-of-range.
+    const int num_tiles = chunk_blocks * SUB_TILES;
+    if (num_tiles > 0) {
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+#if PSP_KV_TOKEN_MAJOR
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * HEAD_DIM;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * HEAD_DIM;
+        cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, TILE, HEAD_DIM, num_kv_heads, SMEM_STRIDE);
+        cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(sv_int8[0]), v0, tid, TILE, HEAD_DIM, num_kv_heads, SMEM_STRIDE);
+#else
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head;
+        cp_async_tc_pad(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, TILE * HEAD_DIM, HEAD_DIM, SMEM_STRIDE);
+        cp_async_tc_pad(reinterpret_cast<uint8_t*>(sv_int8[0]), v0, tid, TILE * HEAD_DIM, HEAD_DIM, SMEM_STRIDE);
+#endif
+    }
+
+    for (int n = 0; n < num_tiles; n++) {
+        const int b = split_start + n / SUB_TILES;
+        const int sub = n % SUB_TILES;
+        const int cur = n & 1;
+        const int nxt = cur ^ 1;
+
+        // Prefetch tile n+1 (2 async groups) so it overlaps the compute.
+        if (n + 1 < num_tiles) {
+            const int b1 = split_start + (n + 1) / SUB_TILES;
+            const int sub1 = (n + 1) % SUB_TILES;
+            const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b1];
+#if PSP_KV_TOKEN_MAJOR
+            const uint8_t* k1 = k_cache + block_offsets[pb1]
+                              + (size_t)sub1 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
+            const uint8_t* v1 = v_cache + block_offsets[num_total_blocks + pb1]
+                              + (size_t)sub1 * TILE * (num_kv_heads * HEAD_DIM) + (size_t)kv_head * HEAD_DIM;
+            cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(sk[nxt]), k1, tid, TILE, HEAD_DIM, num_kv_heads, SMEM_STRIDE);
+            cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(sv_int8[nxt]), v1, tid, TILE, HEAD_DIM, num_kv_heads, SMEM_STRIDE);
+#else
+            const uint8_t* k1 = k_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head
+                              + (size_t)sub1 * TILE * HEAD_DIM;
+            const uint8_t* v1 = v_cache + block_offsets[num_total_blocks + pb1] + (size_t)kv_head * block_bytes_per_head
+                              + (size_t)sub1 * TILE * HEAD_DIM;
+            cp_async_tc_pad(reinterpret_cast<uint8_t*>(sk[nxt]), k1, tid, TILE * HEAD_DIM, HEAD_DIM, SMEM_STRIDE);
+            cp_async_tc_pad(reinterpret_cast<uint8_t*>(sv_int8[nxt]), v1, tid, TILE * HEAD_DIM, HEAD_DIM, SMEM_STRIDE);
+#endif
+        }
+
+        // Wait for the current tile's copy, keeping the 2 prefetch groups
+        // outstanding so they overlap the compute below.
+        if (n + 1 < num_tiles) {
+            asm volatile("cp.async.wait_group 2;");
+        } else {
+            asm volatile("cp.async.wait_group 0;");
+        }
+        __syncthreads();
+
+        const int start_token = b * BLOCK_SIZE + sub * TILE;
+        const int tokens_in_block = min(TILE, context_len - start_token);
+        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
+        const int num_groups = psp_kv_num_groups(HEAD_DIM);
+        float k_sc[NT8], v_sc[NT8];
+        #pragma unroll
+        for (int g = 0; g < NT8; g++) {
+            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+            v_sc[g] = scale_table[((int64_t)num_total_blocks * num_kv_heads
+                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+        }
+
+        // Dequantize V int8 -> fp16 (separate buffers, so no in-place hazard).
+        for (int i = tid; i < TILE * HEAD_DIM; i += 32) {
+            const int t = i / HEAD_DIM;
+            const int d = i - t * HEAD_DIM;
+            sv[cur][i] = __float2half(dequantize_int8(sv_int8[cur][t * SMEM_STRIDE + d]));
+        }
+        __syncthreads();
+
+        // QK^T via the int8 MMA: scores [16, TILE] in int32, then rescale by
+        // q_scale[kt] * k_sc[kt] * softmax_scale per 16-dim K-chunk into the fp32
+        // score tile (per-group K and Q scales, mirroring the int4 path). Each
+        // chunk zero-fills and MMA's into the same c_i, then converts + scales +
+        // sums into c_f in the same kt order (bit-identical to 8 accumulators).
+        #pragma unroll
+        for (int nt = 0; nt < NT; nt++) {
+            fill_fragment(c_f, 0.0f);
+            #pragma unroll
+            for (int kt = 0; kt < NT8; kt++) {
+                load_matrix_sync(b_i, sk[cur] + nt * 16 * SMEM_STRIDE + kt * 16, SMEM_STRIDE);
+                fill_fragment(c_i, 0);
+                mma_sync(c_i, a_i[kt], b_i, c_i);
+                const float gs = scale * k_sc[kt] * q_scale[kt];
+                #pragma unroll
+                for (int i = 0; i < c_i.num_elements; i++) c_f.x[i] += __int2float_rn(c_i.x[i]) * gs;
+            }
+            store_matrix_sync(s_score + nt * 16, c_f, TILE, mem_row_major);
+        }
+        __syncthreads();
+
+        // per-row online softmax (2 rows per thread), masked to valid tokens.
+        for (int r = group; r < 16; r += 8) {
+            float mx = -1e30f;
+            for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * TILE + cc]);
+            float& rmax = (r == group) ? rmax0 : rmax1;
+            float& rsum = (r == group) ? rsum0 : rsum1;
+            float m_new = fmaxf(rmax, mx);
+            float rescale_old = exp2f((rmax - m_new) * log2e);
+            float rescale_new = exp2f((mx - m_new) * log2e);
+            rsum *= rescale_old;
+            float tsum = 0.0f;
+            for (int cc = 0; cc < TILE; cc++) {
+                float e = (cc < tokens_in_block)
+                    ? exp2f((s_score[r * TILE + cc] - mx) * log2e) : 0.0f;
+                s_prob[r * TILE + cc] = __float2half(e * rescale_new);
+                tsum += e;
+            }
+            rsum += tsum * rescale_new;
+            rmax = m_new;
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                if (r == group) {
+                    acc[nt8].x[0] *= rescale_old; acc[nt8].x[1] *= rescale_old;
+                    acc[nt8].x[4] *= rescale_old; acc[nt8].x[5] *= rescale_old;
+                } else {
+                    acc[nt8].x[2] *= rescale_old; acc[nt8].x[3] *= rescale_old;
+                    acc[nt8].x[6] *= rescale_old; acc[nt8].x[7] *= rescale_old;
+                }
+            }
+        }
+        __syncthreads();
+
+        // PV: acc += (prob @ V_tile) * v_sc[nt8] (fp16 WMMA, V dequantized,
+        // per-group V scale applied per 16-dim chunk).
+        #pragma unroll
+        for (int nt = 0; nt < NT; nt++) {
+            load_matrix_sync(pa, s_prob + nt * 16, TILE);
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                fill_fragment(c, 0.0f);
+                load_matrix_sync(vb, sv[cur] + nt * 16 * HEAD_DIM + nt8 * 16, HEAD_DIM);
+                mma_sync(c, pa, vb, c);
+                for (int i = 0; i < c.num_elements; i++) acc[nt8].x[i] += c.x[i] * v_sc[nt8];
+            }
+        }
+        __syncthreads();
+    }
+
+    // Output partials: per (kv_head, seq, split, head, dim). Same layout as the
+    // fp8-TC kernel so the existing merge kernel works unchanged.
+    const int64_t p_base =
+        (((int64_t)kv_head * gridDim.y + seq_idx) * num_splits + split_idx) * gqa + group;
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) {
+        int c0 = nt8 * 16 + tig * 2, c1 = nt8 * 16 + 8 + tig * 2;
+        if (group < gqa) {
+            float* p = partials + p_base * (2 + HEAD_DIM);
+            p[2 + c0]      = acc[nt8].x[0];
+            p[2 + c0 + 1]  = acc[nt8].x[1];
+            p[2 + c1]      = acc[nt8].x[4];
+            p[2 + c1 + 1]  = acc[nt8].x[5];
+        }
+    }
+    if (tig == 0 && group < gqa) {
+        partials[p_base * (2 + HEAD_DIM) + 0] = rmax0;
+        partials[p_base * (2 + HEAD_DIM) + 1] = rsum0;
+    }
+}
+
+// ============================================================================
+// 4-warp integer tensor-core decode (INT8 and INT4 inner types): each CTA
+// processes 4 consecutive split-K splits, one per warp (128 threads). K and V
+// are kept in smem as int8 and fed directly to mma.m16n16k16.s8 (no fp dequant).
+//   FMT=4 -> int8 (1 byte/elem, per-group scale).
+//   FMT=3 -> int4 (2 elems/byte, sign-magnitude -7..7, dequantized to int8 in
+//            smem, per-group scale).
+// Q is quantized to int8 in-kernel (q_scale[group] = max_abs(q)/127, one per
+// 16-dim group) and the softmax
+// probabilities are quantized to int8 too, so both QK and PV use the int8 MMA
+// (V never dequantizes to fp16). Dynamic smem ~39KB (HEAD_DIM=128). Partials
+// layout and the merge kernel are unchanged.
+// ============================================================================
+template <int HEAD_DIM, typename scalar_t, int FMT>
+__global__ void paged_attention_enhanced_int_tc_4warp_kernel(
+    float* __restrict__ partials,
+    const scalar_t* __restrict__ q,
+    const uint8_t* __restrict__ k_cache,
+    const uint8_t* __restrict__ v_cache,
+    const int* __restrict__ block_tables,
+    const int* __restrict__ context_lens,
+    const uint32_t* __restrict__ block_offsets,
+    const float* __restrict__ scale_table,  // [2, num_blocks, num_kv_heads, num_groups]
+    int max_blocks_per_seq,
+    int num_heads,
+    int num_kv_heads,
+    float scale,
+    int num_splits,
+    int num_total_blocks)
+{
+    constexpr bool INT4 = (FMT == 3);
+    constexpr int NT8 = HEAD_DIM / 16;
+    constexpr int TILE = 16;
+    constexpr int NT = TILE / 16;                 // N-tiles per sub-tile (=1)
+    constexpr int SUB_TILES = BLOCK_SIZE / TILE;  // sub-tiles per block
+    // int8 = 1 byte/elem; int4 = 0.5 byte/elem (2 packed per byte).
+    constexpr int HEAD_BYTES = HEAD_DIM / (INT4 ? 2 : 1);   // gmem bytes per (token, head) row
+    constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_BYTES;
+    // Padded int8 smem row stride (bytes): 128 -> 144 so each 16-byte wmma row
+    // lands on a shifted bank phase instead of the same 32 banks (128 % 32 == 0).
+    // 144 = HEAD_DIM + 16 is still a multiple of 16 for the wmma ldm.
+    constexpr int SMEM_STRIDE = HEAD_DIM + 16;
+
+    // Dynamic shared memory layout (byte offsets). V stays int8 (no fp16 V
+    // buffer): the probabilities are quantized to int8 too, so the PV uses the
+    // int8 MMA and V never needs dequantizing to fp16. This halves the per-warp
+    // V footprint, dropping total smem from ~72KB to ~39KB so 2 CTAs fit per SM.
+    //   sk[4][2][TILE*STRIDE]   signed char  (per-warp int8 K double buffer)
+    //   sv[4][2][TILE*STRIDE]   signed char  (per-warp int8 V double buffer)
+    //   s_score[4][16*TILE]     float        (per-warp fp32 scores)
+    //   s_prob[4][16*TILE]      signed char  (per-warp int8 probabilities)
+    //   s_q_int8[16*STRIDE]     signed char  (shared across all 4 warps)
+    extern __shared__ char smem[];
+    constexpr int SK_BYTES    = 4 * 2 * TILE * SMEM_STRIDE * (int)sizeof(signed char);
+    constexpr int SV_BYTES    = 4 * 2 * TILE * SMEM_STRIDE * (int)sizeof(signed char);
+    constexpr int SCORE_BYTES = 4 * 16 * TILE * (int)sizeof(float);
+    constexpr int PROB_BYTES  = 4 * 16 * TILE * (int)sizeof(signed char);
+    constexpr int Q_BYTES     = 16 * SMEM_STRIDE * (int)sizeof(signed char);
+    constexpr int OFF_SK    = 0;
+    constexpr int OFF_SV    = OFF_SK + SK_BYTES;
+    constexpr int OFF_SCORE = OFF_SV + SV_BYTES;
+    constexpr int OFF_PROB  = OFF_SCORE + SCORE_BYTES;
+    constexpr int OFF_Q     = OFF_PROB + PROB_BYTES;
+
+    signed char (*sk)[2][TILE * SMEM_STRIDE] = reinterpret_cast<signed char (*)[2][TILE * SMEM_STRIDE]>(smem + OFF_SK);
+    signed char (*sv)[2][TILE * SMEM_STRIDE] = reinterpret_cast<signed char (*)[2][TILE * SMEM_STRIDE]>(smem + OFF_SV);
+    float  (*s_score)[16 * TILE]             = reinterpret_cast<float (*)[16 * TILE]>(smem + OFF_SCORE);
+    signed char (*s_prob)[16 * TILE]         = reinterpret_cast<signed char (*)[16 * TILE]>(smem + OFF_PROB);
+    signed char* s_q_int8                    = reinterpret_cast<signed char*>(smem + OFF_Q);
+
+    const int kv_head = blockIdx.x;
+    const int seq_idx = blockIdx.y;
+    const int tid = threadIdx.x;
+    const int warp_id = tid >> 5;
+    const int lane = tid & 31;
+    const int split_idx = blockIdx.z * 4 + warp_id;
+    const int gqa = num_heads / num_kv_heads;
+    const int group = lane >> 2, tig = lane & 3;
+    const float log2e = 1.4426950408889634f;
+
+    fragment<matrix_a, 16, 16, 16, signed char, row_major> a_i[NT8];
+    fragment<matrix_b, 16, 16, 16, signed char, col_major> b_i;
+    // QK reuses a SINGLE int32 accumulator (c_p) across its 8 K-chunks: each
+    // chunk is still zero-filled and MMA'd separately, so the int32 products
+    // are bit-identical, and the fp32 conversion + per-group scale + sum runs
+    // in the same kt order. This cuts the QK accumulator register footprint
+    // from 8*8=64 int32 regs to 8 (the 8 independent accumulators previously
+    // raised register pressure on the latency-critical QK loop). The int8 MMA
+    // can only accumulate int32, so a single running int32 accumulator cannot
+    // defer the per-group scales.
+    fragment<accumulator, 16, 16, 16, int> c_p;
+    // PV keeps 8 independent int32 accumulators for MMA ILP (c_pv); it is
+    // never live at the same time as c_p, so this adds no peak pressure.
+    fragment<accumulator, 16, 16, 16, int> c_pv[NT8];
+    fragment<accumulator, 16, 16, 16, float> c_f;
+    fragment<matrix_a, 16, 16, 16, signed char, row_major> pa_i;
+    fragment<matrix_b, 16, 16, 16, signed char, row_major> vb_i;
+    fragment<accumulator, 16, 16, 16, float> acc[NT8];
+
+    // Padded Q: rows [0, gqa) = the query heads, rest zero. A FIXED q_scale =
+    // 1/127 flips greedy tokens (the post-RMSNorm query has |q|>1 outliers that
+    // clip to 127), so we keep the max-abs scale, but make it per-16-dim-group
+    // (one max per group over the gqa query heads, via a register scan + warp
+    // reduce) to match the per-group K scales. All 4 warps redundantly compute
+    // the same q_scale[] and write the same shared s_q_int8.
+    for (int i = lane; i < 16 * SMEM_STRIDE; i += 32) s_q_int8[i] = 0;
+    __syncthreads();
+    const int head_base = kv_head * gqa;
+    float q_scale[NT8];
+    #pragma unroll
+    for (int g = 0; g < NT8; g++) q_scale[g] = 0.0f;
+    for (int i = lane; i < gqa * HEAD_DIM; i += 32) {
+        int h = head_base + i / HEAD_DIM;
+        int d = i % HEAD_DIM;
+        int g = d / 16;
+        float qv = psp_to_float<scalar_t>(
+            q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d]);
+        q_scale[g] = fmaxf(q_scale[g], fabsf(qv));
+    }
+    #pragma unroll
+    for (int g = 0; g < NT8; g++) {
+        #pragma unroll
+        for (int o = 16; o > 0; o >>= 1)
+            q_scale[g] = fmaxf(q_scale[g], __shfl_xor_sync(0xffffffffu, q_scale[g], o));
+        q_scale[g] /= 127.0f;
+        if (q_scale[g] < 1e-8f) q_scale[g] = 1.0f;
+    }
+    for (int i = lane; i < gqa * HEAD_DIM; i += 32) {
+        int row = i / HEAD_DIM;
+        int h = head_base + row;
+        int d = i % HEAD_DIM;
+        int g = d / 16;
+        float qv = psp_to_float<scalar_t>(
+            q[(int64_t)seq_idx * num_heads * HEAD_DIM + (int64_t)h * HEAD_DIM + d]);
+        s_q_int8[row * SMEM_STRIDE + d] = quantize_int8(qv / q_scale[g]);
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int kt = 0; kt < NT8; kt++) load_matrix_sync(a_i[kt], s_q_int8 + kt * 16, SMEM_STRIDE);
+    #pragma unroll
+    for (int nt8 = 0; nt8 < NT8; nt8++) fill_fragment(acc[nt8], 0.0f);
+
+    float rmax0 = -1e30f, rmax1 = -1e30f, rsum0 = 0.0f, rsum1 = 0.0f;
+
+    const int context_len = context_lens[seq_idx];
+    const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    const int blocks_per_split = (num_blocks + num_splits - 1) / num_splits;
+    const int split_start = split_idx * blocks_per_split;
+    const int split_end = min(split_start + blocks_per_split, num_blocks);
+    const int chunk_blocks = split_end - split_start;
+    const int num_tiles = chunk_blocks * SUB_TILES;
+
+    const int block_bytes_per_head = BLOCK_BYTES;
+
+    signed char (*skw)[TILE * SMEM_STRIDE] = sk[warp_id];
+    signed char (*svw)[TILE * SMEM_STRIDE] = sv[warp_id];
+    float* s_score_w = s_score[warp_id];
+    signed char* s_prob_w = s_prob[warp_id];
+
+    // Prologue: prefetch tile 0 into buffer 0. Guarded so empty splits
+    // (num_splits > num_blocks) never dereference out-of-range.
+    if (num_tiles > 0) {
+        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
+#if PSP_KV_TOKEN_MAJOR
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * HEAD_BYTES;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * HEAD_BYTES;
+        cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(skw[0]), k0, lane, TILE, HEAD_BYTES, num_kv_heads, SMEM_STRIDE);
+        cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(svw[0]), v0, lane, TILE, HEAD_BYTES, num_kv_heads, SMEM_STRIDE);
+#else
+        const uint8_t* k0 = k_cache + block_offsets[pb0] + (size_t)kv_head * block_bytes_per_head;
+        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0] + (size_t)kv_head * block_bytes_per_head;
+        cp_async_tc_pad(reinterpret_cast<uint8_t*>(skw[0]), k0, lane, TILE * HEAD_BYTES, HEAD_BYTES, SMEM_STRIDE);
+        cp_async_tc_pad(reinterpret_cast<uint8_t*>(svw[0]), v0, lane, TILE * HEAD_BYTES, HEAD_BYTES, SMEM_STRIDE);
+#endif
+    }
+
+    // Each warp independently streams its own split through its own
+    // double-buffered K/V pair: prefetch tile n+1 into `nxt` while computing
+    // tile n from `cur`. Only __syncwarp() is used so warps with differing
+    // tile counts (empty trailing splits) can never deadlock on a barrier.
+    for (int n = 0; n < num_tiles; n++) {
+        const int b = split_start + n / SUB_TILES;
+        const int sub = n % SUB_TILES;
+        const int cur = n & 1;
+        const int nxt = cur ^ 1;
+
+        // Prefetch tile n+1 (2 async groups: K then V) into the other buffer.
+        if (n + 1 < num_tiles) {
+            const int b1 = split_start + (n + 1) / SUB_TILES;
+            const int sub1 = (n + 1) % SUB_TILES;
+            const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b1];
+#if PSP_KV_TOKEN_MAJOR
+            const uint8_t* k1 = k_cache + block_offsets[pb1]
+                              + (size_t)sub1 * TILE * (num_kv_heads * HEAD_BYTES) + (size_t)kv_head * HEAD_BYTES;
+            const uint8_t* v1 = v_cache + block_offsets[num_total_blocks + pb1]
+                              + (size_t)sub1 * TILE * (num_kv_heads * HEAD_BYTES) + (size_t)kv_head * HEAD_BYTES;
+            cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(skw[nxt]), k1, lane, TILE, HEAD_BYTES, num_kv_heads, SMEM_STRIDE);
+            cp_async_tc_strided_pad(reinterpret_cast<uint8_t*>(svw[nxt]), v1, lane, TILE, HEAD_BYTES, num_kv_heads, SMEM_STRIDE);
+#else
+            const uint8_t* k1 = k_cache + block_offsets[pb1] + (size_t)kv_head * block_bytes_per_head
+                              + (size_t)sub1 * TILE * HEAD_BYTES;
+            const uint8_t* v1 = v_cache + block_offsets[num_total_blocks + pb1] + (size_t)kv_head * block_bytes_per_head
+                              + (size_t)sub1 * TILE * HEAD_BYTES;
+            cp_async_tc_pad(reinterpret_cast<uint8_t*>(skw[nxt]), k1, lane, TILE * HEAD_BYTES, HEAD_BYTES, SMEM_STRIDE);
+            cp_async_tc_pad(reinterpret_cast<uint8_t*>(svw[nxt]), v1, lane, TILE * HEAD_BYTES, HEAD_BYTES, SMEM_STRIDE);
+#endif
+        }
+
+        // Wait for the current tile's copy, keeping the 2 prefetch groups
+        // outstanding so they overlap the compute below.
+        if (n + 1 < num_tiles) {
+            asm volatile("cp.async.wait_group 2;");
+        } else {
+            asm volatile("cp.async.wait_group 0;");
+        }
+        __syncwarp();
+
+        // int4 -> int8 dequant in place (reverse order so the 2x int8 write
+        // never clobbers a not-yet-read packed int4 byte). The packed int4 bytes
+        // now live at row*SMEM_STRIDE (padded), so dequant each token row
+        // independently; rows never overlap (SMEM_STRIDE >= HEAD_DIM).
+        // int8 (FMT=4) needs no dequant.
+        if constexpr (INT4) {
+            const int npack_per_row = HEAD_DIM / 2;
+            uint8_t* skv = reinterpret_cast<uint8_t*>(skw[cur]);
+            uint8_t* svv = reinterpret_cast<uint8_t*>(svw[cur]);
+            #pragma unroll
+            for (int t = 0; t < TILE; t++) {
+                for (int p = npack_per_row - 1 - lane; p >= 0; p -= 32) {
+                    uint8_t kb = skv[t * SMEM_STRIDE + p], vb = svv[t * SMEM_STRIDE + p];
+                    skw[cur][t * SMEM_STRIDE + 2 * p]     = dequantize_int4_to_int8(kb & 0x0Fu);
+                    skw[cur][t * SMEM_STRIDE + 2 * p + 1] = dequantize_int4_to_int8(kb >> 4);
+                    svw[cur][t * SMEM_STRIDE + 2 * p]     = dequantize_int4_to_int8(vb & 0x0Fu);
+                    svw[cur][t * SMEM_STRIDE + 2 * p + 1] = dequantize_int4_to_int8(vb >> 4);
+                }
+            }
+            __syncwarp();
+        }
+
+        const int start_token = b * BLOCK_SIZE + sub * TILE;
+        const int tokens_in_block = min(TILE, context_len - start_token);
+        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
+        // Per-scale-group K/V scales. int8 (FMT=4) and int4 (FMT=3) both have a
+        // distinct per-group scale per 16-dim chunk (int8 tracks the K cache's
+        // per-channel magnitude; a single head-level scale is ~8x coarser).
+        const int num_groups = psp_kv_num_groups(HEAD_DIM);
+        float k_sc[NT8], v_sc[NT8];
+        #pragma unroll
+        for (int g = 0; g < NT8; g++) {
+            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+            v_sc[g] = scale_table[((int64_t)num_total_blocks * num_kv_heads
+                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+        }
+
+        // QK^T via the int8 MMA: scores [16, TILE] in int32, then rescale by
+        // softmax_scale * k_scale[kt] * q_scale[kt] into the fp32 score tile. Both
+        // int8 and int4 apply per-scale-group (16-dim) K scales: a separate MMA
+        // per K-chunk into its own int32 accumulator (c_p), converted to fp32
+        // and scaled per group, then summed. Each chunk zero-fills and MMA's
+        // into the same c_p, so the int32 products are bit-identical; the fp32
+        // conversion + scale + sum runs in the same kt order.
+        #pragma unroll
+        for (int nt = 0; nt < NT; nt++) {
+            fill_fragment(c_f, 0.0f);
+            #pragma unroll
+            for (int kt = 0; kt < NT8; kt++) {
+                load_matrix_sync(b_i, skw[cur] + nt * 16 * SMEM_STRIDE + kt * 16, SMEM_STRIDE);
+                fill_fragment(c_p, 0);
+                mma_sync(c_p, a_i[kt], b_i, c_p);
+                const float gs = scale * k_sc[kt] * q_scale[kt];
+                #pragma unroll
+                for (int i = 0; i < c_p.num_elements; i++) c_f.x[i] += __int2float_rn(c_p.x[i]) * gs;
+            }
+            store_matrix_sync(s_score_w + nt * 16, c_f, TILE, mem_row_major);
+        }
+        __syncwarp();
+
+        // per-row online softmax (2 rows per thread), masked to valid tokens.
+        for (int r = group; r < 16; r += 8) {
+            float mx = -1e30f;
+            for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score_w[r * TILE + cc]);
+            float& rmax = (r == group) ? rmax0 : rmax1;
+            float& rsum = (r == group) ? rsum0 : rsum1;
+            float m_new = fmaxf(rmax, mx);
+            float rescale_old = exp2f((rmax - m_new) * log2e);
+            float rescale_new = exp2f((mx - m_new) * log2e);
+            rsum *= rescale_old;
+            float tsum = 0.0f;
+            for (int cc = 0; cc < TILE; cc++) {
+                float e = (cc < tokens_in_block)
+                    ? exp2f((s_score_w[r * TILE + cc] - mx) * log2e) : 0.0f;
+                // Quantize the (unnormalized) probability to int8: e and
+                // rescale_new are both in (0, 1], so e*rescale_new*127 fits in
+                // [0, 127]. The /127 is folded into the V scale after the PV MMA.
+                s_prob_w[r * TILE + cc] = (signed char)__float2int_rn(e * rescale_new * 127.0f);
+                tsum += e;
+            }
+            rsum += tsum * rescale_new;
+            rmax = m_new;
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                if (r == group) {
+                    acc[nt8].x[0] *= rescale_old; acc[nt8].x[1] *= rescale_old;
+                    acc[nt8].x[4] *= rescale_old; acc[nt8].x[5] *= rescale_old;
+                } else {
+                    acc[nt8].x[2] *= rescale_old; acc[nt8].x[3] *= rescale_old;
+                    acc[nt8].x[6] *= rescale_old; acc[nt8].x[7] *= rescale_old;
+                }
+            }
+        }
+        __syncwarp();
+
+        // PV via the int8 MMA: acc += (prob_int8 @ V_int8) * (v_sc[nt8]/127).
+        // The /127 recovers the int8 probability scale folded in the softmax.
+        // v_sc is per-scale-group (16-dim) for both int8 and int4, so the /127
+        // is applied per dim chunk after its own MMA.
+        #pragma unroll
+        for (int nt = 0; nt < NT; nt++) {
+            load_matrix_sync(pa_i, s_prob_w + nt * 16, TILE);
+            // Independent accumulators (c_pv[nt8]) so the 8 PV MMAs pipeline;
+            // the conversion to float + scale runs after all MMAs are issued.
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                fill_fragment(c_pv[nt8], 0);
+                load_matrix_sync(vb_i, svw[cur] + nt * 16 * SMEM_STRIDE + nt8 * 16, SMEM_STRIDE);
+                mma_sync(c_pv[nt8], pa_i, vb_i, c_pv[nt8]);
+            }
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                const float vs = v_sc[nt8] / 127.0f;
+                for (int i = 0; i < c_pv[nt8].num_elements; i++) acc[nt8].x[i] += __int2float_rn(c_pv[nt8].x[i]) * vs;
             }
         }
         __syncwarp();
@@ -2343,6 +3045,95 @@ void launch_paged_attention_enhanced_fp8_tc(
 }
 
 template <typename scalar_t>
+void launch_paged_attention_enhanced_int_tc(
+    scalar_t* out,
+    const scalar_t* q,
+    const uint8_t* k_cache,
+    const uint8_t* v_cache,
+    const int* block_tables,
+    const int* context_lens,
+    const uint32_t* block_offsets,
+    const float* scale_table,
+    float* partials,
+    int max_blocks_per_seq,
+    int num_seqs,
+    int num_heads,
+    int num_kv_heads,
+    int head_dim,
+    float scale,
+    int fmt,             // 4 = int8, 3 = int4 (both per-group scale)
+    int num_total_blocks,
+    int num_splits,
+    cudaStream_t stream = 0)
+{
+    const bool use_4warp = (num_splits % 4 == 0);
+    psp_kv_dispatch_head_dim(head_dim, [&](auto hd) {
+        constexpr int HEAD_DIM = decltype(hd)::value;
+        if constexpr (HEAD_DIM <= 128) {
+            if (use_4warp) {
+                auto launch_4warp = [&](auto fmt_c) {
+                    constexpr int FMT = decltype(fmt_c)::value;
+                    dim3 grid(num_kv_heads, num_seqs, num_splits / 4);
+                    // Dynamic smem: per-warp int8 K/V double-buffer, scores,
+                    // probs, shared int8 Q (int4 dequantizes in place, so the
+                    // footprint is identical for FMT=3 and FMT=4).
+                    constexpr int TILE = 16;
+                    constexpr int SMEM_STRIDE = HEAD_DIM + 16;                  // padded int8 row stride
+                    constexpr int smem_bytes =
+                        4 * 2 * TILE * SMEM_STRIDE * (int)sizeof(signed char) +  // sk
+                        4 * 2 * TILE * SMEM_STRIDE * (int)sizeof(signed char) +  // sv
+                        4 * 16 * TILE * (int)sizeof(float) +                     // s_score
+                        4 * 16 * TILE * (int)sizeof(signed char) +               // s_prob
+                        16 * SMEM_STRIDE * (int)sizeof(signed char);             // s_q_int8
+                    static bool attr_set = false;
+                    if (!attr_set) {
+                        int max_dyn_smem = 0;
+                        cudaDeviceGetAttribute(&max_dyn_smem,
+                                               cudaDevAttrMaxSharedMemoryPerBlockOptin, 0);
+                        if (smem_bytes > max_dyn_smem) {
+                            fprintf(stderr,
+                                    "4-warp int TC smem %d exceeds device opt-in limit %d\n",
+                                    smem_bytes, max_dyn_smem);
+                        }
+                        cudaFuncSetAttribute(
+                            paged_attention_enhanced_int_tc_4warp_kernel<HEAD_DIM, scalar_t, FMT>,
+                            cudaFuncAttributeMaxDynamicSharedMemorySize, smem_bytes);
+                        attr_set = true;
+                    }
+                    paged_attention_enhanced_int_tc_4warp_kernel<HEAD_DIM, scalar_t, FMT>
+                        <<<grid, 128, smem_bytes, stream>>>(
+                        partials, q, k_cache, v_cache,
+                        block_tables, context_lens, block_offsets, scale_table,
+                        max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits,
+                        num_total_blocks);
+                    paged_attention_enhanced_tc_merge_kernel<HEAD_DIM, scalar_t>
+                        <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
+                        out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
+                };
+                if (fmt == 3) launch_4warp(std::integral_constant<int, 3>{});
+                else           launch_4warp(std::integral_constant<int, 4>{});
+                return;
+            }
+        }
+        // Single-warp fallback (int8 only; int4 always uses the 4-warp path).
+        dim3 grid(num_kv_heads, num_seqs, num_splits);
+        paged_attention_enhanced_int8_tc_kernel<HEAD_DIM, scalar_t><<<grid, TC_THREADS, 0, stream>>>(
+            partials, q, k_cache, v_cache,
+            block_tables, context_lens, block_offsets, scale_table,
+            max_blocks_per_seq, num_heads, num_kv_heads, scale, num_splits,
+            num_total_blocks);
+        paged_attention_enhanced_tc_merge_kernel<HEAD_DIM, scalar_t>
+            <<<dim3(num_kv_heads, num_seqs), 128, 0, stream>>>(
+            out, partials, num_kv_heads, num_seqs, num_heads, num_splits);
+    });
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Enhanced int TC paged attention launch failed: %s\n", cudaGetErrorString(err));
+    }
+}
+
+template <typename scalar_t>
 void launch_paged_attention_enhanced_fp8pv_tc(
     scalar_t* out,
     const scalar_t* q,
@@ -2517,6 +3308,15 @@ template void launch_paged_attention_enhanced_fp8_tc<half>(
     const int*, const int*, const uint32_t*, const float*, float*,
     int, int, int, int, int, float, int, int, int, cudaStream_t);
 template void launch_paged_attention_enhanced_fp8_tc<__nv_bfloat16>(
+    __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, int, int, cudaStream_t);
+
+template void launch_paged_attention_enhanced_int_tc<half>(
+    half*, const half*, const uint8_t*, const uint8_t*,
+    const int*, const int*, const uint32_t*, const float*, float*,
+    int, int, int, int, int, float, int, int, int, cudaStream_t);
+template void launch_paged_attention_enhanced_int_tc<__nv_bfloat16>(
     __nv_bfloat16*, const __nv_bfloat16*, const uint8_t*, const uint8_t*,
     const int*, const int*, const uint32_t*, const float*, float*,
     int, int, int, int, int, float, int, int, int, cudaStream_t);

@@ -36,6 +36,53 @@ _time_acc = {"q": 0.0, "a": 0.0, "layers": 0, "steps": 0}
 PSP_KV_BLOCK_SIZE = int(os.environ.get("PSP_KV_BLOCK_SIZE", "128"))
 
 
+def _pspkv_int_fmt() -> int:
+    """Integer TC inner format selected by PSPKV_PRECISION (0 = not integer)."""
+    p = os.environ.get("PSPKV_PRECISION", "").strip().lower()
+    if p in ("4", "int8", "w8a8"):
+        return 4
+    if p in ("3", "int4", "fp4", "e2m1", "nvfp4"):
+        return 3
+    return 0
+
+
+def _pspkv_int8_enabled() -> bool:
+    return _pspkv_int_fmt() == 4
+
+
+def _pspkv_int4_enabled() -> bool:
+    return _pspkv_int_fmt() == 3
+
+
+def _write_int_decode_scales(key, value, slot_mapping, scale_table,
+                             num_kv_heads, head_size, block_size, fmt):
+    """Compute + store the per-(block, head) int8/int4 scale for decode tokens.
+
+    The prefill finalize leaves freshly-allocated blocks at scale 1.0 (the
+    fp8-safe "unscaled" default), which is wrong for the integer formats
+    (round(x / 1.0) == 0 for the ~0.01-0.3 magnitude KV). The first token written
+    to a block stores a scale and later tokens reuse it. fmt=4 (int8) -> per-group
+    scale max_abs/127; fmt=3 (int4) -> per-group scale max_abs/7. Only blocks
+    still at the 0.0/1.0 sentinel are touched.
+    """
+    num_groups = head_size // 16
+    num_blocks = scale_table.size(0) // 2  # scale_table stacks [K | V] on dim 0
+    fp_max = 7.0 if fmt == 3 else 127.0
+    T = key.size(0)
+    k_g = key.contiguous().float().abs().reshape(
+        T, num_kv_heads, num_groups, 16).amax(dim=-1)  # [T, H, G]
+    v_g = value.contiguous().float().abs().reshape(
+        T, num_kv_heads, num_groups, 16).amax(dim=-1)  # [T, H, G]
+    k_sc = k_g / fp_max      # per-group scales (int8 and int4)
+    v_sc = v_g / fp_max
+    blocks = (slot_mapping // block_size).to(torch.long)  # [T]
+
+    for voff, sc in ((0, k_sc), (num_blocks, v_sc)):
+        cur = scale_table[voff + blocks]               # [T, H, G]
+        unset = (cur[:, :, 0:1] == 0.0) | (cur[:, :, 0:1] == 1.0)  # [T, H, 1]
+        scale_table[voff + blocks] = torch.where(unset, sc, cur)
+
+
 def set_prefill_kv_scratch(scratch: torch.Tensor | None) -> None:
     global _prefill_kv_scratch
     _prefill_kv_scratch = scratch
@@ -61,11 +108,11 @@ def _fp4_byte_table(device: torch.device) -> torch.Tensor:
 
 
 def _psp_fmt_k(p: int) -> int:
-    return (p & 3) if p >= 4 else p
+    return 4 if p == 4 else ((p & 3) if p >= 4 else p)
 
 
 def _psp_fmt_v(p: int) -> int:
-    return (p >> 2) if p >= 4 else p
+    return 4 if p == 4 else ((p >> 2) if p >= 4 else p)
 
 
 def _dequant_fp8(q: torch.Tensor, fmt: int) -> torch.Tensor:
@@ -106,6 +153,10 @@ def _dequant_one_block(cache: torch.Tensor, off: int, fmt: int,
         nbytes = (block_size * head_size // 2) * num_kv_heads
         buf = cache[off:off + nbytes]
         out = _fp4_byte_table(cache.device)[buf.to(torch.int64)].reshape(
+            num_kv_heads, block_size, head_size)
+    elif fmt == 4:
+        nbytes = block_size * head_size * num_kv_heads
+        out = cache[off:off + nbytes].to(torch.int8).float().reshape(
             num_kv_heads, block_size, head_size)
     else:
         nbytes = block_size * head_size * num_kv_heads
@@ -439,6 +490,11 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             torch.cuda.synchronize()
             _t0 = time.perf_counter()
         if slot_mapping is not None and key is not None and value is not None:
+            # The integer (int8/int4) decode scale is computed + written back
+            # inside the C++ quantize_single_token kernel (per-group for both
+            # int8 and int4) when the block scale is still at its 0.0/1.0
+            # sentinel. This removes the per-layer Python torch-op pass that
+            # used to dominate the int8 decode step.
             ops.quantize_single_token(
                 key.contiguous(), value.contiguous(), k_cache, v_cache,
                 slot_mapping,
@@ -485,27 +541,46 @@ class PSPKVAttentionImpl(AttentionImpl[PSPKVAttentionMetadata]):
             )
         elif format_gen == 1:
             # Enhanced format - precision_table + block_offsets + scale_table.
-            ops.psp_attention_enhanced(
-                query,
-                k_cache,
-                v_cache,
-                block_tables,
-                context_lens,
-                meta.precision_table,
-                block_offsets,
-                scale_table,
-                softmax_scale,
-                num_kv_heads,
-                head_size,
-                self.sliding_window[0] + self.sliding_window[1] + 1,
-                getattr(meta, "precision_is_lossless", False),
-                getattr(meta, "precision_fp8_fmt", 0),
-                getattr(meta, "precision_v_fmt", 0),
-                getattr(meta, "precision_k_fmt", 0),
-                getattr(meta, "precision_k_lossless", False),
-                getattr(meta, "precision_v_lossless", False),
-                output,
-            )
+            int_fmt = getattr(meta, "precision_int_fmt", 0) or _pspkv_int_fmt()
+            if int_fmt != 0:
+                # Integer (int8 / int4) tensor-core decode.
+                ops.psp_attention_enhanced_int(
+                    query,
+                    k_cache,
+                    v_cache,
+                    block_tables,
+                    context_lens,
+                    meta.precision_table,
+                    block_offsets,
+                    scale_table,
+                    softmax_scale,
+                    num_kv_heads,
+                    head_size,
+                    int_fmt,
+                    output,
+                )
+            else:
+                ops.psp_attention_enhanced(
+                    query,
+                    k_cache,
+                    v_cache,
+                    block_tables,
+                    context_lens,
+                    meta.precision_table,
+                    block_offsets,
+                    scale_table,
+                    softmax_scale,
+                    num_kv_heads,
+                    head_size,
+                    self.sliding_window[0] + self.sliding_window[1] + 1,
+                    getattr(meta, "precision_is_lossless", False),
+                    getattr(meta, "precision_fp8_fmt", 0),
+                    getattr(meta, "precision_v_fmt", 0),
+                    getattr(meta, "precision_k_fmt", 0),
+                    getattr(meta, "precision_k_lossless", False),
+                    getattr(meta, "precision_v_lossless", False),
+                    output,
+                )
         elif format_gen == 2:
             # BT-KV format - requires TMA descriptors.
             if meta.tma_descriptors is None:
