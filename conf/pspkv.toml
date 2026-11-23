@@ -15,9 +15,10 @@ generation = 1
 #   "e4m3"      -> 1  (fp8, 8-bit)         [implemented]
 #   "e5m2"      -> 2  (fp8, 8-bit)         [implemented]
 #   "fp4"       -> 3  (fp4 e2m1, 4-bit)    [implemented]
+#   "int8"      -> 4  (block-scaled int8)  [implemented, default]
 # Individual blocks can still be overridden at runtime via the per-block
 # metadata (precision_table).
-inner_precision = "e4m3"
+inner_precision = "int8"
 
 [storage]
 # Cache container layout:

@@ -8,6 +8,11 @@ In hindsight, many of V1's design choices were suboptimal. While MRV2 is not yet
 
 This document describes the design of MRV2.
 
+MRV2 lives inside the V1 engine package (`vllm/v1/worker/gpu/`): the `v1` in
+that path names the engine architecture — scheduler, KV cache, attention
+backends, executor — not the model-runner generation. Model Runner V1 has been
+removed, and `VLLM_USE_V2_MODEL_RUNNER` now rejects any value other than `1`.
+
 ## 1. Persistent Batch
 
 One significant source of friction in V1 is its persistent batch implementation.
@@ -190,6 +195,14 @@ This reduces complexity and removes bugs caused by divergence between `execute_m
 V1's CUDA graph handling is implicit and hard to reason about. MRV2 uses a `CUDAGraphManager` that explicitly captures and launches full CUDA graphs through standard PyTorch APIs.
 
 This makes graph lifecycle and execution mode decisions more understandable and easier to extend. Example: MRV2 can capture multiple draft-model forward passes into one CUDA graph.
+
+### Fused Multi-Step Draft Decoding
+
+Autoregressive speculative decoding executes several dependent draft steps per scheduler step. In the fused path, MRV2 captures all post-prefill draft steps in one full CUDA graph instead of replaying a separate graph for each draft token. Attention metadata is built once before the loop, while common step-dependent tensors keep stable addresses and are updated in place between draft steps.
+
+Some attention backends also materialize derived state, such as scheduler metadata or sparse indices. Before opting into the fused path, these backends must implement `AttentionMetadataBuilder.update_draft_decode_metadata()` to update or invalidate that state after the draft inputs advance. The hook runs during CUDA graph capture, so only the GPU operations it issues are recorded and executed during replay; its Python body is not run again. Implementations must therefore use capture-safe operations and keep all replayed tensor state in persistent storage.
+
+For draft models that advance positions, the fused path is enabled only when every draft attention group declares `supports_draft_decode_metadata_update`. Otherwise, MRV2 falls back to rebuilding attention metadata between draft steps. Draft models that keep positions fixed do not require this update. Before enabling a backend, developers must audit all derived metadata, including state inherited from parent builders or owned by auxiliary attention backends.
 
 ## Development Philosophy
 

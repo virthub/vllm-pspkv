@@ -15,7 +15,14 @@
 // ~6x representable range) can track the per-channel magnitude spread: the K
 // cache spans ~100x across dims, which a single max-abs scale cannot cover.
 // The scale table's innermost dimension becomes head_dim / PSP_KV_SCALE_GROUP.
-#define PSP_KV_SCALE_GROUP 16
+// Per-(block, head, group) scale granularity. 16 is the shipped layout; 32
+// halves the number of scale applications and is what the m16n8k32 int8 kernel
+// consumes, but it needs the Python side (PSPKV_SCALE_GROUP) to build the
+// matching scale table, so both are set together.
+#ifndef PSPKV_SCALE_GROUP_SIZE
+#define PSPKV_SCALE_GROUP_SIZE 16
+#endif
+#define PSP_KV_SCALE_GROUP PSPKV_SCALE_GROUP_SIZE
 
 // Block-scaled int8 inner precision. It is a dedicated uniform sentinel value
 // in the precision_table (K and V both int8): the packed k_fmt | (v_fmt << 2)
@@ -367,12 +374,17 @@ __device__ inline void psp_decode_block(
     float& local_max, float& local_sum, float* __restrict__ acc,
     const uint8_t* __restrict__ k_base, const uint8_t* __restrict__ v_base,
     int tokens_in_block, const float* __restrict__ k_scales,
-    const float* __restrict__ v_scales, int dim_offset, int token_offset)
+    const float* __restrict__ v_scales, int dim_offset, int token_offset,
+    int head_elem_offset, int token_elem_stride)
 {
     constexpr int NUM_GROUPS = HEAD_DIM / PSP_KV_SCALE_GROUP;
     for (int t = 0; t < tokens_in_block; ++t) {
         float s_raw = 0.0f;
-        const int elem_base = (token_offset + t) * HEAD_DIM;
+        // Token-major pages interleave heads per token, so a token's row starts
+        // at (token * num_kv_heads + kv_head) * HEAD_DIM; head-major pages
+        // (token_elem_stride == HEAD_DIM) keep one head's rows contiguous.
+        const int elem_base =
+            (token_offset + t) * token_elem_stride + head_elem_offset;
         #pragma unroll
         for (int d = 0; d < HEAD_DIM; d += 4) {
             const float ks = k_scales[d / PSP_KV_SCALE_GROUP];

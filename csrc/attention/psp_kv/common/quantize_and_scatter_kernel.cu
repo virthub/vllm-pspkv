@@ -134,7 +134,7 @@ __global__ void finalize_block_scales_kernel(
     const float* __restrict__ max_abs,             // [2, num_blocks, num_kv_heads, num_groups] (K | V)
     const uint8_t* __restrict__ precision_table,   // [num_blocks] packed
     float* __restrict__ scale_table,               // [2, num_blocks, num_kv_heads, num_groups] (K | V)
-    int num_blocks, int num_kv_heads, int head_dim)
+    int num_blocks, int num_kv_heads, int head_dim, int per_group_fp8)
 {
     const int num_groups = psp_kv_num_groups(head_dim);
     const int stride = num_kv_heads * num_groups;
@@ -148,10 +148,12 @@ __global__ void finalize_block_scales_kernel(
         float scale;
         if (fmt == 0) {
             scale = 1.0f;  // lossless: no quantization
-        } else if (fmt == 3 || fmt == 4) {
+        } else if (fmt == 3 || fmt == 4 || per_group_fp8) {
             // fp4/int8: per-scale-group (16-dim) scale. int8 must track the K
             // cache's per-channel dynamic range (a single head-level max is ~8x
             // coarser than fp8's per-group scale and loses accuracy).
+            // PSPKV_SCALE_PER_GROUP_FP8 opts fp8 into the same layout; the
+            // tensor-core kernels then have to apply the scale per group.
             scale = max_abs[m_base + idx] / psp_kv_fp_max(fmt);
         } else {
             // fp8: broadcast the head's max-abs across its groups so the
@@ -179,7 +181,7 @@ __global__ void finalize_block_scales_decode_kernel(
     const float* __restrict__ max_abs,             // [2, num_blocks, num_kv_heads, num_groups] (K | V)
     const uint8_t* __restrict__ precision_table,   // [num_blocks] packed
     float* __restrict__ scale_table,               // [2, num_blocks, num_kv_heads, num_groups] (K | V)
-    int num_blocks, int num_kv_heads, int head_dim)
+    int num_blocks, int num_kv_heads, int head_dim, int per_group_fp8)
 {
     const int num_groups = psp_kv_num_groups(head_dim);
     const int stride = num_kv_heads * num_groups;
@@ -195,7 +197,7 @@ __global__ void finalize_block_scales_decode_kernel(
             float m = max_abs[m_base + idx];
             if (m == 0.0f) return;  // not estimated this step: keep existing scale
             scale = 1.0f;
-        } else if (fmt == 3 || fmt == 4) {
+        } else if (fmt == 3 || fmt == 4 || per_group_fp8) {
             // fp4/int8: per-scale-group (16-dim) scale.
             float m = max_abs[m_base + idx];
             if (m == 0.0f) return;
@@ -227,7 +229,8 @@ __global__ void finalize_block_scales_decode_kernel(
 __global__ void derive_precision_kernel(
     const float* __restrict__ max_abs,        // [2, num_blocks, num_kv_heads, num_groups] (K | V)
     uint8_t* __restrict__ precision_table,    // [num_blocks] packed k_fmt | (v_fmt << 2)
-    int num_blocks, int num_kv_heads, int head_dim, int k_default, int v_default, float E)
+    int num_blocks, int num_kv_heads, int head_dim, int k_default, int v_default,
+    int k_cap_fmt, float E)
 {
     int block_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (block_id >= num_blocks) return;
@@ -253,12 +256,15 @@ __global__ void derive_precision_kernel(
     };
 
     const int vb = num_blocks * num_kv_heads * num_groups;
-    const uint8_t k_prec = derive(0, k_default);
-    // V adapts too: fp4 by default, upgraded to fp8 when a block's worst-head
-    // magnitude needs more than ~2 mantissa bits within tolerance E. The
-    // per-K/V tensor-core kernel reads both formats per block, so a mixed
-    // fp4/fp8 V table now stays on the tensor-core path.
-    const uint8_t v_prec = derive(vb, v_default);
+    const uint8_t k_derived = derive(0, k_default);
+    // k_cap_fmt is the widest K format the page geometry reserved room for; a
+    // wider assignment would overrun the block's K region into V.
+    const uint8_t k_prec = (k_cap_fmt == 3) ? 3 : k_derived;
+    // V stays fp4. Upgrading V to fp8 would double its bytes per element, but
+    // the page geometry (block_offsets) reserves only 0.5 B/elem for V, so a
+    // wider V block would overrun into the next block's K region.
+    (void)vb;
+    const uint8_t v_prec = 3;
     precision_table[block_id] = k_prec | (v_prec << 2);
 }
 
@@ -270,7 +276,8 @@ __global__ void derive_precision_kernel(
 __global__ void derive_precision_decode_kernel(
     const float* __restrict__ max_abs,     // [2, num_blocks, num_kv_heads, num_groups] (K | V)
     uint8_t* __restrict__ precision_table, // [num_blocks] packed k_fmt | (v_fmt << 2)
-    int num_blocks, int num_kv_heads, int head_dim, int k_default, int v_default, float E)
+    int num_blocks, int num_kv_heads, int head_dim, int k_default, int v_default,
+    int k_cap_fmt, float E)
 {
     int block_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (block_id >= num_blocks) return;
@@ -285,10 +292,13 @@ __global__ void derive_precision_decode_kernel(
                 m = fmaxf(m, max_abs[base + (block_id * num_kv_heads + h) * num_groups + g]);
         return m;
     };
-    auto derive = [&](float m, int default_kv) -> uint8_t {
+    // k_cap_fmt is the widest K format the page geometry reserved; V's budget is
+    // always 0.5 B/elem, so V stays fp4 (a wider V would overrun into the next
+    // block's K region).
+    auto derive_k = [&](float m) -> uint8_t {
+        if (k_cap_fmt == 3) return 3;
         float required_bits = log2f(fmaxf(m, 1e-12f) / (E * fp_max));
-        if (required_bits > 1.0f) return 1;   // fp8 e4m3
-        return 3;                              // fp4 e2m1
+        return (required_bits > 1.0f) ? 1 : 3;  // fp8 e4m3 : fp4 e2m1
     };
 
     const int vb = num_blocks * num_kv_heads * num_groups;
@@ -296,12 +306,11 @@ __global__ void derive_precision_decode_kernel(
     const float mv = worst(vb);
     // Skip blocks whose max-abs was not estimated this step (keep existing).
     if (mk == 0.0f && mv == 0.0f) return;
-    // Decode blocks keep their K precision (K default is already fp8, and
-    // changing a block's K byte size would shift the V region and misalign the
-    // already-written V data). Only V is re-derived here.
+    // Decode blocks keep their K precision: changing a block's K byte size
+    // would shift its V region and misalign the tokens already written.
     const uint8_t k_prec = psp_kv_fmt_k(precision_table[block_id]);
-    const uint8_t v_prec = (mv == 0.0f) ? psp_kv_fmt_v(precision_table[block_id])
-                                        : derive(mv, v_default);
+    (void)derive_k;  // V stays fp4: the page reserves only 0.5 B/elem for it
+    const uint8_t v_prec = (mv == 0.0f) ? psp_kv_fmt_v(precision_table[block_id]) : 3;
     precision_table[block_id] = k_prec | (v_prec << 2);
 }
 
@@ -330,6 +339,9 @@ __global__ void quantize_and_scatter_kernel(
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
+    // Padded batch entries (dummy runs, CUDA-graph capture) carry
+    // PAD_SLOT_ID=-1 and must not be written into a block.
+    if (slot < 0) return;
     const int block_id = static_cast<int>(slot / block_size);
     const int block_offset = static_cast<int>(slot % block_size);
     const int packed = static_cast<int>(precision_table[block_id]);
@@ -449,8 +461,10 @@ void launch_quantize_and_scatter(
         cudaEventRecord(e0, stream);
     }
 
+    const int per_group_fp8 = (getenv("PSPKV_SCALE_PER_GROUP_FP8") != nullptr) ? 1 : 0;
     finalize_block_scales_kernel<<<scale_blocks, threads, 0, stream>>>(
-        max_abs, precision_table, scale_table, num_blocks, num_kv_heads, head_dim);
+        max_abs, precision_table, scale_table, num_blocks, num_kv_heads, head_dim,
+        per_group_fp8);
 
     if (do_time) {
         cudaEventRecord(e2, stream); cudaEventSynchronize(e2);
@@ -549,7 +563,7 @@ void launch_derive_precision(
     uint8_t* precision_table,
     float* max_abs,
     int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
-    int k_default, int v_default, float E, cudaStream_t stream)
+    int k_default, int v_default, int k_cap_fmt, float E, cudaStream_t stream)
 {
     const int threads = 256;
     const int num_groups = psp_kv_num_groups(head_dim);
@@ -560,19 +574,20 @@ void launch_derive_precision(
         prefill_scratch, slot_mapping, precision_table, max_abs,
         num_tokens, num_kv_heads, block_size, head_dim, num_blocks);
     derive_precision_kernel<<<block_blocks, threads, 0, stream>>>(
-        max_abs, precision_table, num_blocks, num_kv_heads, head_dim, k_default, v_default, E);
+        max_abs, precision_table, num_blocks, num_kv_heads, head_dim, k_default,
+        v_default, k_cap_fmt, E);
 }
 
 template void launch_derive_precision<half>(
-    const half*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const half*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision<__nv_bfloat16>(
-    const __nv_bfloat16*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_bfloat16*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision<float>(
-    const float*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const float*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision<__nv_fp8_e4m3>(
-    const __nv_fp8_e4m3*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_fp8_e4m3*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision<__nv_fp8_e5m2>(
-    const __nv_fp8_e5m2*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_fp8_e5m2*, const int64_t*, uint8_t*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 
 // Decode derive: estimate the first-token max-abs, derive the block precision,
 // and finalize the block's scale so the following quantize_single_token sees a
@@ -583,7 +598,7 @@ void launch_derive_precision_decode(
     const int64_t* slot_mapping,
     uint8_t* precision_table, float* scale_table, float* max_abs,
     int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
-    int k_default, int v_default, float E, cudaStream_t stream)
+    int k_default, int v_default, int k_cap_fmt, float E, cudaStream_t stream)
 {
     const int threads = 256;
     const int num_groups = psp_kv_num_groups(head_dim);
@@ -595,21 +610,24 @@ void launch_derive_precision_decode(
         key, value, slot_mapping, max_abs,
         num_tokens, num_kv_heads, block_size, head_dim, num_blocks);
     derive_precision_decode_kernel<<<block_blocks, threads, 0, stream>>>(
-        max_abs, precision_table, num_blocks, num_kv_heads, head_dim, k_default, v_default, E);
+        max_abs, precision_table, num_blocks, num_kv_heads, head_dim, k_default,
+        v_default, k_cap_fmt, E);
+    const int per_group_fp8_d = (getenv("PSPKV_SCALE_PER_GROUP_FP8") != nullptr) ? 1 : 0;
     finalize_block_scales_decode_kernel<<<scale_blocks, threads, 0, stream>>>(
-        max_abs, precision_table, scale_table, num_blocks, num_kv_heads, head_dim);
+        max_abs, precision_table, scale_table, num_blocks, num_kv_heads, head_dim,
+        per_group_fp8_d);
 }
 
 template void launch_derive_precision_decode<half>(
-    const half*, const half*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const half*, const half*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision_decode<__nv_bfloat16>(
-    const __nv_bfloat16*, const __nv_bfloat16*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_bfloat16*, const __nv_bfloat16*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision_decode<float>(
-    const float*, const float*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const float*, const float*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision_decode<__nv_fp8_e4m3>(
-    const __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_fp8_e4m3*, const __nv_fp8_e4m3*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 template void launch_derive_precision_decode<__nv_fp8_e5m2>(
-    const __nv_fp8_e5m2*, const __nv_fp8_e5m2*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, float, cudaStream_t);
+    const __nv_fp8_e5m2*, const __nv_fp8_e5m2*, const int64_t*, uint8_t*, float*, float*, int, int, int, int, int, int, int, int, float, cudaStream_t);
 
 // Quantize + scatter a single decode token using the block's EXISTING scale
 // (no scale estimation: the prefill already populated scale_table). The key and
@@ -634,6 +652,9 @@ __global__ void quantize_single_token_kernel(
     if (token >= num_tokens) return;
 
     const int64_t slot = slot_mapping[token];
+    // Padded batch entries (dummy runs, CUDA-graph capture) carry
+    // PAD_SLOT_ID=-1 and must not be written into a block.
+    if (slot < 0) return;
     const int block_id = static_cast<int>(slot / block_size);
     const int block_offset = static_cast<int>(slot % block_size);
     const int packed = static_cast<int>(precision_table[block_id]);
@@ -682,8 +703,15 @@ __global__ void quantize_single_token_kernel(
     const float v_scale_stored = scale_table[hh + gidx];
     const bool k_int = (k_fmt == 3 || k_fmt == 4);
     const bool v_int = (v_fmt == 3 || v_fmt == 4);
-    const bool k_fresh = (k_scale_stored < 1e-8f) || (k_int && k_scale_stored == 1.0f);
-    const bool v_fresh = (v_scale_stored < 1e-8f) || (v_int && v_scale_stored == 1.0f);
+    // A block's scale must stay fixed once it holds tokens: rewriting it would
+    // re-scale everything already quantized into that block. Only the token at
+    // offset 0 can be the block's first write, so it alone may compute and
+    // persist a fresh scale. Inferring freshness from the stored value (0.0 or
+    // a 1.0 sentinel) is unsound: a legitimate scale can be exactly 1.0, and a
+    // mid-block token then rescaled the whole block from one token's magnitude.
+    const bool first_in_block = (block_offset == 0);
+    const bool k_fresh = first_in_block && (k_int || k_scale_stored < 1e-8f);
+    const bool v_fresh = first_in_block && (v_int || v_scale_stored < 1e-8f);
     const float k_scale = k_fresh ? compute_scale_group(k_row, k_fmt) : k_scale_stored;
     const float v_scale = v_fresh ? compute_scale_group(v_row, v_fmt) : v_scale_stored;
     // Persist the freshly-computed integer scale. int8 and int4 both write the

@@ -135,31 +135,43 @@ __global__ void paged_attention_enhanced_split_kernel(
         if (v_fmt == 0)      v_block_bytes = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
         else if (v_fmt == 3) v_block_bytes = BLOCK_SIZE * HEAD_DIM / 2;
         else                 v_block_bytes = BLOCK_SIZE * HEAD_DIM;
+#if PSP_KV_TOKEN_MAJOR
+        // Token-major pages: one page holds [token][kv_head][dim] for K and for
+        // V, so the head offset is a single row and tokens are strided by all
+        // heads' rows.
+        const uint8_t* k_base = k_cache + block_offsets[physical_block];
+        const uint8_t* v_base = v_cache + block_offsets[num_total_blocks + physical_block];
+        const int head_elem_offset = kv_head * HEAD_DIM;
+        const int token_elem_stride = num_kv_heads * HEAD_DIM;
+#else
         const uint8_t* k_base = k_cache + block_offsets[physical_block]
                               + (size_t)kv_head * k_block_bytes;
         const uint8_t* v_base = v_cache + block_offsets[num_total_blocks + physical_block]
                               + (size_t)kv_head * v_block_bytes;
+        const int head_elem_offset = 0;
+        const int token_elem_stride = HEAD_DIM;
+#endif
         const int start_token = b * BLOCK_SIZE;
         const int token_offset = (b == start_block) ? (window_start - start_token) : 0;
         const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token) - token_offset;
         const int combo = k_fmt * 4 + v_fmt;
         switch (combo) {
-            case 0:  psp_decode_block<scalar_t, HEAD_DIM, 0, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 1:  psp_decode_block<scalar_t, HEAD_DIM, 0, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 2:  psp_decode_block<scalar_t, HEAD_DIM, 0, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 3:  psp_decode_block<scalar_t, HEAD_DIM, 0, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 4:  psp_decode_block<scalar_t, HEAD_DIM, 1, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 5:  psp_decode_block<scalar_t, HEAD_DIM, 1, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 6:  psp_decode_block<scalar_t, HEAD_DIM, 1, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 7:  psp_decode_block<scalar_t, HEAD_DIM, 1, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 8:  psp_decode_block<scalar_t, HEAD_DIM, 2, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 9:  psp_decode_block<scalar_t, HEAD_DIM, 2, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 10: psp_decode_block<scalar_t, HEAD_DIM, 2, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 11: psp_decode_block<scalar_t, HEAD_DIM, 2, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 12: psp_decode_block<scalar_t, HEAD_DIM, 3, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 13: psp_decode_block<scalar_t, HEAD_DIM, 3, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            case 14: psp_decode_block<scalar_t, HEAD_DIM, 3, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
-            default: psp_decode_block<scalar_t, HEAD_DIM, 3, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset); break;
+            case 0:  psp_decode_block<scalar_t, HEAD_DIM, 0, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 1:  psp_decode_block<scalar_t, HEAD_DIM, 0, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 2:  psp_decode_block<scalar_t, HEAD_DIM, 0, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 3:  psp_decode_block<scalar_t, HEAD_DIM, 0, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 4:  psp_decode_block<scalar_t, HEAD_DIM, 1, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 5:  psp_decode_block<scalar_t, HEAD_DIM, 1, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 6:  psp_decode_block<scalar_t, HEAD_DIM, 1, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 7:  psp_decode_block<scalar_t, HEAD_DIM, 1, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 8:  psp_decode_block<scalar_t, HEAD_DIM, 2, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 9:  psp_decode_block<scalar_t, HEAD_DIM, 2, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 10: psp_decode_block<scalar_t, HEAD_DIM, 2, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 11: psp_decode_block<scalar_t, HEAD_DIM, 2, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 12: psp_decode_block<scalar_t, HEAD_DIM, 3, 0, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 13: psp_decode_block<scalar_t, HEAD_DIM, 3, 1, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            case 14: psp_decode_block<scalar_t, HEAD_DIM, 3, 2, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
+            default: psp_decode_block<scalar_t, HEAD_DIM, 3, 3, HEAD_DIM/2>(s_query, local_max, local_sum, acc, k_base, v_base, tokens_in_block, k_sc, v_sc, dim_offset, token_offset, head_elem_offset, token_elem_stride); break;
         }
     }
 
@@ -234,6 +246,24 @@ __global__ void paged_attention_enhanced_merge_kernel(
 
 #define TC_NUM_SPLITS 8
 #define TC_THREADS 32
+
+// Stage `rows` strided rows into a contiguous tile and commit them as a single
+// cp.async group. Committing per row would exceed the hardware's limit of eight
+// pending commit groups, silently dropping every row past the first few.
+__device__ __forceinline__ void cp_async_rows(uint8_t* smem, const uint8_t* gmem,
+                                              int tid, int rows, int row_bytes,
+                                              int64_t row_stride, int dst_stride) {
+    const int chunks = row_bytes / 16;
+    for (int r = 0; r < rows; ++r) {
+        #pragma unroll
+        for (int i = tid; i < chunks; i += 32) {
+            asm volatile("cp.async.cg.shared.global [%0], [%1], 16;" ::"r"(
+                (unsigned)__cvta_generic_to_shared(smem + r * dst_stride + i * 16)),
+                "l"(gmem + (int64_t)r * row_stride + i * 16));
+        }
+    }
+    asm volatile("cp.async.commit_group;");
+}
 
 __device__ __forceinline__ void cp_async_tc(uint8_t* smem, const uint8_t* gmem,
                                             int tid, int bytes) {
@@ -330,6 +360,9 @@ __global__ void paged_attention_enhanced_tc_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     // Same TILE=32 sub-tiling as the fp8 path: amortizes the softmax/PV passes
     // and keeps the K/V double-buffers within the 48KB static smem limit.
     constexpr int TILE = (BLOCK_SIZE >= 32 && HEAD_DIM <= 128) ? 32 : 16;
@@ -463,6 +496,9 @@ __global__ void paged_attention_enhanced_tc_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++)
                 if (start_token + cc >= window_start) mx = fmaxf(mx, s_score[r * TILE + cc]);
@@ -647,6 +683,9 @@ __global__ void paged_attention_enhanced_tf32_tc_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++)
                 if (start_token + cc >= window_start) mx = fmaxf(mx, s_score[r * 16 + cc]);
@@ -896,6 +935,9 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     // TILE=32 (2x m16n16k16 N-tiles) for head_dim<=128 to amortize sub-tile
     // overhead; head_dim>128 would exceed the 48KB static smem limit.
     constexpr int TILE = (BLOCK_SIZE >= 32 && HEAD_DIM <= 128) ? 32 : 16;
@@ -1060,6 +1102,9 @@ __global__ void paged_attention_enhanced_fp8_tc_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * TILE + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;
@@ -1156,6 +1201,9 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     // TILE=16 with per-warp double-buffered K/V. The 4x per-warp K/V no longer
     // fit in the 48KB static-smem limit (~74KB total for HEAD_DIM=128), so all
     // smem is allocated dynamically (extern __shared__) and sized at launch.
@@ -1347,6 +1395,9 @@ __global__ void paged_attention_enhanced_fp8_tc_4warp_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score_w[r * TILE + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;
@@ -1446,6 +1497,9 @@ __global__ void paged_attention_enhanced_int8_tc_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     constexpr int TILE = 16;                     // tokens per sub-tile
     constexpr int NT = TILE / 16;                // N-tiles per sub-tile (=1)
     constexpr int SUB_TILES = BLOCK_SIZE / TILE; // sub-tiles per block
@@ -1597,9 +1651,10 @@ __global__ void paged_attention_enhanced_int8_tc_kernel(
         float k_sc[NT8], v_sc[NT8];
         #pragma unroll
         for (int g = 0; g < NT8; g++) {
-            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+            const int sg = g / CHUNKS_PER_GROUP;
+            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + sg];
             v_sc[g] = scale_table[((int64_t)num_total_blocks * num_kv_heads
-                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + sg];
         }
 
         // Dequantize V int8 -> fp16 (separate buffers, so no in-place hazard).
@@ -1633,6 +1688,9 @@ __global__ void paged_attention_enhanced_int8_tc_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens.
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * TILE + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;
@@ -1732,6 +1790,9 @@ __global__ void paged_attention_enhanced_int_tc_4warp_kernel(
 {
     constexpr bool INT4 = (FMT == 3);
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     constexpr int TILE = 16;
     constexpr int NT = TILE / 16;                 // N-tiles per sub-tile (=1)
     constexpr int SUB_TILES = BLOCK_SIZE / TILE;  // sub-tiles per block
@@ -1949,9 +2010,10 @@ __global__ void paged_attention_enhanced_int_tc_4warp_kernel(
         float k_sc[NT8], v_sc[NT8];
         #pragma unroll
         for (int g = 0; g < NT8; g++) {
-            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+            const int sg = g / CHUNKS_PER_GROUP;
+            k_sc[g] = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * num_groups + sg];
             v_sc[g] = scale_table[((int64_t)num_total_blocks * num_kv_heads
-                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + g];
+                                    + (int64_t)physical_block * num_kv_heads + kv_head) * num_groups + sg];
         }
 
         // QK^T via the int8 MMA: scores [16, TILE] in int32, then rescale by
@@ -1979,6 +2041,9 @@ __global__ void paged_attention_enhanced_int_tc_4warp_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens.
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score_w[r * TILE + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;
@@ -2083,6 +2148,9 @@ __global__ void paged_attention_enhanced_fp8pv_tc_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     // K/V byte size per (block, kv_head): fp8 = 1 B/elem, fp4 = 0.5 B/elem.
     constexpr int BLOCK_BYTES_FP8 = BLOCK_SIZE * HEAD_DIM;
     constexpr int BLOCK_BYTES_FP4 = BLOCK_SIZE * HEAD_DIM / 2;
@@ -2096,11 +2164,17 @@ __global__ void paged_attention_enhanced_fp8pv_tc_kernel(
     const float log2e = 1.4426950408889634f;
 
     __shared__ __half s_q[16 * HEAD_DIM];
-    __shared__ __half sk[2][16 * HEAD_DIM];
-    __shared__ __half sv[2][16 * HEAD_DIM];
+    // Single-buffered: this kernel stages one tile at a time, so the second
+    // buffer only costs occupancy (8 KB per CTA, which is what limits how many
+    // warps fit per SM).
+    __shared__ __half sk[16 * HEAD_DIM];
+    __shared__ __half sv[16 * HEAD_DIM];
     __shared__ float s_score[16 * 16];
     __shared__ __half s_prob[16 * 16];
-    __shared__ __half fp4_lut[16];
+    // Byte-indexed LUT: one half2 per packed nibble pair, so the fp4 dequant is
+    // one smem load + one half2 store per source byte instead of two LUT loads,
+    // two nibble extractions and two stores.
+    __shared__ __half2 fp4_lut2[256];
 
     fragment<matrix_a, 16, 16, 16, __half, row_major> a[NT8];
     fragment<matrix_b, 16, 16, 16, __half, col_major> b_frag;
@@ -2127,7 +2201,10 @@ __global__ void paged_attention_enhanced_fp8pv_tc_kernel(
 
     // fp4 nibble LUT (16 half values): replaces the scalar dequantize_fp4_e2m1
     // arithmetic with a shared-memory lookup in the K/V dequant loop.
-    if (tid < 16) fp4_lut[tid] = __float2half(dequantize_fp4_e2m1((uint8_t)tid));
+    for (int i = tid; i < 256; i += 32) {
+        fp4_lut2[i] = __floats2half2_rn(dequantize_fp4_e2m1((uint8_t)(i & 0x0F)),
+                                        dequantize_fp4_e2m1((uint8_t)(i >> 4)));
+    }
     __syncthreads();
 
     const int context_len = context_lens[seq_idx];
@@ -2137,153 +2214,171 @@ __global__ void paged_attention_enhanced_fp8pv_tc_kernel(
     const int split_end = min(split_start + blocks_per_split, num_blocks);
     const int chunk_blocks = split_end - split_start;
 
-    // Prologue: prefetch block 0. K/V byte sizes depend on that block's formats.
-    // Guarded so empty splits (num_splits > num_blocks) never dereference a
-    // block table entry past the sequence's context.
-    if (chunk_blocks > 0) {
-        const int pb0 = block_tables[seq_idx * max_blocks_per_seq + split_start];
-        const int p0_packed = (int)precision_table[pb0];
-        const int p0_kfmt = psp_kv_fmt_k(p0_packed);
-        const int p0_vfmt = psp_kv_fmt_v(p0_packed);
-        const int kb0 = (p0_kfmt == 3) ? BLOCK_BYTES_FP4 : BLOCK_BYTES_FP8;
-        const int vb0 = (p0_vfmt == 3) ? BLOCK_BYTES_FP4 : BLOCK_BYTES_FP8;
-        const uint8_t* k0 = k_cache + block_offsets[pb0]
-                          + (size_t)kv_head * kb0;
-        const uint8_t* v0 = v_cache + block_offsets[num_total_blocks + pb0]
-                          + (size_t)kv_head * vb0;
-        cp_async_tc(reinterpret_cast<uint8_t*>(sk[0]), k0, tid, kb0);
-        cp_async_tc(reinterpret_cast<uint8_t*>(sv[0]), v0, tid, vb0);
-    }
+    // The staging tiles are 16 tokens wide (sk/sv hold 16 x HEAD_DIM halves),
+    // so a BLOCK_SIZE block is walked as BLOCK_SIZE / TILE consecutive tiles.
+    constexpr int TILE = 16;
+    const int64_t v_base_scale =
+        (int64_t)num_total_blocks * num_kv_heads * psp_kv_num_groups(HEAD_DIM);
 
     for (int n = 0; n < chunk_blocks; n++) {
         const int b = split_start + n;
-        const int cur = n & 1;
-        const int nxt = cur ^ 1;
-
-        if (n + 1 < chunk_blocks) {
-            const int pb1 = block_tables[seq_idx * max_blocks_per_seq + b + 1];
-            const int p1_packed = (int)precision_table[pb1];
-            const int p1_kfmt = psp_kv_fmt_k(p1_packed);
-            const int p1_vfmt = psp_kv_fmt_v(p1_packed);
-            const int kb1 = (p1_kfmt == 3) ? BLOCK_BYTES_FP4 : BLOCK_BYTES_FP8;
-            const int vb1 = (p1_vfmt == 3) ? BLOCK_BYTES_FP4 : BLOCK_BYTES_FP8;
-            const uint8_t* k1 = k_cache + block_offsets[pb1]
-                              + (size_t)kv_head * kb1;
-            const uint8_t* v1 = v_cache + block_offsets[num_total_blocks + pb1]
-                              + (size_t)kv_head * vb1;
-            cp_async_tc(reinterpret_cast<uint8_t*>(sk[nxt]), k1, tid, kb1);
-            cp_async_tc(reinterpret_cast<uint8_t*>(sv[nxt]), v1, tid, vb1);
-        }
-
-        if (n + 1 < chunk_blocks) {
-            asm volatile("cp.async.wait_group 2;");
-        } else {
-            asm volatile("cp.async.wait_group 0;");
-        }
-        __syncthreads();
-
-        const int start_token = b * BLOCK_SIZE;
-        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
-        const int physical_block = block_tables[seq_idx * max_blocks_per_seq + b];
-        const int packed = (int)precision_table[physical_block];
+        const int pb = block_tables[seq_idx * max_blocks_per_seq + b];
+        const int packed = (int)precision_table[pb];
         const int k_fmt = psp_kv_fmt_k(packed);
         const int v_fmt = psp_kv_fmt_v(packed);
-        const int64_t v_base_scale = (int64_t)num_total_blocks * num_kv_heads * psp_kv_num_groups(HEAD_DIM);
-        const float k_scale = scale_table[((int64_t)physical_block * num_kv_heads + kv_head) * psp_kv_num_groups(HEAD_DIM)];
-        const float v_scale = scale_table[v_base_scale + ((int64_t)physical_block * num_kv_heads + kv_head) * psp_kv_num_groups(HEAD_DIM)];
-
-        // K/V -> fp16 in place. fp4 uses the shared-memory 16-entry nibble LUT
-        // (2 LUT loads/byte) instead of the scalar dequantize_fp4_e2m1; fp8 uses
-        // the hardware fp8x4 convert.
-        uint8_t* skv = reinterpret_cast<uint8_t*>(sk[cur]);
-        uint8_t* svv = reinterpret_cast<uint8_t*>(sv[cur]);
-        for (int p = (BLOCK_SIZE * HEAD_DIM / 4) - 1 - tid; p >= 0; p -= 32) {
-            if (k_fmt == 3) {
-                uint16_t kb = *reinterpret_cast<const uint16_t*>(skv + p * 2);
-                uint8_t b0 = (uint8_t)(kb & 0xFFu);
-                uint8_t b1 = (uint8_t)(kb >> 8);
-                sk[cur][p * 4 + 0] = fp4_lut[b0 & 0x0F];
-                sk[cur][p * 4 + 1] = fp4_lut[b0 >> 4];
-                sk[cur][p * 4 + 2] = fp4_lut[b1 & 0x0F];
-                sk[cur][p * 4 + 3] = fp4_lut[b1 >> 4];
-            } else {
-                float4 k4 = psp_packed_dequant4<scalar_t>(skv, p * 4, k_fmt);
-                sk[cur][p * 4 + 0] = __float2half(k4.x);
-                sk[cur][p * 4 + 1] = __float2half(k4.y);
-                sk[cur][p * 4 + 2] = __float2half(k4.z);
-                sk[cur][p * 4 + 3] = __float2half(k4.w);
-            }
-            if (v_fmt == 3) {
-                uint16_t vb = *reinterpret_cast<const uint16_t*>(svv + p * 2);
-                uint8_t b0 = (uint8_t)(vb & 0xFFu);
-                uint8_t b1 = (uint8_t)(vb >> 8);
-                sv[cur][p * 4 + 0] = fp4_lut[b0 & 0x0F];
-                sv[cur][p * 4 + 1] = fp4_lut[b0 >> 4];
-                sv[cur][p * 4 + 2] = fp4_lut[b1 & 0x0F];
-                sv[cur][p * 4 + 3] = fp4_lut[b1 >> 4];
-            } else {
-                float4 v4 = psp_packed_dequant4<scalar_t>(svv, p * 4, v_fmt);
-                sv[cur][p * 4 + 0] = __float2half(v4.x);
-                sv[cur][p * 4 + 1] = __float2half(v4.y);
-                sv[cur][p * 4 + 2] = __float2half(v4.z);
-                sv[cur][p * 4 + 3] = __float2half(v4.w);
-            }
-        }
-        __syncthreads();
-
-        // QK -> scores [16, 16], then fold the fp32 softmax + K scales.
-        fill_fragment(c, 0.0f);
-        #pragma unroll
-        for (int kt = 0; kt < NT8; kt++) {
-            load_matrix_sync(b_frag, sk[cur] + kt * 16, HEAD_DIM);
-            mma_sync(c, a[kt], b_frag, c);
-        }
-        const float qk_scale = scale * k_scale;
-        for (int i = 0; i < c.num_elements; i++) c.x[i] *= qk_scale;
-        store_matrix_sync(s_score, c, 16, mem_row_major);
-        __syncthreads();
-
-        for (int r = group; r < 16; r += 8) {
-            float mx = -1e30f;
-            for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
-            float& rmax = (r == group) ? rmax0 : rmax1;
-            float& rsum = (r == group) ? rsum0 : rsum1;
-            float m_new = fmaxf(rmax, mx);
-            float rescale_old = exp2f((rmax - m_new) * log2e);
-            float rescale_new = exp2f((mx - m_new) * log2e);
-            rsum *= rescale_old;
-            float tsum = 0.0f;
-            for (int cc = 0; cc < 16; cc++) {
-                float e = (cc < tokens_in_block)
-                    ? exp2f((s_score[r * 16 + cc] - mx) * log2e) : 0.0f;
-                s_prob[r * 16 + cc] = __float2half(e * rescale_new);
-                tsum += e;
-            }
-            rsum += tsum * rescale_new;
-            rmax = m_new;
-            #pragma unroll
-            for (int nt8 = 0; nt8 < NT8; nt8++) {
-                if (r == group) {
-                    acc[nt8].x[0] *= rescale_old; acc[nt8].x[1] *= rescale_old;
-                    acc[nt8].x[4] *= rescale_old; acc[nt8].x[5] *= rescale_old;
-                } else {
-                    acc[nt8].x[2] *= rescale_old; acc[nt8].x[3] *= rescale_old;
-                    acc[nt8].x[6] *= rescale_old; acc[nt8].x[7] *= rescale_old;
-                }
-            }
-        }
-        __syncthreads();
-
-        // PV: acc += (prob @ V_tile) * v_scale.
-        load_matrix_sync(pa, s_prob, 16);
+        const int start_token = b * BLOCK_SIZE;
+        const int tokens_in_block = min(BLOCK_SIZE, context_len - start_token);
+        // K uses one scale for the whole head: the writer broadcasts the head's
+        // max-abs across the K scale groups for fp8 (see finalize_block_scales),
+        // so group 0 carries the value the QK dot product needs.
+        const float k_scale = scale_table[
+            ((int64_t)pb * num_kv_heads + kv_head) * psp_kv_num_groups(HEAD_DIM)];
+        // V keeps per-group scales (fp4 cannot tolerate the coarser head-wide
+        // scale), and the PV loop consumes one 16-dim chunk per MMA, so read
+        // one scale per chunk.
+        float v_sc[NT8];
         #pragma unroll
         for (int nt8 = 0; nt8 < NT8; nt8++) {
-            fill_fragment(c, 0.0f);
-            load_matrix_sync(vb, sv[cur] + nt8 * 16, HEAD_DIM);
-            mma_sync(c, pa, vb, c);
-            for (int i = 0; i < c.num_elements; i++) acc[nt8].x[i] += c.x[i] * v_scale;
+            v_sc[nt8] = scale_table[
+                v_base_scale
+                + ((int64_t)pb * num_kv_heads + kv_head) * psp_kv_num_groups(HEAD_DIM)
+                + nt8 / CHUNKS_PER_GROUP];
         }
-        __syncthreads();
+
+        // Per-token and per-head byte strides of this block's K and V.
+        const int k_row_bytes = (k_fmt == 3) ? HEAD_DIM / 2 : HEAD_DIM;
+        const int v_row_bytes = (v_fmt == 3) ? HEAD_DIM / 2 : HEAD_DIM;
+        // Token-major pages store (token, head) rows at
+        // (token * num_kv_heads + head), so this head's rows start at
+        // head * row_bytes and are strided by num_kv_heads * row_bytes.
+#if PSP_KV_TOKEN_MAJOR
+        const int64_t k_row_stride = (int64_t)num_kv_heads * k_row_bytes;
+        const int64_t v_row_stride = (int64_t)num_kv_heads * v_row_bytes;
+        const uint8_t* k_blk = k_cache + block_offsets[pb]
+                             + (size_t)kv_head * k_row_bytes;
+        const uint8_t* v_blk = v_cache + block_offsets[num_total_blocks + pb]
+                             + (size_t)kv_head * v_row_bytes;
+#else
+        const int64_t k_row_stride = k_row_bytes;
+        const int64_t v_row_stride = v_row_bytes;
+        const uint8_t* k_blk = k_cache + block_offsets[pb]
+                             + (size_t)kv_head * BLOCK_SIZE * k_row_bytes;
+        const uint8_t* v_blk = v_cache + block_offsets[num_total_blocks + pb]
+                             + (size_t)kv_head * BLOCK_SIZE * v_row_bytes;
+#endif
+
+        for (int sub = 0; sub * TILE < tokens_in_block; ++sub) {
+            const int tok_off = sub * TILE;
+            const int tokens_in_tile = min(TILE, tokens_in_block - tok_off);
+            const int k_bytes = tokens_in_tile * k_row_bytes;
+            const int v_bytes = tokens_in_tile * v_row_bytes;
+
+            cp_async_rows(reinterpret_cast<uint8_t*>(sk),
+                          k_blk + (size_t)tok_off * k_row_stride, tid,
+                          tokens_in_tile, k_row_bytes, k_row_stride, HEAD_DIM);
+            cp_async_rows(reinterpret_cast<uint8_t*>(sv),
+                          v_blk + (size_t)tok_off * v_row_stride, tid,
+                          tokens_in_tile, v_row_bytes, v_row_stride,
+                          (v_fmt == 3) ? HEAD_DIM / 2 : HEAD_DIM);
+            asm volatile("cp.async.wait_group 0;");
+            __syncthreads();
+
+            // K/V -> fp16 in place for this tile.
+            uint8_t* skv = reinterpret_cast<uint8_t*>(sk);
+            uint8_t* svv = reinterpret_cast<uint8_t*>(sv);
+            const int lane_id = (int)threadIdx.x & 31;
+            // fp4 tiles are unpacked byte-wise (one half2 per packed pair),
+            // descending so the 4-byte write never clobbers an unread byte.
+            if (k_fmt == 3) {
+                for (int bb = (TILE * HEAD_DIM / 2) - 1 - lane_id; bb >= 0; bb -= 32)
+                    reinterpret_cast<__half2*>(sk)[bb] = fp4_lut2[skv[bb]];
+            }
+            if (v_fmt == 3) {
+                for (int bb = (TILE * HEAD_DIM / 2) - 1 - lane_id; bb >= 0; bb -= 32)
+                    reinterpret_cast<__half2*>(sv)[bb] = fp4_lut2[svv[bb]];
+            }
+            for (int q = (TILE * HEAD_DIM / 4) - 1 - tid; q >= 0; q -= 32) {
+                if (k_fmt == 3) {
+                    // already unpacked above
+                } else {
+                    float4 k4 = psp_packed_dequant4<scalar_t>(skv, q * 4, k_fmt);
+                    sk[q * 4 + 0] = __float2half(k4.x);
+                    sk[q * 4 + 1] = __float2half(k4.y);
+                    sk[q * 4 + 2] = __float2half(k4.z);
+                    sk[q * 4 + 3] = __float2half(k4.w);
+                }
+                if (v_fmt == 3) {
+                    // already unpacked above
+                } else {
+                    float4 v4 = psp_packed_dequant4<scalar_t>(svv, q * 4, v_fmt);
+                    sv[q * 4 + 0] = __float2half(v4.x);
+                    sv[q * 4 + 1] = __float2half(v4.y);
+                    sv[q * 4 + 2] = __float2half(v4.z);
+                    sv[q * 4 + 3] = __float2half(v4.w);
+                }
+            }
+            __syncthreads();
+
+            // QK -> scores [16, 16] for this tile, then fold the K scale in.
+            fill_fragment(c, 0.0f);
+            #pragma unroll
+            for (int kt = 0; kt < NT8; kt++) {
+                load_matrix_sync(b_frag, sk + kt * 16, HEAD_DIM);
+                mma_sync(c, a[kt], b_frag, c);
+            }
+            const float qk_scale = scale * k_scale;
+            for (int e = 0; e < c.num_elements; e++) c.x[e] *= qk_scale;
+            store_matrix_sync(s_score, c, 16, mem_row_major);
+            __syncthreads();
+
+            for (int r = group; r < 16; r += 8) {
+                // Padding rows (r >= gqa) hold zero Q and never reach the output.
+                if (r >= gqa) continue;
+                float mx = -1e30f;
+                for (int cc = 0; cc < tokens_in_tile; cc++) {
+                    mx = fmaxf(mx, s_score[r * 16 + cc]);
+                }
+                float& rmax = (r == group) ? rmax0 : rmax1;
+                float& rsum = (r == group) ? rsum0 : rsum1;
+                float m_new = fmaxf(rmax, mx);
+                float rescale_old = exp2f((rmax - m_new) * log2e);
+                float rescale_new = exp2f((mx - m_new) * log2e);
+                rsum *= rescale_old;
+                float tsum = 0.0f;
+                for (int cc = 0; cc < TILE; cc++) {
+                    float e = (cc < tokens_in_tile)
+                        ? exp2f((s_score[r * 16 + cc] - mx) * log2e) : 0.0f;
+                    s_prob[r * 16 + cc] = __float2half(e * rescale_new);
+                    tsum += e;
+                }
+                rsum += tsum * rescale_new;
+                rmax = m_new;
+                #pragma unroll
+                for (int nt8 = 0; nt8 < NT8; nt8++) {
+                    if (r == group) {
+                        acc[nt8].x[0] *= rescale_old; acc[nt8].x[1] *= rescale_old;
+                        acc[nt8].x[4] *= rescale_old; acc[nt8].x[5] *= rescale_old;
+                    } else {
+                        acc[nt8].x[2] *= rescale_old; acc[nt8].x[3] *= rescale_old;
+                        acc[nt8].x[6] *= rescale_old; acc[nt8].x[7] *= rescale_old;
+                    }
+                }
+            }
+            __syncthreads();
+
+            // PV: acc += (prob @ V_tile) * v_sc[chunk] for this tile.
+            load_matrix_sync(pa, s_prob, 16);
+            #pragma unroll
+            for (int nt8 = 0; nt8 < NT8; nt8++) {
+                fill_fragment(c, 0.0f);
+                load_matrix_sync(vb, sv + nt8 * 16, HEAD_DIM);
+                mma_sync(c, pa, vb, c);
+                for (int e = 0; e < c.num_elements; e++) {
+                    acc[nt8].x[e] += c.x[e] * v_sc[nt8];
+                }
+            }
+            __syncthreads();
+        }
     }
 
     // Output partials: per (kv_head, seq, split, head, dim).
@@ -2334,6 +2429,9 @@ __global__ void paged_attention_enhanced_fp8pv_mt_kernel(
     int num_query_tokens)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     constexpr int BLOCK_BYTES_FP8 = BLOCK_SIZE * HEAD_DIM;
     constexpr int BLOCK_BYTES_FP4 = BLOCK_SIZE * HEAD_DIM / 2;
     constexpr int BLOCK_BYTES_LOSSLESS = BLOCK_SIZE * HEAD_DIM * (int)sizeof(scalar_t);
@@ -2481,6 +2579,9 @@ __global__ void paged_attention_enhanced_fp8pv_mt_kernel(
             __syncthreads();
 
             for (int r = group; r < 16; r += 8) {
+                // Padding rows (r >= gqa) hold zero Q and never reach the output;
+                // their softmax is pure overhead.
+                if (r >= gqa) continue;
                 float mx = -1e30f;
                 for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
                 float& rmaxv = (r == group) ? rmax[t][0] : rmax[t][1];
@@ -2568,6 +2669,9 @@ __global__ void paged_attention_enhanced_fp8pv_mt_kernel(
             __syncthreads();
 
             for (int r = group; r < 16; r += 8) {
+                // Padding rows (r >= gqa) hold zero Q and never reach the output;
+                // their softmax is pure overhead.
+                if (r >= gqa) continue;
                 float mx = -1e30f;
                 for (int cc = 0; cc <= t; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
                 float& rmaxv = (r == group) ? rmax[t][0] : rmax[t][1];
@@ -2655,6 +2759,9 @@ __global__ void paged_attention_enhanced_fp8q_tc_kernel(
     int num_total_blocks)
 {
     constexpr int NT8 = HEAD_DIM / 16;
+    // Scale groups are PSPKV_SCALE_GROUP_SIZE wide (16 or 32 dims), so several
+    // 16-dim MMA chunks may share one scale.
+    constexpr int CHUNKS_PER_GROUP = PSP_KV_SCALE_GROUP / 16;
     constexpr int NK32 = HEAD_DIM / 32;
     constexpr int BLOCK_BYTES = BLOCK_SIZE * HEAD_DIM;
 
@@ -2783,6 +2890,9 @@ __global__ void paged_attention_enhanced_fp8q_tc_kernel(
 
         // per-row online softmax (2 rows per thread), masked to valid tokens.
         for (int r = group; r < 16; r += 8) {
+            // Padding rows (r >= gqa) hold zero Q and never reach the output;
+            // their softmax is pure overhead.
+            if (r >= gqa) continue;
             float mx = -1e30f;
             for (int cc = 0; cc < tokens_in_block; cc++) mx = fmaxf(mx, s_score[r * 16 + cc]);
             float& rmax = (r == group) ? rmax0 : rmax1;

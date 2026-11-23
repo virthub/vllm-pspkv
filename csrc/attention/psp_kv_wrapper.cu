@@ -41,8 +41,13 @@
 
 // Per-scale-group granularity (matches PSP_KV_SCALE_GROUP in
 // attention/psp_kv/common/quantization_utils.cuh; this translation unit only
-// forward-declares the kernels so it needs a host copy for shape checks).
-#define PSP_KV_SCALE_GROUP 16
+// forward-declares the kernels so it needs a host copy for shape checks). The
+// value follows the same build define as the kernels, otherwise the shape
+// checks reject tables the writer built correctly.
+#ifndef PSPKV_SCALE_GROUP_SIZE
+#define PSPKV_SCALE_GROUP_SIZE 16
+#endif
+#define PSP_KV_SCALE_GROUP PSPKV_SCALE_GROUP_SIZE
 static inline int psp_kv_num_groups(int head_dim) {
     return head_dim / PSP_KV_SCALE_GROUP;
 }
@@ -198,7 +203,7 @@ void launch_derive_precision(
     uint8_t* precision_table,
     float* max_abs,
     int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
-    int k_default, int v_default, float E, cudaStream_t stream);
+    int k_default, int v_default, int k_cap_fmt, float E, cudaStream_t stream);
 
 template <typename scalar_t>
 void launch_derive_precision_decode(
@@ -206,7 +211,7 @@ void launch_derive_precision_decode(
     const int64_t* slot_mapping,
     uint8_t* precision_table, float* scale_table, float* max_abs,
     int num_tokens, int num_blocks, int num_kv_heads, int block_size, int head_dim,
-    int k_default, int v_default, float E, cudaStream_t stream);
+    int k_default, int v_default, int k_cap_fmt, float E, cudaStream_t stream);
 
 template <typename scalar_t>
 void launch_quantize_single_token(
@@ -437,10 +442,23 @@ void psp_attention_enhanced(
                 || scale_table.size(0) == 2 * num_blocks,
                 "scale_table num_blocks mismatch");
     TORCH_CHECK(scale_table.size(1) == kv_heads, "scale_table num_kv_heads mismatch");
+    // The scale table is [2*blocks, kv_heads, groups] per layer (a 4-D table
+    // with a leading layer axis is also accepted). Use the last dim so the check
+    // does not accidentally line up with kv_heads when groups == kv_heads.
     TORCH_CHECK(scale_table.dim() == 2
-                || scale_table.size(2) == psp_kv_num_groups(head_dim),
+                || scale_table.size(-1) == psp_kv_num_groups(head_dim),
                 "scale_table num_groups mismatch");
 
+    // float32 queries would take the tf32 tensor-core kernel, whose shared-memory
+    // tiles are sized for 16-token blocks while it stages a full BLOCK_SIZE
+    // block, so it writes past its allocation (compute-sanitizer: "Invalid
+    // __shared__ write", 16 bytes, past the end). The backend only advertises
+    // float16/bfloat16, so reject the rest here instead of letting a direct op
+    // call corrupt memory.
+    TORCH_CHECK(
+        query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16,
+        "PSP-KV decode supports float16/bfloat16 queries only (got ",
+        query.scalar_type(), "); the float32/tf32 path is not supported.");
     TORCH_CHECK(query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16 || query.scalar_type() == at::kFloat || query.scalar_type() == at::kFloat8_e4m3fn || query.scalar_type() == at::kFloat8_e5m2,
                 "psp_attention_enhanced supports fp16/bf16/fp8 target precision only");
     TORCH_CHECK(scale_table.scalar_type() == at::kFloat,
@@ -460,7 +478,7 @@ void psp_attention_enhanced(
     // avoid a GPU->CPU sync per decode step.
     if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
         && is_lossless && head_dim <= 256) {
-        auto tc_partials = at::empty(
+        auto tc_partials = at::zeros(
             {(int64_t)num_seqs * kv_heads * tc_num_splits * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
         PSP_KV_DISPATCH_HALF_BF16(query, {
@@ -487,7 +505,7 @@ void psp_attention_enhanced(
     if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
         && sliding_window <= 0 && fp8_fmt != 0 && v_fmt == fp8_fmt
         && head_dim <= 256 && fp8_query) {
-        auto tc_partials = at::empty(
+        auto tc_partials = at::zeros(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
         PSP_KV_DISPATCH_HALF_BF16(query, {
@@ -509,7 +527,7 @@ void psp_attention_enhanced(
     if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
         && sliding_window <= 0 && fp8_fmt != 0 && v_fmt == fp8_fmt
         && head_dim <= 256) {
-        auto tc_partials = at::empty(
+        auto tc_partials = at::zeros(
             {(int64_t)num_seqs * kv_heads * tc_num_splits * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
         PSP_KV_DISPATCH_HALF_BF16(query, {
@@ -536,12 +554,26 @@ void psp_attention_enhanced(
     // emit a mixed fp8/fp4 table and still stay on the tensor-core path. The
     // dequant only pays off when enough query heads share one KV head
     // (GQA >= 4); below that the scalar path's per-head parallelism wins.
-    if ((query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
+    // The kernel walks a BLOCK_SIZE block as 16-token tiles (its staging buffers
+    // hold one tile), which fixes the shared-memory overrun that used to fault
+    // with an illegal memory access at GQA >= 4. Verified against a dequantized
+    // fp8 reference (max abs err 6e-5 at head_dim 128, GQA 4, ctx 300) and with
+    // the per-head / per-dim pattern probes. Set PSPKV_NO_FP8PV=1 to fall back to
+    // the generic per-block kernel.
+    static const bool enable_fp8pv = (getenv("PSPKV_NO_FP8PV") == nullptr);
+    if (enable_fp8pv
+        && (query.scalar_type() == at::kHalf || query.scalar_type() == at::kBFloat16)
         && sliding_window <= 0 && head_dim <= 256
         && !k_lossless && !v_lossless
-        && k_fmt != 3 && v_fmt != 3  // fp4 needs per-group scales: scalar path
+        && k_fmt != 3  // fp4 K needs per-group scales in the QK dot: scalar path
+        // fp4 V is supported: the staging walks the cache's token-major rows and
+        // commits each tile's copies as one cp.async group (per-row commits
+        // exceed the eight-group limit and silently drop rows). Verified against
+        // the per-block kernel and a torch reference on real and random data
+        // (scripts/_matrix_data.py, every row within 2e-4).
+        && v_fmt <= 3
         && (num_heads / kv_heads) >= 4) {
-        auto tc_partials = at::empty(
+        auto tc_partials = at::zeros(
             {(int64_t)num_seqs * kv_heads * tc_num_splits * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
         PSP_KV_DISPATCH_HALF_BF16(query, {
@@ -566,7 +598,7 @@ void psp_attention_enhanced(
     // fp32 target + lossless cache -> tf32 tensor-core decode (m16n16k8).
     if (query.scalar_type() == at::kFloat
         && sliding_window <= 0 && fp8_fmt == 0 && head_dim <= 128) {
-        auto tc_partials = at::empty(
+        auto tc_partials = at::zeros(
             {(int64_t)num_seqs * kv_heads * 8 * (num_heads / kv_heads) * (2 + head_dim)},
             at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
         launch_paged_attention_enhanced_tf32_tc(
@@ -664,8 +696,11 @@ void psp_attention_enhanced_int(
     TORCH_CHECK(kv_heads == num_kv_heads, "key_cache num_kv_heads mismatch");
     TORCH_CHECK(head_dim == head_size, "head size mismatch");
     TORCH_CHECK(query.size(2) == head_size, "query head_dim mismatch");
+    // The scale table is [2*blocks, kv_heads, groups] per layer (a 4-D table
+    // with a leading layer axis is also accepted). Use the last dim so the check
+    // does not accidentally line up with kv_heads when groups == kv_heads.
     TORCH_CHECK(scale_table.dim() == 2
-                || scale_table.size(2) == psp_kv_num_groups(head_dim),
+                || scale_table.size(-1) == psp_kv_num_groups(head_dim),
                 "scale_table num_groups mismatch");
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
@@ -673,7 +708,7 @@ void psp_attention_enhanced_int(
     const int tc_num_splits = getenv("PSPKV_TC_NUM_SPLITS")
         ? atoi(getenv("PSPKV_TC_NUM_SPLITS")) : 16;
 
-    auto tc_partials = at::empty(
+    auto tc_partials = at::zeros(
         {(int64_t)num_seqs * kv_heads * tc_num_splits * (num_heads / kv_heads) * (2 + head_dim)},
         at::TensorOptions().dtype(at::kFloat).device(key_cache.device()));
     PSP_KV_DISPATCH_HALF_BF16(query, {
@@ -899,7 +934,8 @@ void derive_precision_kv(
     int64_t num_tokens,
     int64_t k_default,
     int64_t v_default,
-    double E)
+    double E,
+    int64_t k_cap_fmt)
 {
     TORCH_CHECK(num_tokens > 0, "num_tokens must be positive");
     TORCH_CHECK(prefill_scratch.is_contiguous(), "prefill_scratch must be contiguous");
@@ -922,7 +958,7 @@ void derive_precision_kv(
             max_abs.data_ptr<float>(),
             static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
             static_cast<int>(k_default), static_cast<int>(v_default),
-            static_cast<float>(E), stream);
+            static_cast<int>(k_cap_fmt), static_cast<float>(E), stream);
     });
 }
 
@@ -939,7 +975,8 @@ void derive_precision_decode_kv(
     int64_t num_tokens,
     int64_t k_default,
     int64_t v_default,
-    double E)
+    double E,
+    int64_t k_cap_fmt)
 {
     TORCH_CHECK(num_tokens > 0, "num_tokens must be positive");
     TORCH_CHECK(key.is_contiguous() && value.is_contiguous(), "key/value must be contiguous");
@@ -967,7 +1004,7 @@ void derive_precision_decode_kv(
             max_abs.data_ptr<float>(),
             static_cast<int>(num_tokens), num_blocks, num_kv_heads, block_size, head_dim,
             static_cast<int>(k_default), static_cast<int>(v_default),
-            static_cast<float>(E), stream);
+            static_cast<int>(k_cap_fmt), static_cast<float>(E), stream);
     });
 }
 
@@ -1346,7 +1383,8 @@ TORCH_LIBRARY(psp_kv, m) {
         "int num_tokens, "
         "int k_default, "
         "int v_default, "
-        "float E"
+        "float E, "
+        "int k_cap_fmt"
         ") -> ()");
 
     m.def(
@@ -1360,7 +1398,8 @@ TORCH_LIBRARY(psp_kv, m) {
         "int num_tokens, "
         "int k_default, "
         "int v_default, "
-        "float E"
+        "float E, "
+        "int k_cap_fmt"
         ") -> ()");
 
     m.def(

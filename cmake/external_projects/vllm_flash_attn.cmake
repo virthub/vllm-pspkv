@@ -29,24 +29,9 @@ if (DEFINED ENV{VLLM_FLASH_ATTN_SRC_DIR})
   set(VLLM_FLASH_ATTN_SRC_DIR $ENV{VLLM_FLASH_ATTN_SRC_DIR})
 endif()
 
-# >>> AUTO-DETECT vLLM Flash Attention
-# If VLLM_FLASH_ATTN_SRC_DIR is still not set, look for a local clone at
-# <source>/.deps/vllm-flash-attn-src.
-#
-# NOTE: We use ${CMAKE_SOURCE_DIR}, NOT ${CMAKE_CURRENT_SOURCE_DIR}, because
-# this file is include()'d from the top-level CMakeLists.txt, so
-# CMAKE_CURRENT_SOURCE_DIR would point at cmake/external_projects/ instead of
-# the project root.
-if(NOT VLLM_FLASH_ATTN_SRC_DIR
-   AND EXISTS "${CMAKE_SOURCE_DIR}/.deps/vllm-flash-attn-src/CMakeLists.txt")
-  set(VLLM_FLASH_ATTN_SRC_DIR "${CMAKE_SOURCE_DIR}/.deps/vllm-flash-attn-src")
-  message(STATUS "Auto-detected local vLLM Flash Attention at ${VLLM_FLASH_ATTN_SRC_DIR}")
-endif()
-# <<< AUTO-DETECT vLLM Flash Attention
-
 if(VLLM_FLASH_ATTN_SRC_DIR)
   FetchContent_Declare(
-          vllm-flash-attn SOURCE_DIR 
+          vllm-flash-attn SOURCE_DIR
           ${VLLM_FLASH_ATTN_SRC_DIR}
           BINARY_DIR ${CMAKE_BINARY_DIR}/vllm-flash-attn
   )
@@ -54,7 +39,7 @@ else()
   FetchContent_Declare(
           vllm-flash-attn
           GIT_REPOSITORY https://github.com/vllm-project/flash-attention.git
-          GIT_TAG f5bc33cfc02c744d24a2e9d50e6db656de40611c
+          GIT_TAG d8dca8f06c7458a0c0e79dd9400c0446a4e77b9c
           GIT_PROGRESS TRUE
           # Don't share the vllm-flash-attn build between build types
           BINARY_DIR ${CMAKE_BINARY_DIR}/vllm-flash-attn

@@ -21,6 +21,7 @@ from enum import IntEnum
 
 class VirthubPrecisionLevel(IntEnum):
     """Virthub's allocation-time precision tier (policy.rs)."""
+
     Fp16 = 0          # lossless FP16/BF16
     Fp8 = 1           # symmetric FP8 (E4M3/E5M2)
     Fp8Residual = 2   # FP8 base + residual correction page
@@ -29,6 +30,7 @@ class VirthubPrecisionLevel(IntEnum):
 
 class PspKvBasePrecision(IntEnum):
     """The PSP-KV kernel precision_table encoding (matches sidecar base_precision)."""
+
     Lossless = 0      # FP16/BF16
     Fp8E4M3 = 1
     Fp8E5M2 = 2
@@ -53,12 +55,15 @@ def virthub_precision_to_base(level: VirthubPrecisionLevel | int,
     if level == VirthubPrecisionLevel.Pruned:
         return PspKvBasePrecision.Fp4
     # Fp8 or Fp8Residual
-    return PspKvBasePrecision.Fp8E5M2 if fp8_format == "e5m2" else PspKvBasePrecision.Fp8E4M3
+    if fp8_format == "e5m2":
+        return PspKvBasePrecision.Fp8E5M2
+    return PspKvBasePrecision.Fp8E4M3
 
 
 @dataclasses.dataclass
 class PspKvSidecarDescriptor:
     """Mirror of virthub's PspKvSidecarDescriptor (src/store/src/psp_kv.rs)."""
+
     data_page_base_ptr: int = 0
     residual_page_ptr: int = 0
     head_presence_mask: int = 0
