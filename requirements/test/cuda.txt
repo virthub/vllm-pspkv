@@ -2465,9 +2465,9 @@ imageio==2.37.0 \
     --hash=sha256:11efa15b87bc7871b61590326b2d635439acc321cf7f8ce996f812543ce10eed \
     --hash=sha256:71b57b3669666272c818497aebba2b4c5f20d5b37c81720e5e1a56d59c492996
     # via scikit-image
-inflect==5.6.2 \
-    --hash=sha256:aadc7ed73928f5e014129794bbac03058cca35d0a973a5fc4eb45c7fa26005f9 \
-    --hash=sha256:b45d91a4a28a4e617ff1821117439b06eaa86e2a4573154af0149e9be6687238
+inflect==7.6.0 \
+    --hash=sha256:9fefad5c0c174d8a38f8c33d3033817e38fca8475f7f226c62efc39d46c83e8a \
+    --hash=sha256:b46875b50534a7cd5fcfb5a7c971bb93fe68948c43ca53e9833bd1e1a69221bd
     # via datamodel-code-generator
 iniconfig==2.0.0 \
     --hash=sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3 \
